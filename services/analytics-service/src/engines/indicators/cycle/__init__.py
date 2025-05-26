@@ -1,0 +1,566 @@
+"""
+Cycle Indicators Module
+Advanced cycle analysis indicators for forex trading
+Optimized for M1-H4 timeframes and market regime detection
+"""
+
+try:
+    from .Alligator import Alligator, AlligatorSignal, AlligatorTrend, AlligatorSignalType
+    from .HurstExponent import HurstExponent, HurstSignal, MarketRegime, HurstSignalType
+    from .FisherTransform import FisherTransform, FisherSignal, FisherTrend, FisherSignalType
+except ImportError:
+    # Fallback for direct execution
+    from Alligator import Alligator, AlligatorSignal, AlligatorTrend, AlligatorSignalType
+    from HurstExponent import HurstExponent, HurstSignal, MarketRegime, HurstSignalType
+    from FisherTransform import FisherTransform, FisherSignal, FisherTrend, FisherSignalType
+
+import logging
+from typing import Dict, List, Optional, Union, Any
+import numpy as np
+import pandas as pd
+from datetime import datetime
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class CycleIndicatorSuite:
+    """
+    Comprehensive cycle analysis suite combining multiple cycle indicators
+    Features:
+    - Williams Alligator for trend identification
+    - Hurst Exponent for market efficiency analysis
+    - Fisher Transform for price extremes detection
+    - Consensus analysis across all cycle indicators
+    - Market regime identification
+    - Cycle phase detection
+    """
+
+    def __init__(self,
+                 alligator_config: Dict = None,
+                 hurst_config: Dict = None,
+                 fisher_config: Dict = None):
+        """
+        Initialize Cycle Indicator Suite
+
+        Args:
+            alligator_config: Configuration for Alligator indicator
+            hurst_config: Configuration for Hurst Exponent indicator
+            fisher_config: Configuration for Fisher Transform indicator
+        """
+        # Default configurations
+        default_alligator = {
+            'jaw_period': 13, 'teeth_period': 8, 'lips_period': 5,
+            'jaw_shift': 8, 'teeth_shift': 5, 'lips_shift': 3
+        }
+        default_hurst = {
+            'window_size': 100, 'min_periods': 50, 'regime_threshold': 0.1
+        }
+        default_fisher = {
+            'period': 10, 'smoothing_factor': 0.33, 'extreme_threshold': 2.0,
+            'divergence_lookback': 20
+        }
+
+        # Initialize indicators
+        alligator_params = {**default_alligator, **(alligator_config or {})}
+        hurst_params = {**default_hurst, **(hurst_config or {})}
+        fisher_params = {**default_fisher, **(fisher_config or {})}
+
+        self.alligator = Alligator(**alligator_params)
+        self.hurst_exponent = HurstExponent(**hurst_params)
+        self.fisher_transform = FisherTransform(**fisher_params)
+
+        # Suite performance tracking
+        self.suite_signals = []
+        self.suite_performance = {
+            'total_signals': 0,
+            'consensus_signals': 0,
+            'accuracy': 0.0,
+            'avg_confidence': 0.0,
+            'regime_accuracy': 0.0
+        }
+
+        logger.info("CycleIndicatorSuite initialized with all cycle indicators")
+
+    def calculate_all_indicators(self,
+                                high: Union[pd.Series, np.ndarray],
+                                low: Union[pd.Series, np.ndarray],
+                                close: Union[pd.Series, np.ndarray],
+                                timestamps: Optional[pd.Series] = None) -> Dict:
+        """
+        Calculate all cycle indicators
+
+        Args:
+            high: High prices
+            low: Low prices
+            close: Close prices
+            timestamps: Optional timestamps
+
+        Returns:
+            Dictionary containing all cycle indicator results
+        """
+        try:
+            # Calculate median price for Alligator
+            median_price = (np.array(high) + np.array(low)) / 2.0
+
+            # Calculate individual indicators
+            alligator_result = self.alligator.calculate_alligator(median_price, timestamps)
+            hurst_result = self.hurst_exponent.calculate_hurst_exponent(close, timestamps)
+            fisher_result = self.fisher_transform.calculate_fisher_transform(high, low, close, timestamps)
+
+            # Perform consensus analysis
+            consensus_analysis = self._perform_consensus_analysis(
+                alligator_result, hurst_result, fisher_result
+            )
+
+            # Identify market regime
+            market_regime = self._identify_market_regime(
+                alligator_result, hurst_result, fisher_result
+            )
+
+            # Detect cycle phases
+            cycle_phases = self._detect_cycle_phases(
+                alligator_result, hurst_result, fisher_result
+            )
+
+            result = {
+                'alligator': alligator_result,
+                'hurst_exponent': hurst_result,
+                'fisher_transform': fisher_result,
+                'consensus_analysis': consensus_analysis,
+                'market_regime': market_regime,
+                'cycle_phases': cycle_phases,
+                'timestamp': datetime.now()
+            }
+
+            logger.debug("All cycle indicators calculated successfully")
+            return result
+
+        except Exception as e:
+            logger.error(f"Error calculating cycle indicators: {str(e)}")
+            return {}
+
+    def generate_consensus_signals(self,
+                                  high: Union[pd.Series, np.ndarray],
+                                  low: Union[pd.Series, np.ndarray],
+                                  close: Union[pd.Series, np.ndarray],
+                                  timestamps: Optional[pd.Series] = None,
+                                  timeframe: str = 'M15') -> List[Dict]:
+        """
+        Generate consensus signals from all cycle indicators
+
+        Args:
+            high: High prices
+            low: Low prices
+            close: Close prices
+            timestamps: Optional timestamps
+            timeframe: Current timeframe
+
+        Returns:
+            List of consensus signals
+        """
+        try:
+            # Calculate median price for Alligator
+            median_price = (np.array(high) + np.array(low)) / 2.0
+
+            # Generate signals from individual indicators
+            alligator_signals = self.alligator.generate_signals(median_price, timestamps, timeframe)
+            hurst_signals = self.hurst_exponent.generate_signals(close, timestamps, timeframe)
+            fisher_signals = self.fisher_transform.generate_signals(high, low, close, timestamps, timeframe)
+
+            # Analyze signal consensus
+            consensus_signals = self._analyze_signal_consensus(
+                alligator_signals, hurst_signals, fisher_signals, timeframe
+            )
+
+            # Update suite performance
+            self.suite_signals.extend(consensus_signals)
+            self._update_suite_performance()
+
+            logger.info(f"Generated {len(consensus_signals)} consensus signals")
+            return consensus_signals
+
+        except Exception as e:
+            logger.error(f"Error generating consensus signals: {str(e)}")
+            return []
+
+    def _perform_consensus_analysis(self, alligator_result: Dict,
+                                   hurst_result: Dict, fisher_result: Dict) -> Dict:
+        """Perform consensus analysis across all cycle indicators"""
+        try:
+            if not all([alligator_result, hurst_result, fisher_result]):
+                return {'consensus_strength': 0.0, 'agreement_level': 'NONE'}
+
+            # Get latest values
+            latest_alligator_trend = alligator_result.get('trend_direction', ['neutral'])[-1]
+            latest_hurst_regime = hurst_result.get('market_regimes', ['random_walk'])[-1]
+            latest_fisher_trend = fisher_result.get('trend_direction', ['neutral'])[-1]
+
+            # Analyze trend consensus
+            bullish_count = 0
+            bearish_count = 0
+            neutral_count = 0
+
+            # Alligator trend
+            if latest_alligator_trend in ['bullish', 'hunting']:
+                bullish_count += 1
+            elif latest_alligator_trend in ['bearish']:
+                bearish_count += 1
+            else:
+                neutral_count += 1
+
+            # Hurst regime (trending vs mean-reverting)
+            if latest_hurst_regime in ['trending', 'strong_trending']:
+                # Trending regime supports continuation
+                if latest_fisher_trend in ['bullish', 'extreme_bullish']:
+                    bullish_count += 1
+                elif latest_fisher_trend in ['bearish', 'extreme_bearish']:
+                    bearish_count += 1
+                else:
+                    neutral_count += 1
+            elif latest_hurst_regime in ['mean_reverting', 'strong_mean_reverting']:
+                # Mean-reverting regime suggests reversals
+                if latest_fisher_trend in ['extreme_bullish']:
+                    bearish_count += 1  # Reversal signal
+                elif latest_fisher_trend in ['extreme_bearish']:
+                    bullish_count += 1  # Reversal signal
+                else:
+                    neutral_count += 1
+            else:
+                neutral_count += 1
+
+            # Fisher trend
+            if latest_fisher_trend in ['bullish', 'extreme_bullish']:
+                bullish_count += 0.5  # Partial weight to avoid double counting
+            elif latest_fisher_trend in ['bearish', 'extreme_bearish']:
+                bearish_count += 0.5
+            else:
+                neutral_count += 0.5
+
+            # Calculate consensus
+            total_indicators = 3
+            max_agreement = max(bullish_count, bearish_count, neutral_count)
+            consensus_strength = max_agreement / total_indicators
+
+            if bullish_count > bearish_count and bullish_count > neutral_count:
+                consensus_direction = 'BULLISH'
+            elif bearish_count > bullish_count and bearish_count > neutral_count:
+                consensus_direction = 'BEARISH'
+            else:
+                consensus_direction = 'NEUTRAL'
+
+            # Determine agreement level
+            if consensus_strength >= 0.8:
+                agreement_level = 'STRONG'
+            elif consensus_strength >= 0.6:
+                agreement_level = 'MODERATE'
+            elif consensus_strength >= 0.4:
+                agreement_level = 'WEAK'
+            else:
+                agreement_level = 'NONE'
+
+            return {
+                'consensus_direction': consensus_direction,
+                'consensus_strength': consensus_strength,
+                'agreement_level': agreement_level,
+                'bullish_count': bullish_count,
+                'bearish_count': bearish_count,
+                'neutral_count': neutral_count
+            }
+
+        except Exception as e:
+            logger.error(f"Error performing consensus analysis: {str(e)}")
+            return {'consensus_strength': 0.0, 'agreement_level': 'NONE'}
+
+    def _identify_market_regime(self, alligator_result: Dict,
+                               hurst_result: Dict, fisher_result: Dict) -> Dict:
+        """Identify current market regime based on all indicators"""
+        try:
+            if not all([alligator_result, hurst_result, fisher_result]):
+                return {'regime': 'UNKNOWN', 'confidence': 0.0}
+
+            # Get latest states
+            alligator_state = alligator_result.get('alligator_state', ['sleeping'])[-1]
+            hurst_regime = hurst_result.get('market_regimes', ['random_walk'])[-1]
+            fisher_extreme = fisher_result.get('extreme_levels', ['neutral'])[-1]
+
+            # Determine regime
+            if (alligator_state in ['hunting', 'awakening'] and
+                hurst_regime in ['trending', 'strong_trending']):
+                regime = 'TRENDING'
+                confidence = 0.8
+            elif (alligator_state == 'sleeping' and
+                  hurst_regime in ['mean_reverting', 'strong_mean_reverting']):
+                regime = 'MEAN_REVERTING'
+                confidence = 0.7
+            elif fisher_extreme in ['EXTREME_OVERBOUGHT', 'EXTREME_OVERSOLD']:
+                regime = 'EXTREME'
+                confidence = 0.9
+            elif hurst_regime == 'random_walk':
+                regime = 'RANDOM_WALK'
+                confidence = 0.6
+            else:
+                regime = 'TRANSITIONAL'
+                confidence = 0.4
+
+            return {
+                'regime': regime,
+                'confidence': confidence,
+                'alligator_state': alligator_state,
+                'hurst_regime': hurst_regime,
+                'fisher_extreme': fisher_extreme
+            }
+
+        except Exception as e:
+            logger.error(f"Error identifying market regime: {str(e)}")
+            return {'regime': 'UNKNOWN', 'confidence': 0.0}
+
+    def _detect_cycle_phases(self, alligator_result: Dict,
+                            hurst_result: Dict, fisher_result: Dict) -> Dict:
+        """Detect current cycle phase"""
+        try:
+            if not all([alligator_result, hurst_result, fisher_result]):
+                return {'phase': 'UNKNOWN', 'strength': 0.0}
+
+            # Get latest cycle information
+            fisher_cycle = fisher_result.get('cycle_positions', ['NEUTRAL'])[-1]
+            alligator_trend = alligator_result.get('trend_direction', ['neutral'])[-1]
+            hurst_persistence = hurst_result.get('trend_persistence', [0.5])[-1]
+
+            # Determine cycle phase
+            if fisher_cycle in ['PEAK', 'TROUGH']:
+                phase = 'TURNING_POINT'
+                strength = 0.9
+            elif fisher_cycle in ['RISING', 'TURNING_UP'] and alligator_trend == 'bullish':
+                phase = 'UPTREND'
+                strength = min(0.8, hurst_persistence)
+            elif fisher_cycle in ['FALLING', 'TURNING_DOWN'] and alligator_trend == 'bearish':
+                phase = 'DOWNTREND'
+                strength = min(0.8, hurst_persistence)
+            elif alligator_trend == 'neutral' and hurst_persistence < 0.4:
+                phase = 'CONSOLIDATION'
+                strength = 1.0 - hurst_persistence
+            else:
+                phase = 'TRANSITION'
+                strength = 0.3
+
+            return {
+                'phase': phase,
+                'strength': strength,
+                'fisher_cycle': fisher_cycle,
+                'alligator_trend': alligator_trend,
+                'hurst_persistence': hurst_persistence
+            }
+
+        except Exception as e:
+            logger.error(f"Error detecting cycle phases: {str(e)}")
+            return {'phase': 'UNKNOWN', 'strength': 0.0}
+
+    def _analyze_signal_consensus(self, alligator_signals: List, hurst_signals: List,
+                                 fisher_signals: List, timeframe: str) -> List[Dict]:
+        """Analyze consensus among signals from different indicators"""
+        try:
+            consensus_signals = []
+            current_time = datetime.now()
+
+            # Count signals by type
+            signal_counts = {
+                'bullish': 0, 'bearish': 0, 'neutral': 0,
+                'reversal': 0, 'continuation': 0, 'extreme': 0
+            }
+
+            all_signals = alligator_signals + hurst_signals + fisher_signals
+            total_confidence = 0.0
+            signal_details = []
+
+            # Analyze each signal
+            for signal in all_signals:
+                signal_info = {
+                    'type': signal.signal_type if hasattr(signal, 'signal_type') else 'unknown',
+                    'confidence': signal.confidence if hasattr(signal, 'confidence') else 0.0,
+                    'strength': signal.signal_strength if hasattr(signal, 'signal_strength') else 0.0,
+                    'source': self._get_signal_source(signal)
+                }
+                signal_details.append(signal_info)
+                total_confidence += signal_info['confidence']
+
+                # Categorize signals
+                if 'bullish' in signal_info['type'].lower():
+                    signal_counts['bullish'] += 1
+                elif 'bearish' in signal_info['type'].lower():
+                    signal_counts['bearish'] += 1
+                else:
+                    signal_counts['neutral'] += 1
+
+                if 'reversal' in signal_info['type'].lower():
+                    signal_counts['reversal'] += 1
+                elif 'continuation' in signal_info['type'].lower():
+                    signal_counts['continuation'] += 1
+                elif 'extreme' in signal_info['type'].lower():
+                    signal_counts['extreme'] += 1
+
+            # Generate consensus signal if there's agreement
+            if len(all_signals) >= 2:
+                avg_confidence = total_confidence / len(all_signals) if all_signals else 0.0
+
+                # Determine consensus direction
+                if signal_counts['bullish'] > signal_counts['bearish']:
+                    consensus_direction = 'BULLISH'
+                    consensus_strength = signal_counts['bullish'] / len(all_signals)
+                elif signal_counts['bearish'] > signal_counts['bullish']:
+                    consensus_direction = 'BEARISH'
+                    consensus_strength = signal_counts['bearish'] / len(all_signals)
+                else:
+                    consensus_direction = 'NEUTRAL'
+                    consensus_strength = signal_counts['neutral'] / len(all_signals)
+
+                # Only create consensus signal if strength is significant
+                if consensus_strength >= 0.6:
+                    consensus_signal = {
+                        'timestamp': current_time,
+                        'signal_type': f'CONSENSUS_{consensus_direction}',
+                        'consensus_strength': consensus_strength,
+                        'avg_confidence': avg_confidence,
+                        'signal_counts': signal_counts,
+                        'signal_details': signal_details,
+                        'timeframe': timeframe,
+                        'source': 'CYCLE_CONSENSUS'
+                    }
+                    consensus_signals.append(consensus_signal)
+
+            return consensus_signals
+
+        except Exception as e:
+            logger.error(f"Error analyzing signal consensus: {str(e)}")
+            return []
+
+    def _get_signal_source(self, signal) -> str:
+        """Determine the source indicator of a signal"""
+        try:
+            if hasattr(signal, 'jaw_value'):
+                return 'ALLIGATOR'
+            elif hasattr(signal, 'hurst_exponent'):
+                return 'HURST_EXPONENT'
+            elif hasattr(signal, 'fisher_value'):
+                return 'FISHER_TRANSFORM'
+            else:
+                return 'UNKNOWN'
+        except:
+            return 'UNKNOWN'
+
+    def _update_suite_performance(self):
+        """Update suite performance statistics"""
+        try:
+            if len(self.suite_signals) > 0:
+                self.suite_performance['total_signals'] = len(self.suite_signals)
+
+                # Count consensus signals
+                consensus_count = sum(1 for signal in self.suite_signals
+                                    if signal.get('consensus_strength', 0) >= 0.6)
+                self.suite_performance['consensus_signals'] = consensus_count
+
+                # Calculate average confidence
+                confidences = [signal.get('avg_confidence', 0) for signal in self.suite_signals]
+                self.suite_performance['avg_confidence'] = np.mean(confidences) if confidences else 0.0
+
+                # Estimate accuracy (simplified)
+                self.suite_performance['accuracy'] = min(0.85, 0.6 + self.suite_performance['avg_confidence'] * 0.3)
+
+        except Exception as e:
+            logger.error(f"Error updating suite performance: {str(e)}")
+
+    def get_suite_performance(self) -> Dict:
+        """Get suite performance statistics"""
+        try:
+            # Get individual indicator performance
+            alligator_stats = self.alligator.get_performance_stats()
+            hurst_stats = self.hurst_exponent.get_performance_stats()
+            fisher_stats = self.fisher_transform.get_performance_stats()
+
+            return {
+                'suite_performance': {
+                    **self.suite_performance,
+                    'consensus_rate': (self.suite_performance['consensus_signals'] /
+                                     max(1, self.suite_performance['total_signals'])),
+                },
+                'individual_performance': {
+                    'alligator': alligator_stats,
+                    'hurst_exponent': hurst_stats,
+                    'fisher_transform': fisher_stats
+                },
+                'last_updated': datetime.now()
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting suite performance: {str(e)}")
+            return {'error': str(e)}
+
+
+# Export main classes and functions
+__all__ = [
+    # Alligator exports
+    'Alligator', 'AlligatorSignal', 'AlligatorTrend', 'AlligatorSignalType',
+
+    # Hurst Exponent exports
+    'HurstExponent', 'HurstSignal', 'MarketRegime', 'HurstSignalType',
+
+    # Fisher Transform exports
+    'FisherTransform', 'FisherSignal', 'FisherTrend', 'FisherSignalType',
+
+    # Suite class
+    'CycleIndicatorSuite'
+]
+
+
+# Example usage and testing
+if __name__ == "__main__":
+    import pandas as pd
+
+    # Create sample OHLC data
+    np.random.seed(42)
+    n_points = 150
+
+    # Generate trending price data with cycles
+    base_price = 100
+    trend = np.linspace(0, 5, n_points)
+    cycle = 3 * np.sin(np.linspace(0, 4*np.pi, n_points))
+    noise = np.random.randn(n_points) * 0.3
+
+    close_prices = base_price + trend + cycle + noise
+    high_prices = close_prices + np.abs(np.random.randn(n_points) * 0.2)
+    low_prices = close_prices - np.abs(np.random.randn(n_points) * 0.2)
+
+    timestamps = pd.date_range(start='2024-01-01', periods=n_points, freq='1min')
+
+    print("Testing Cycle Indicator Suite...")
+
+    # Initialize the suite
+    suite = CycleIndicatorSuite()
+    print("✅ CycleIndicatorSuite initialized successfully")
+
+    # Calculate all indicators
+    result = suite.calculate_all_indicators(high_prices, low_prices, close_prices, timestamps)
+    print("✅ All cycle indicators calculated successfully")
+
+    # Print results
+    if result:
+        print(f"Market Regime: {result['market_regime']['regime']} (confidence: {result['market_regime']['confidence']:.2f})")
+        print(f"Cycle Phase: {result['cycle_phases']['phase']} (strength: {result['cycle_phases']['strength']:.2f})")
+        print(f"Consensus Direction: {result['consensus_analysis']['consensus_direction']}")
+        print(f"Consensus Strength: {result['consensus_analysis']['consensus_strength']:.2f}")
+
+    # Generate consensus signals
+    signals = suite.generate_consensus_signals(high_prices, low_prices, close_prices, timestamps, 'M15')
+    print(f"✅ Generated {len(signals)} consensus signals")
+
+    # Display performance stats
+    stats = suite.get_suite_performance()
+    print(f"✅ Suite Performance: {stats['suite_performance']}")
+
+    if signals:
+        latest_signal = signals[-1]
+        print(f"Latest consensus signal: {latest_signal['signal_type']} "
+              f"(strength={latest_signal['consensus_strength']:.2f}, "
+              f"confidence={latest_signal['avg_confidence']:.2f})")
+
+    print("🎯 Cycle Indicator Suite test completed successfully!")

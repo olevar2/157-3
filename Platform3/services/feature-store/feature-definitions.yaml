@@ -1,0 +1,373 @@
+# AI Feature Store for Forex Trading Platform
+# Feature definitions for scalping, day trading, and swing trading strategies
+# Optimized for M1-M5 high-frequency analysis
+
+features:
+  # === MARKET MICROSTRUCTURE FEATURES ===
+  microstructure:
+    bid_ask_spread:
+      type: "float64"
+      description: "Real-time bid-ask spread in pips"
+      calculation: "(ask - bid) / pip_size"
+      timeframes: ["tick", "m1", "m5"]
+      lag_features: [1, 2, 3, 5, 10]  # Previous N periods
+      window_functions:
+        - "rolling_mean_5"
+        - "rolling_std_5"
+        - "rolling_mean_20"
+        - "exponential_mean_alpha_0.1"
+      data_source: "forex.tick.m1"
+      update_frequency: "real_time"
+      business_value: "Spread widening indicates low liquidity - critical for scalping entry/exit"
+
+    order_flow_imbalance:
+      type: "float64"
+      description: "Order flow imbalance between bid and ask sides"
+      calculation: "(bid_volume - ask_volume) / (bid_volume + ask_volume)"
+      timeframes: ["tick", "m1", "m5"]
+      lag_features: [1, 2, 3, 5]
+      window_functions:
+        - "rolling_sum_10"
+        - "rolling_mean_5"
+        - "cumulative_sum_session"
+      data_source: "forex.orderflow"
+      update_frequency: "real_time"
+      business_value: "Predicts short-term price direction for scalping strategies"
+
+    tick_volume:
+      type: "int64"
+      description: "Number of price changes per time period"
+      calculation: "count(price_changes)"
+      timeframes: ["m1", "m5", "m15"]
+      lag_features: [1, 2, 3, 5, 10, 20]
+      window_functions:
+        - "rolling_mean_5"
+        - "rolling_mean_20"
+        - "rolling_percentile_90"
+        - "z_score"
+      data_source: "forex.tick.m1"
+      update_frequency: "1_minute"
+      business_value: "High tick volume indicates market activity - optimal for scalping"
+
+  # === PRICE ACTION FEATURES ===
+  price_action:
+    price_momentum:
+      type: "float64"
+      description: "Rate of price change over multiple timeframes"
+      calculation: "(current_price - price_n_periods_ago) / price_n_periods_ago"
+      timeframes: ["m1", "m5", "m15", "h1"]
+      lag_features: [1, 2, 3, 5, 10, 20, 50]
+      window_functions:
+        - "rolling_mean_5"
+        - "rolling_mean_10"
+        - "exponential_mean_alpha_0.3"
+        - "acceleration"  # Second derivative
+      data_source: "forex.bars.m5"
+      update_frequency: "5_minutes"
+      business_value: "Momentum continuation is key for day trading strategies"
+
+    volatility_realized:
+      type: "float64"
+      description: "Realized volatility calculated from high-frequency returns"
+      calculation: "sqrt(sum(log_returns^2) / n) * sqrt(periods_per_day)"
+      timeframes: ["m5", "m15", "h1"]
+      lag_features: [1, 2, 3, 5, 10]
+      window_functions:
+        - "rolling_mean_20"
+        - "rolling_std_20"
+        - "garch_1_1"  # GARCH(1,1) conditional volatility
+        - "parkinson_estimator"  # High-low volatility estimator
+      data_source: "forex.bars.m5"
+      update_frequency: "5_minutes"
+      business_value: "Volatility clustering indicates optimal scalping periods"
+
+    support_resistance_distance:
+      type: "float64"
+      description: "Distance to nearest support/resistance level"
+      calculation: "min(abs(current_price - support_levels), abs(current_price - resistance_levels))"
+      timeframes: ["m15", "h1", "h4"]
+      lag_features: [1, 2, 3]
+      window_functions:
+        - "rolling_min_20"
+        - "rolling_mean_10"
+      data_source: "forex.bars.m15"
+      update_frequency: "15_minutes"
+      business_value: "Price rejection at key levels creates scalping opportunities"
+
+  # === TECHNICAL INDICATORS ===
+  technical:
+    rsi_multi_timeframe:
+      type: "float64"
+      description: "RSI indicator across multiple timeframes"
+      calculation: "rsi(price, period)"
+      timeframes: ["m5", "m15", "h1"]
+      periods: [7, 14, 21]  # Different RSI periods
+      lag_features: [1, 2, 3, 5]
+      window_functions:
+        - "rolling_mean_5"
+        - "divergence_detection"
+        - "oversold_overbought_zones"
+      data_source: "forex.bars.m5"
+      update_frequency: "5_minutes"
+      business_value: "Multi-timeframe RSI divergence predicts reversals"
+
+    ema_crossover_signals:
+      type: "int8"  # Binary: 1 for bullish, -1 for bearish, 0 for neutral
+      description: "EMA crossover signals for trend following"
+      calculation: "sign(ema_fast - ema_slow)"
+      timeframes: ["m5", "m15", "h1"]
+      ema_pairs: [[8, 21], [13, 34], [21, 55]]
+      lag_features: [1, 2, 3, 5, 10]
+      window_functions:
+        - "signal_strength"
+        - "signal_persistence"
+        - "false_signal_filter"
+      data_source: "forex.bars.m5"
+      update_frequency: "5_minutes"
+      business_value: "EMA crossovers identify trend changes for day trading"
+
+    bollinger_bands_position:
+      type: "float64"
+      description: "Position within Bollinger Bands"
+      calculation: "(price - bb_lower) / (bb_upper - bb_lower)"
+      timeframes: ["m5", "m15", "h1"]
+      periods: [20, 50]
+      std_deviations: [2.0, 2.5]
+      lag_features: [1, 2, 3, 5]
+      window_functions:
+        - "squeeze_detection"
+        - "breakout_probability"
+      data_source: "forex.bars.m5"
+      update_frequency: "5_minutes"
+      business_value: "BB squeeze indicates upcoming volatility for scalping"
+
+  # === SESSION-BASED FEATURES ===
+  session:
+    session_volatility:
+      type: "float64"
+      description: "Average volatility during specific trading sessions"
+      calculation: "std(returns) grouped by session"
+      timeframes: ["session_asian", "session_london", "session_ny"]
+      lag_features: [1, 2, 3, 5, 10]  # Previous sessions
+      window_functions:
+        - "rolling_mean_10_sessions"
+        - "seasonal_decomposition"
+        - "session_comparison"
+      data_source: "forex.bars.m5"
+      update_frequency: "session_start"
+      business_value: "Session volatility patterns optimize trading schedule"
+
+    session_trend_strength:
+      type: "float64"
+      description: "Trend strength during each trading session"
+      calculation: "abs(session_close - session_open) / session_range"
+      timeframes: ["session_asian", "session_london", "session_ny"]
+      lag_features: [1, 2, 3, 5, 10]
+      window_functions:
+        - "rolling_mean_5_sessions"
+        - "trend_consistency"
+        - "reversal_probability"
+      data_source: "forex.sessions.stats"
+      update_frequency: "session_end"
+      business_value: "Strong session trends indicate continuation probability"
+
+    overlap_activity:
+      type: "float64"
+      description: "Market activity during session overlaps"
+      calculation: "volume_ratio_during_overlap / normal_volume"
+      timeframes: ["overlap_asian_london", "overlap_london_ny"]
+      lag_features: [1, 2, 3, 5]
+      window_functions:
+        - "rolling_mean_10"
+        - "activity_spike_detection"
+      data_source: "forex.sessions.events"
+      update_frequency: "overlap_start"
+      business_value: "Session overlaps create highest volatility periods"
+
+  # === SENTIMENT AND NEWS FEATURES ===
+  sentiment:
+    news_sentiment_impact:
+      type: "float64"
+      description: "Impact of economic news on price movement"
+      calculation: "weighted_sentiment_score * news_importance"
+      timeframes: ["event_based"]
+      lag_features: [1, 2, 3, 5, 10]  # Previous news events
+      window_functions:
+        - "decay_function_30min"
+        - "cumulative_sentiment"
+        - "sentiment_momentum"
+      data_source: "forex.news.events"
+      update_frequency: "event_driven"
+      business_value: "News sentiment predicts short-term volatility spikes"
+
+    central_bank_policy_signal:
+      type: "float64"
+      description: "Central bank policy signals from communications"
+      calculation: "hawkish_dovish_score * communication_importance"
+      timeframes: ["event_based"]
+      lag_features: [1, 2, 3, 5]
+      window_functions:
+        - "policy_direction_consistency"
+        - "market_reaction_correlation"
+      data_source: "forex.centralbank.updates"
+      update_frequency: "event_driven"
+      business_value: "Central bank signals drive medium-term trends"
+
+  # === CORRELATION FEATURES ===
+  correlation:
+    pair_correlation_strength:
+      type: "float64"
+      description: "Correlation strength between currency pairs"
+      calculation: "rolling_correlation(pair1_returns, pair2_returns, window)"
+      timeframes: ["h1", "h4", "d1"]
+      windows: [24, 48, 168]  # 1 day, 2 days, 1 week
+      lag_features: [1, 2, 3, 5]
+      window_functions:
+        - "correlation_stability"
+        - "correlation_breakdown_detection"
+      data_source: "forex.analytics.correlations"
+      update_frequency: "1_hour"
+      business_value: "Correlation breakdown creates arbitrage opportunities"
+
+    risk_off_indicator:
+      type: "float64"
+      description: "Market risk-off sentiment indicator"
+      calculation: "weighted_average(safe_haven_flows, volatility_index, equity_performance)"
+      timeframes: ["h1", "h4"]
+      lag_features: [1, 2, 3, 5, 10]
+      window_functions:
+        - "regime_change_detection"
+        - "risk_momentum"
+      data_source: "external_market_data"
+      update_frequency: "1_hour"
+      business_value: "Risk-off periods favor safe haven currencies"
+
+  # === MACHINE LEARNING FEATURES ===
+  ml_derived:
+    price_direction_probability:
+      type: "float64"
+      description: "ML model prediction for next period price direction"
+      calculation: "ensemble_model_prediction(technical_features, sentiment_features)"
+      timeframes: ["m5", "m15", "h1"]
+      lag_features: [1, 2, 3]
+      window_functions:
+        - "prediction_confidence"
+        - "model_agreement"
+        - "prediction_stability"
+      data_source: "ml_predictions"
+      update_frequency: "5_minutes"
+      business_value: "ML predictions enhance signal accuracy"
+
+    volatility_forecast:
+      type: "float64"
+      description: "Forecasted volatility for next periods"
+      calculation: "garch_model_prediction(realized_volatility_history)"
+      timeframes: ["m15", "h1"]
+      forecast_horizons: [1, 3, 6, 12]  # Periods ahead
+      lag_features: [1, 2, 3, 5]
+      window_functions:
+        - "forecast_accuracy"
+        - "volatility_regime_detection"
+      data_source: "volatility_models"
+      update_frequency: "15_minutes"
+      business_value: "Volatility forecasts optimize position sizing"
+
+    anomaly_score:
+      type: "float64"
+      description: "Market anomaly detection score"
+      calculation: "isolation_forest_score(market_features)"
+      timeframes: ["m5", "m15"]
+      lag_features: [1, 2, 3]
+      window_functions:
+        - "anomaly_persistence"
+        - "anomaly_type_classification"
+      data_source: "anomaly_detection_models"
+      update_frequency: "5_minutes"
+      business_value: "Anomalies indicate potential breakout opportunities"
+
+# === FEATURE GROUPS FOR STRATEGY OPTIMIZATION ===
+feature_groups:
+  scalping_features:
+    description: "Features optimized for M1-M5 scalping strategies"
+    features:
+      - "bid_ask_spread"
+      - "order_flow_imbalance"
+      - "tick_volume"
+      - "volatility_realized"
+      - "bollinger_bands_position"
+      - "session_volatility"
+      - "price_direction_probability"
+    target_latency: "sub_second"
+    update_frequency: "real_time"
+
+  day_trading_features:
+    description: "Features for M15-H1 day trading strategies"
+    features:
+      - "price_momentum"
+      - "rsi_multi_timeframe"
+      - "ema_crossover_signals"
+      - "support_resistance_distance"
+      - "session_trend_strength"
+      - "news_sentiment_impact"
+      - "volatility_forecast"
+    target_latency: "5_seconds"
+    update_frequency: "5_minutes"
+
+  swing_trading_features:
+    description: "Features for H4+ swing trading strategies"
+    features:
+      - "price_momentum"
+      - "central_bank_policy_signal"
+      - "pair_correlation_strength"
+      - "risk_off_indicator"
+      - "session_trend_strength"
+      - "volatility_forecast"
+    target_latency: "30_seconds"
+    update_frequency: "1_hour"
+
+# === FEATURE STORE CONFIGURATION ===
+storage:
+  online_store:
+    type: "redis_cluster"
+    connection: "redis://localhost:7000,localhost:7001,localhost:7002"
+    ttl_policy:
+      scalping_features: 3600  # 1 hour
+      day_trading_features: 86400  # 24 hours
+      swing_trading_features: 604800  # 7 days
+    
+  offline_store:
+    type: "postgresql_timescaledb"
+    connection: "postgresql://postgres:forex123@localhost:5432/forex_trading"
+    retention_policy:
+      raw_features: 90  # 90 days
+      aggregated_features: 365  # 1 year
+      ml_features: 180  # 6 months
+
+  streaming_store:
+    type: "kafka"
+    connection: "localhost:9092,localhost:9093,localhost:9094"
+    topics:
+      feature_updates: "forex.features.updates"
+      feature_requests: "forex.features.requests"
+
+# === FEATURE VALIDATION ===
+validation:
+  data_quality:
+    missing_value_threshold: 0.05  # 5% max missing values
+    outlier_detection: "isolation_forest"
+    drift_detection: "kolmogorov_smirnov"
+    freshness_threshold: 300  # 5 minutes max staleness
+    
+  feature_monitoring:
+    distribution_checks: true
+    correlation_monitoring: true
+    feature_importance_tracking: true
+    performance_impact_analysis: true
+
+# === FEATURE LINEAGE ===
+lineage:
+  enable_tracking: true
+  track_transformations: true
+  track_data_sources: true
+  track_model_usage: true
+  retention_days: 365
