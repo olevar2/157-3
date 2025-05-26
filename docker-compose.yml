@@ -1,0 +1,308 @@
+# Personal Forex Trading Platform - Server Deployment
+# Owner-only access with web dashboard interface
+# Version: 1.0.0
+
+services:
+  # ========================================
+  # DATABASE LAYER
+  # ========================================
+  
+  # Primary PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: forex-postgres
+    environment:
+      POSTGRES_DB: forex_trading
+      POSTGRES_USER: forex_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ForexSecure2025!}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - forex-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forex_admin -d forex_trading"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache & Session Store
+  redis:
+    image: redis:7-alpine
+    container_name: forex-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-RedisSecure2025!}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - forex-network
+
+  # InfluxDB for Time-Series Market Data
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: forex-influxdb
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: forex_admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_PASSWORD:-InfluxSecure2025!}
+      DOCKER_INFLUXDB_INIT_ORG: forex-trading
+      DOCKER_INFLUXDB_INIT_BUCKET: market-data
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    ports:
+      - "8086:8086"
+    restart: unless-stopped
+    networks:
+      - forex-network
+
+  # ========================================
+  # MESSAGE QUEUE LAYER
+  # ========================================
+
+  # Apache Kafka for Event Streaming
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: forex-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    networks:
+      - forex-network
+    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: forex-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    ports:
+      - "9092:9092"
+    networks:
+      - forex-network
+    restart: unless-stopped
+
+  # ========================================
+  # CORE TRADING SERVICES
+  # ========================================
+
+  # API Gateway Service
+  gateway-service:
+    build:
+      context: ./services/gateway-service
+      dockerfile: Dockerfile
+    container_name: forex-gateway
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://forex_admin:${POSTGRES_PASSWORD:-ForexSecure2025!}@postgres:5432/forex_trading
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - forex-network
+    restart: unless-stopped
+
+  # User Management Service (Owner Authentication)
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: forex-user-service
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://forex_admin:${POSTGRES_PASSWORD:-ForexSecure2025!}@postgres:5432/forex_trading
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - forex-network
+    restart: unless-stopped
+
+  # Market Data Service
+  market-data-service:
+    build:
+      context: ./services/market-data-service
+      dockerfile: Dockerfile
+    container_name: forex-market-data
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      INFLUXDB_URL: http://influxdb:8086
+      KAFKA_BROKERS: kafka:9092
+    depends_on:
+      - influxdb
+      - kafka
+    networks:
+      - forex-network
+    restart: unless-stopped
+
+  # Trading Engine Service
+  trading-service:
+    build:
+      context: ./services/trading-service
+      dockerfile: Dockerfile
+    container_name: forex-trading-engine
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+      DATABASE_URL: postgresql://forex_admin:${POSTGRES_PASSWORD:-ForexSecure2025!}@postgres:5432/forex_trading
+    depends_on:
+      - postgres
+      - kafka
+    networks:
+      - forex-network
+    restart: unless-stopped
+  # Analytics Service
+  analytics-service:
+    build:
+      context: ./services/analytics-service
+      dockerfile: Dockerfile
+    container_name: forex-analytics
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+      INFLUXDB_URL: http://influxdb:8086
+    depends_on:
+      - influxdb
+    networks:
+      - forex-network
+    restart: unless-stopped
+
+  # Payment Service
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    container_name: forex-payment
+    environment:
+      NODE_ENV: production
+      PORT: 3006
+      DATABASE_URL: postgresql://forex_admin:${POSTGRES_PASSWORD:-ForexSecure2025!}@postgres:5432/forex_trading
+    depends_on:
+      - postgres
+    networks:
+      - forex-network
+    restart: unless-stopped
+  # ========================================
+  # WEB DASHBOARD
+  # ========================================
+
+  # Dashboard Frontend
+  dashboard:
+    build:
+      context: ./dashboard/frontend
+      dockerfile: Dockerfile
+    container_name: forex-dashboard
+    environment:
+      REACT_APP_API_URL: http://localhost:3000
+      REACT_APP_WS_URL: ws://localhost:3008
+    ports:
+      - "8080:80"
+    depends_on:
+      - gateway-service
+    networks:
+      - forex-network
+    restart: unless-stopped
+
+  # Dashboard WebSocket Service
+  dashboard-websocket:
+    build:
+      context: ./dashboard/websockets
+      dockerfile: Dockerfile
+    container_name: forex-dashboard-ws
+    environment:
+      NODE_ENV: production
+      PORT: 3008
+      KAFKA_BROKERS: kafka:9092
+    ports:
+      - "3008:3008"
+    depends_on:
+      - kafka
+    networks:
+      - forex-network
+    restart: unless-stopped
+
+  # ========================================
+  # MONITORING STACK
+  # ========================================
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: forex-prometheus
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - forex-network
+    restart: unless-stopped
+
+  # Grafana Dashboards
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: forex-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: forex_admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-GrafanaSecure2025!}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3010:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - forex-network
+    restart: unless-stopped
+
+# ========================================
+# NETWORKS & VOLUMES
+# ========================================
+
+networks:
+  forex-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  # Database volumes
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  influxdb_data:
+    driver: local
+  
+  # Message queue volumes
+  kafka_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  
+  # Monitoring volumes
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
