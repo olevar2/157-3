@@ -1,0 +1,111 @@
+{
+  "technical_indicators": {
+    "momentum": {
+      "RSI": "\u2705 READY",
+      "MACD": "\u2705 READY",
+      "Stochastic": "\u2705 READY",
+      "DayTradingMomentum": "\u2705 READY",
+      "ScalpingMomentum": "\u2705 READY",
+      "SwingMomentum": "\u2705 READY"
+    },
+    "trend": {
+      "SMA_EMA": "\u2705 READY",
+      "ADX": "\u2705 READY",
+      "Ichimoku": "\u2705 READY"
+    },
+    "volatility": {
+      "ATR": "\u2705 READY",
+      "BollingerBands": "\u2705 READY",
+      "CCI": "\u2705 READY",
+      "KeltnerChannels": "\u2705 READY",
+      "ParabolicSAR": "\u2705 READY",
+      "SuperTrend": "\u2705 READY",
+      "Vortex": "\u2705 READY"
+    },
+    "volume": {
+      "OBV": "\u2705 READY",
+      "MFI": "\u2705 READY",
+      "VFI": "\u2705 READY",
+      "AdvanceDecline": "\u2705 READY"
+    },
+    "cycle": {
+      "Alligator": "\u2705 READY",
+      "FisherTransform": "\u2705 READY",
+      "HurstExponent": "\u2705 READY"
+    }
+  },
+  "advanced_indicators": {
+    "TimeWeightedVolatility": "\u2705 READY",
+    "PCAFeatures": "\u2705 READY",
+    "AutoencoderFeatures": "\u2705 READY",
+    "SentimentScores": "\u2705 READY",
+    "AdvancedIndicatorSuite": "\u2705 READY"
+  },
+  "gann_indicators": {
+    "GannAnglesCalculator": "\u2705 READY",
+    "GannFanAnalysis": "\u2705 READY",
+    "GannPatternDetector": "\u2705 READY",
+    "GannSquareOfNine": "\u2705 READY",
+    "GannTimePrice": "\u2705 READY"
+  },
+  "fibonacci_indicators": {
+    "FibonacciRetracement": "\u2705 READY",
+    "FibonacciExtension": "\u2705 READY",
+    "ProjectionArcCalculator": "\u2705 READY",
+    "TimeZoneAnalysis": "\u2705 READY",
+    "ConfluenceDetector": "\u2705 READY"
+  },
+  "pivot_indicators": {
+    "PivotPointCalculator": "\u2705 READY"
+  },
+  "elliott_wave_indicators": {
+    "ShortTermElliottWaves": "\u2705 READY",
+    "QuickFibonacci": "\u2705 READY",
+    "SessionSupportResistance": "\u2705 READY"
+  },
+  "fractal_geometry_indicators": {
+    "FractalGeometryIndicator": "\u2705 READY"
+  },
+  "specialized_indicators": {
+    "scalping": {
+      "MicrostructureFilters": "\u2705 READY",
+      "OrderBookAnalysis": "\u2705 READY",
+      "ScalpingPriceAction": "\u2705 READY",
+      "TickVolumeIndicators": "\u2705 READY",
+      "VWAPScalping": "\u2705 READY"
+    },
+    "daytrading": {
+      "FastMomentumOscillators": "\u2705 READY",
+      "IntradayTrendAnalysis": "\u2705 READY",
+      "SessionBreakouts": "\u2705 READY",
+      "SessionMomentum": "\u2705 READY",
+      "VolatilitySpikesDetector": "\u2705 READY"
+    },
+    "volume_analysis": {
+      "OrderFlowImbalance": "\u2705 READY",
+      "SmartMoneyIndicators": "\u2705 READY",
+      "TickVolumeIndicators": "\u2705 READY",
+      "VolumeProfiles": "\u2705 READY",
+      "VolumeSpreadAnalysis": "\u2705 READY"
+    },
+    "signals": {
+      "ConfidenceCalculator": "\u2705 READY",
+      "ConflictResolver": "\u2705 READY",
+      "QuickDecisionMatrix": "\u2705 READY",
+      "SignalAggregator": "\u2705 READY",
+      "TimeframeSynchronizer": "\u2705 READY"
+    },
+    "ml_indicators": {
+      "NoiseFilter": "\u2705 READY",
+      "ScalpingLSTM": "\u2705 READY",
+      "SpreadPredictor": "\u2705 READY",
+      "TickClassifier": "\u2705 READY"
+    }
+  },
+  "summary": {
+    "total_indicators": 67,
+    "ready_indicators": 67,
+    "completion_percentage": 100.0,
+    "audit_timestamp": "2025-05-27T04:44:31.369535"
+  }
+}

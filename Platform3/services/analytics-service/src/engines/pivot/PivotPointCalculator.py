@@ -1,0 +1,582 @@
+"""
+Comprehensive Pivot Point Indicators Suite
+Advanced pivot point calculations for forex trading with multiple calculation methods
+
+Author: Platform3 Development Team
+Date: December 2024
+"""
+
+import numpy as np
+import pandas as pd
+from typing import Dict, List, Optional, Tuple, Any
+from dataclasses import dataclass
+from enum import Enum
+from datetime import datetime, timedelta
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class PivotType(Enum):
+    """Types of pivot point calculations"""
+    STANDARD = "standard"           # (H + L + C) / 3
+    FIBONACCI = "fibonacci"         # Fibonacci-based levels
+    WOODIE = "woodie"              # (H + L + 2*C) / 4
+    CAMARILLA = "camarilla"        # Camarilla equation
+    DEMARK = "demark"              # DeMark pivot points
+    CLASSIC = "classic"            # Classic floor trader pivots
+
+class TimeFrame(Enum):
+    """Time frames for pivot calculations"""
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    SESSION = "session"
+
+@dataclass
+class PivotLevel:
+    """Individual pivot level"""
+    level_type: str  # PP, R1, R2, R3, S1, S2, S3
+    price: float
+    strength: float
+    distance_from_current: float
+    touches: int
+    last_touch_time: Optional[datetime]
+    volume_at_level: float
+
+@dataclass
+class PivotPointResult:
+    """Complete pivot point analysis result"""
+    symbol: str
+    timeframe: str
+    pivot_type: str
+    timestamp: datetime
+    
+    # Core pivot levels
+    pivot_point: float
+    resistance_1: float
+    resistance_2: float
+    resistance_3: float
+    support_1: float
+    support_2: float
+    support_3: float
+    
+    # Additional levels for some methods
+    additional_levels: Dict[str, float]
+    
+    # Analysis
+    current_price: float
+    price_position: str  # "above_pivot", "below_pivot", "at_pivot"
+    nearest_support: PivotLevel
+    nearest_resistance: PivotLevel
+    
+    # Trading signals
+    trading_bias: str  # "bullish", "bearish", "neutral"
+    strength_score: float
+    confidence: float
+
+class PivotPointCalculator:
+    """
+    Comprehensive Pivot Point Calculator
+    Supports multiple pivot calculation methods for forex trading
+    """
+    
+    def __init__(self):
+        self.pivot_cache = {}
+        self.level_history = {}
+        
+        # Fibonacci ratios for Fibonacci pivots
+        self.fib_ratios = [0.236, 0.382, 0.500, 0.618, 0.786, 1.000, 1.272, 1.618]
+        
+        logger.info("PivotPointCalculator initialized")
+    
+    async def calculate_pivot_points(
+        self,
+        symbol: str,
+        price_data: pd.DataFrame,
+        pivot_type: PivotType = PivotType.STANDARD,
+        timeframe: TimeFrame = TimeFrame.DAILY,
+        current_price: Optional[float] = None
+    ) -> PivotPointResult:
+        """
+        Calculate pivot points using specified method
+        
+        Args:
+            symbol: Trading symbol
+            price_data: OHLCV data
+            pivot_type: Type of pivot calculation
+            timeframe: Time frame for pivot calculation
+            current_price: Current market price
+            
+        Returns:
+            PivotPointResult with all levels and analysis
+        """
+        try:
+            if len(price_data) < 1:
+                raise ValueError("Insufficient price data")
+            
+            # Get the reference period data
+            ref_data = self._get_reference_period(price_data, timeframe)
+            
+            if current_price is None:
+                current_price = price_data['close'].iloc[-1]
+            
+            # Calculate pivot levels based on type
+            if pivot_type == PivotType.STANDARD:
+                levels = self._calculate_standard_pivots(ref_data)
+            elif pivot_type == PivotType.FIBONACCI:
+                levels = self._calculate_fibonacci_pivots(ref_data)
+            elif pivot_type == PivotType.WOODIE:
+                levels = self._calculate_woodie_pivots(ref_data)
+            elif pivot_type == PivotType.CAMARILLA:
+                levels = self._calculate_camarilla_pivots(ref_data)
+            elif pivot_type == PivotType.DEMARK:
+                levels = self._calculate_demark_pivots(ref_data)
+            else:
+                levels = self._calculate_standard_pivots(ref_data)
+            
+            # Analyze current price position
+            analysis = self._analyze_price_position(levels, current_price, price_data)
+            
+            # Create result
+            result = PivotPointResult(
+                symbol=symbol,
+                timeframe=timeframe.value,
+                pivot_type=pivot_type.value,
+                timestamp=datetime.now(),
+                pivot_point=levels['PP'],
+                resistance_1=levels['R1'],
+                resistance_2=levels['R2'],
+                resistance_3=levels['R3'],
+                support_1=levels['S1'],
+                support_2=levels['S2'],
+                support_3=levels['S3'],
+                additional_levels=levels.get('additional', {}),
+                current_price=current_price,
+                price_position=analysis['position'],
+                nearest_support=analysis['nearest_support'],
+                nearest_resistance=analysis['nearest_resistance'],
+                trading_bias=analysis['bias'],
+                strength_score=analysis['strength'],
+                confidence=analysis['confidence']
+            )
+            
+            # Cache result
+            cache_key = f"{symbol}_{pivot_type.value}_{timeframe.value}"
+            self.pivot_cache[cache_key] = result
+            
+            logger.info(f"Calculated {pivot_type.value} pivots for {symbol}: PP={levels['PP']:.5f}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error calculating pivot points: {e}")
+            raise
+    
+    def _get_reference_period(self, price_data: pd.DataFrame, timeframe: TimeFrame) -> Dict[str, float]:
+        """Get reference period data for pivot calculation"""
+        try:
+            if timeframe == TimeFrame.DAILY:
+                # Use previous day's data
+                ref_data = {
+                    'high': price_data['high'].iloc[-2] if len(price_data) > 1 else price_data['high'].iloc[-1],
+                    'low': price_data['low'].iloc[-2] if len(price_data) > 1 else price_data['low'].iloc[-1],
+                    'close': price_data['close'].iloc[-2] if len(price_data) > 1 else price_data['close'].iloc[-1],
+                    'open': price_data['open'].iloc[-1]
+                }
+            elif timeframe == TimeFrame.WEEKLY:
+                # Use last 5 days
+                period_data = price_data.tail(5)
+                ref_data = {
+                    'high': period_data['high'].max(),
+                    'low': period_data['low'].min(),
+                    'close': period_data['close'].iloc[-1],
+                    'open': period_data['open'].iloc[0]
+                }
+            elif timeframe == TimeFrame.MONTHLY:
+                # Use last 20 days
+                period_data = price_data.tail(20)
+                ref_data = {
+                    'high': period_data['high'].max(),
+                    'low': period_data['low'].min(),
+                    'close': period_data['close'].iloc[-1],
+                    'open': period_data['open'].iloc[0]
+                }
+            else:  # SESSION
+                # Use current session data
+                ref_data = {
+                    'high': price_data['high'].iloc[-1],
+                    'low': price_data['low'].iloc[-1],
+                    'close': price_data['close'].iloc[-1],
+                    'open': price_data['open'].iloc[-1]
+                }
+            
+            return ref_data
+            
+        except Exception as e:
+            logger.error(f"Error getting reference period: {e}")
+            return {
+                'high': price_data['high'].iloc[-1],
+                'low': price_data['low'].iloc[-1],
+                'close': price_data['close'].iloc[-1],
+                'open': price_data['open'].iloc[-1]
+            }
+    
+    def _calculate_standard_pivots(self, ref_data: Dict[str, float]) -> Dict[str, float]:
+        """Calculate standard pivot points: PP = (H + L + C) / 3"""
+        high = ref_data['high']
+        low = ref_data['low']
+        close = ref_data['close']
+        
+        # Pivot Point
+        pp = (high + low + close) / 3
+        
+        # Support and Resistance levels
+        r1 = (2 * pp) - low
+        s1 = (2 * pp) - high
+        r2 = pp + (high - low)
+        s2 = pp - (high - low)
+        r3 = high + 2 * (pp - low)
+        s3 = low - 2 * (high - pp)
+        
+        return {
+            'PP': pp,
+            'R1': r1, 'R2': r2, 'R3': r3,
+            'S1': s1, 'S2': s2, 'S3': s3
+        }
+    
+    def _calculate_fibonacci_pivots(self, ref_data: Dict[str, float]) -> Dict[str, float]:
+        """Calculate Fibonacci-based pivot points"""
+        high = ref_data['high']
+        low = ref_data['low']
+        close = ref_data['close']
+        
+        # Pivot Point (same as standard)
+        pp = (high + low + close) / 3
+        range_hl = high - low
+        
+        # Fibonacci levels
+        r1 = pp + (0.382 * range_hl)
+        r2 = pp + (0.618 * range_hl)
+        r3 = pp + (1.000 * range_hl)
+        
+        s1 = pp - (0.382 * range_hl)
+        s2 = pp - (0.618 * range_hl)
+        s3 = pp - (1.000 * range_hl)
+        
+        # Additional Fibonacci levels
+        additional = {
+            'R0.236': pp + (0.236 * range_hl),
+            'R1.272': pp + (1.272 * range_hl),
+            'R1.618': pp + (1.618 * range_hl),
+            'S0.236': pp - (0.236 * range_hl),
+            'S1.272': pp - (1.272 * range_hl),
+            'S1.618': pp - (1.618 * range_hl)
+        }
+        
+        return {
+            'PP': pp,
+            'R1': r1, 'R2': r2, 'R3': r3,
+            'S1': s1, 'S2': s2, 'S3': s3,
+            'additional': additional
+        }
+    
+    def _calculate_woodie_pivots(self, ref_data: Dict[str, float]) -> Dict[str, float]:
+        """Calculate Woodie's pivot points: PP = (H + L + 2*C) / 4"""
+        high = ref_data['high']
+        low = ref_data['low']
+        close = ref_data['close']
+        
+        # Woodie's Pivot Point
+        pp = (high + low + 2 * close) / 4
+        
+        # Support and Resistance levels
+        r1 = (2 * pp) - low
+        s1 = (2 * pp) - high
+        r2 = pp + (high - low)
+        s2 = pp - (high - low)
+        r3 = high + 2 * (pp - low)
+        s3 = low - 2 * (high - pp)
+        
+        return {
+            'PP': pp,
+            'R1': r1, 'R2': r2, 'R3': r3,
+            'S1': s1, 'S2': s2, 'S3': s3
+        }
+    
+    def _calculate_camarilla_pivots(self, ref_data: Dict[str, float]) -> Dict[str, float]:
+        """Calculate Camarilla pivot points"""
+        high = ref_data['high']
+        low = ref_data['low']
+        close = ref_data['close']
+        
+        # Camarilla Pivot Point (same as standard)
+        pp = (high + low + close) / 3
+        range_hl = high - low
+        
+        # Camarilla levels
+        r1 = close + (range_hl * 1.1 / 12)
+        r2 = close + (range_hl * 1.1 / 6)
+        r3 = close + (range_hl * 1.1 / 4)
+        r4 = close + (range_hl * 1.1 / 2)
+        
+        s1 = close - (range_hl * 1.1 / 12)
+        s2 = close - (range_hl * 1.1 / 6)
+        s3 = close - (range_hl * 1.1 / 4)
+        s4 = close - (range_hl * 1.1 / 2)
+        
+        additional = {'R4': r4, 'S4': s4}
+        
+        return {
+            'PP': pp,
+            'R1': r1, 'R2': r2, 'R3': r3,
+            'S1': s1, 'S2': s2, 'S3': s3,
+            'additional': additional
+        }
+    
+    def _calculate_demark_pivots(self, ref_data: Dict[str, float]) -> Dict[str, float]:
+        """Calculate DeMark pivot points"""
+        high = ref_data['high']
+        low = ref_data['low']
+        close = ref_data['close']
+        open_price = ref_data['open']
+        
+        # DeMark X value
+        if close < open_price:
+            x = high + (2 * low) + close
+        elif close > open_price:
+            x = (2 * high) + low + close
+        else:
+            x = high + low + (2 * close)
+        
+        # DeMark Pivot Point
+        pp = x / 4
+        
+        # DeMark levels
+        r1 = x / 2 - low
+        s1 = x / 2 - high
+        
+        # Additional levels (using standard calculation for R2, R3, S2, S3)
+        r2 = pp + (high - low)
+        s2 = pp - (high - low)
+        r3 = high + 2 * (pp - low)
+        s3 = low - 2 * (high - pp)
+        
+        return {
+            'PP': pp,
+            'R1': r1, 'R2': r2, 'R3': r3,
+            'S1': s1, 'S2': s2, 'S3': s3
+        }
+    
+    def _analyze_price_position(
+        self,
+        levels: Dict[str, float],
+        current_price: float,
+        price_data: pd.DataFrame
+    ) -> Dict[str, Any]:
+        """Analyze current price position relative to pivot levels"""
+        try:
+            pp = levels['PP']
+            
+            # Determine price position
+            if current_price > pp:
+                position = "above_pivot"
+                bias = "bullish"
+            elif current_price < pp:
+                position = "below_pivot"
+                bias = "bearish"
+            else:
+                position = "at_pivot"
+                bias = "neutral"
+            
+            # Find nearest support and resistance
+            all_levels = [
+                ('S3', levels['S3']), ('S2', levels['S2']), ('S1', levels['S1']),
+                ('PP', levels['PP']),
+                ('R1', levels['R1']), ('R2', levels['R2']), ('R3', levels['R3'])
+            ]
+            
+            # Sort by distance from current price
+            distances = [(name, price, abs(current_price - price)) for name, price in all_levels]
+            distances.sort(key=lambda x: x[2])
+            
+            # Find nearest support and resistance
+            nearest_support = None
+            nearest_resistance = None
+            
+            for name, price, distance in distances:
+                if price < current_price and nearest_support is None:
+                    nearest_support = PivotLevel(
+                        level_type=name,
+                        price=price,
+                        strength=self._calculate_level_strength(name),
+                        distance_from_current=distance,
+                        touches=0,
+                        last_touch_time=None,
+                        volume_at_level=0.0
+                    )
+                elif price > current_price and nearest_resistance is None:
+                    nearest_resistance = PivotLevel(
+                        level_type=name,
+                        price=price,
+                        strength=self._calculate_level_strength(name),
+                        distance_from_current=distance,
+                        touches=0,
+                        last_touch_time=None,
+                        volume_at_level=0.0
+                    )
+                
+                if nearest_support and nearest_resistance:
+                    break
+            
+            # Calculate strength score
+            strength = self._calculate_pivot_strength(levels, current_price, price_data)
+            
+            # Calculate confidence
+            confidence = self._calculate_confidence(levels, current_price, price_data)
+            
+            return {
+                'position': position,
+                'bias': bias,
+                'nearest_support': nearest_support,
+                'nearest_resistance': nearest_resistance,
+                'strength': strength,
+                'confidence': confidence
+            }
+            
+        except Exception as e:
+            logger.error(f"Error analyzing price position: {e}")
+            return {
+                'position': 'unknown',
+                'bias': 'neutral',
+                'nearest_support': None,
+                'nearest_resistance': None,
+                'strength': 0.5,
+                'confidence': 0.5
+            }
+    
+    def _calculate_level_strength(self, level_name: str) -> float:
+        """Calculate strength of a pivot level"""
+        strength_map = {
+            'PP': 1.0,    # Pivot point is strongest
+            'R1': 0.8, 'S1': 0.8,
+            'R2': 0.6, 'S2': 0.6,
+            'R3': 0.4, 'S3': 0.4
+        }
+        return strength_map.get(level_name, 0.5)
+    
+    def _calculate_pivot_strength(
+        self,
+        levels: Dict[str, float],
+        current_price: float,
+        price_data: pd.DataFrame
+    ) -> float:
+        """Calculate overall pivot strength score"""
+        try:
+            # Distance from pivot point
+            pp_distance = abs(current_price - levels['PP']) / levels['PP']
+            distance_score = max(0, 1 - (pp_distance * 100))  # Closer to PP = higher score
+            
+            # Volatility consideration
+            if len(price_data) >= 20:
+                volatility = price_data['close'].pct_change().tail(20).std()
+                volatility_score = min(1.0, volatility * 50)  # Higher volatility = higher score
+            else:
+                volatility_score = 0.5
+            
+            # Combine scores
+            strength = (distance_score * 0.6) + (volatility_score * 0.4)
+            
+            return np.clip(strength, 0.0, 1.0)
+            
+        except Exception as e:
+            logger.error(f"Error calculating pivot strength: {e}")
+            return 0.5
+    
+    def _calculate_confidence(
+        self,
+        levels: Dict[str, float],
+        current_price: float,
+        price_data: pd.DataFrame
+    ) -> float:
+        """Calculate confidence in pivot analysis"""
+        try:
+            # Data quality score
+            data_quality = min(1.0, len(price_data) / 100)  # More data = higher confidence
+            
+            # Price action consistency
+            if len(price_data) >= 5:
+                recent_range = price_data['high'].tail(5).max() - price_data['low'].tail(5).min()
+                pivot_range = levels['R1'] - levels['S1']
+                consistency = min(1.0, recent_range / pivot_range) if pivot_range > 0 else 0.5
+            else:
+                consistency = 0.5
+            
+            # Combine factors
+            confidence = (data_quality * 0.4) + (consistency * 0.6)
+            
+            return np.clip(confidence, 0.0, 1.0)
+            
+        except Exception as e:
+            logger.error(f"Error calculating confidence: {e}")
+            return 0.5
+    
+    def get_all_pivot_types(
+        self,
+        symbol: str,
+        price_data: pd.DataFrame,
+        timeframe: TimeFrame = TimeFrame.DAILY
+    ) -> Dict[str, PivotPointResult]:
+        """Calculate all pivot types for comparison"""
+        results = {}
+        
+        for pivot_type in PivotType:
+            try:
+                result = self.calculate_pivot_points(symbol, price_data, pivot_type, timeframe)
+                results[pivot_type.value] = result
+            except Exception as e:
+                logger.error(f"Error calculating {pivot_type.value} pivots: {e}")
+        
+        return results
+
+# Example usage and testing
+async def main():
+    """Example usage of PivotPointCalculator"""
+    calculator = PivotPointCalculator()
+    
+    # Create sample data
+    dates = pd.date_range(start='2024-01-01', periods=100, freq='H')
+    np.random.seed(42)
+    
+    price_data = pd.DataFrame({
+        'open': 1.1000 + np.random.randn(100) * 0.001,
+        'high': 1.1000 + np.random.randn(100) * 0.001 + 0.0005,
+        'low': 1.1000 + np.random.randn(100) * 0.001 - 0.0005,
+        'close': 1.1000 + np.random.randn(100) * 0.001,
+        'volume': np.random.randint(1000, 10000, 100)
+    }, index=dates)
+    
+    # Ensure high >= low
+    price_data['high'] = np.maximum(price_data['high'], price_data[['open', 'close']].max(axis=1))
+    price_data['low'] = np.minimum(price_data['low'], price_data[['open', 'close']].min(axis=1))
+    
+    # Test different pivot types
+    for pivot_type in PivotType:
+        result = await calculator.calculate_pivot_points(
+            symbol='EURUSD',
+            price_data=price_data,
+            pivot_type=pivot_type,
+            timeframe=TimeFrame.DAILY
+        )
+        
+        print(f"\n{pivot_type.value.upper()} PIVOTS:")
+        print(f"Pivot Point: {result.pivot_point:.5f}")
+        print(f"R1: {result.resistance_1:.5f}, R2: {result.resistance_2:.5f}, R3: {result.resistance_3:.5f}")
+        print(f"S1: {result.support_1:.5f}, S2: {result.support_2:.5f}, S3: {result.support_3:.5f}")
+        print(f"Current Price: {result.current_price:.5f} ({result.price_position})")
+        print(f"Trading Bias: {result.trading_bias}, Strength: {result.strength_score:.2f}")
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())

@@ -18,10 +18,11 @@ Expected Benefits:
 
 from .TickVolumeIndicators import (
     TickVolumeIndicators,
-    TickVolumeSignal,
-    VolumeAnalysisResult,
-    VolumeTrend,
-    VolumeStrength
+    VolumeSignal,
+    TickVolumeResult,
+    VolumeStrength,
+    TickVolumeMetrics,
+    VolumeConfirmation
 )
 
 from .VolumeSpreadAnalysis import (
@@ -64,30 +65,31 @@ from .SmartMoneyIndicators import (
 __all__ = [
     # Main analyzer classes
     'TickVolumeIndicators',
-    'VolumeSpreadAnalysis', 
+    'VolumeSpreadAnalysis',
     'OrderFlowImbalance',
     'VolumeProfiles',
     'SmartMoneyIndicators',
-    
+
     # Tick volume components
-    'TickVolumeSignal',
-    'VolumeAnalysisResult',
-    'VolumeTrend',
+    'VolumeSignal',
+    'TickVolumeResult',
     'VolumeStrength',
-    
+    'TickVolumeMetrics',
+    'VolumeConfirmation',
+
     # VSA components
     'VSAAnalysisResult',
     'VSABar',
     'VSASignalType',
     'VSAVolumeStrength',
     'SpreadSize',
-    
+
     # Order flow components
     'OrderFlowAnalysisResult',
     'OrderFlowBar',
     'ImbalanceType',
     'ImbalanceStrength',
-    
+
     # Volume profile components
     'VolumeProfileAnalysisResult',
     'VolumeProfile',
@@ -95,7 +97,7 @@ __all__ = [
     'ValueArea',
     'TradingSession',
     'VolumeNodeType',
-    
+
     # Smart money components
     'SmartMoneyAnalysisResult',
     'SmartMoneySignal',

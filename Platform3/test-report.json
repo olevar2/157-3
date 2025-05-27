@@ -1,0 +1,225 @@
+{
+  "summary": {
+    "totalTests": 44,
+    "passedTests": 44,
+    "failedTests": 0,
+    "successRate": "100.00",
+    "duration": "321ms",
+    "timestamp": "2025-05-27T04:20:09.118Z"
+  },
+  "services": {
+    "api-gateway": {
+      "status": "FILE_EXISTS",
+      "response": {
+        "message": "Service file found"
+      },
+      "error": null
+    },
+    "user-service": {
+      "status": "FILE_EXISTS",
+      "response": {
+        "message": "Service file found"
+      },
+      "error": null
+    },
+    "trading-service": {
+      "status": "FILE_EXISTS",
+      "response": {
+        "message": "Service file found"
+      },
+      "error": null
+    },
+    "analytics-service": {
+      "status": "FILE_EXISTS",
+      "response": {
+        "message": "Service file found"
+      },
+      "error": null
+    },
+    "event-system": {
+      "status": "FILE_EXISTS",
+      "response": {
+        "message": "Service file found"
+      },
+      "error": null
+    },
+    "compliance-service": {
+      "status": "FILE_EXISTS",
+      "response": {
+        "message": "Service file found"
+      },
+      "error": null
+    },
+    "notification-service": {
+      "status": "FILE_EXISTS",
+      "response": {
+        "message": "Service file found"
+      },
+      "error": null
+    }
+  },
+  "files": {
+    "services/risk-service/src/modules/DynamicLevelManager.py": {
+      "exists": true,
+      "size": 25967,
+      "modified": "2025-05-26T10:01:42.307Z",
+      "description": "Dynamic Stop-Loss & Take-Profit Manager"
+    },
+    "services/risk-service/src/modules/HedgingStrategyManager.py": {
+      "exists": true,
+      "size": 17746,
+      "modified": "2025-05-27T03:45:48.008Z",
+      "description": "Automated Hedging Strategies"
+    },
+    "services/risk-service/src/modules/DrawdownMonitor.py": {
+      "exists": true,
+      "size": 20752,
+      "modified": "2025-05-27T03:46:58.091Z",
+      "description": "Drawdown Monitoring System"
+    },
+    "services/risk-service/src/modules/PortfolioRiskMonitor.py": {
+      "exists": true,
+      "size": 19063,
+      "modified": "2025-05-26T10:53:28.491Z",
+      "description": "Portfolio Risk Monitor"
+    },
+    "services/qa-service/src/monitors/AccuracyMonitor.py": {
+      "exists": true,
+      "size": 22039,
+      "modified": "2025-05-26T10:56:13.351Z",
+      "description": "AI Accuracy Monitor"
+    },
+    "services/qa-service/src/monitors/LatencyTester.py": {
+      "exists": true,
+      "size": 23490,
+      "modified": "2025-05-26T10:57:13.864Z",
+      "description": "Latency Testing System"
+    },
+    "services/qa-service/src/monitors/RiskViolationMonitor.py": {
+      "exists": true,
+      "size": 24361,
+      "modified": "2025-05-26T10:58:12.252Z",
+      "description": "Risk Violation Monitor"
+    },
+    "services/compliance-service/src/server.js": {
+      "exists": true,
+      "size": 15469,
+      "modified": "2025-05-27T04:14:18.766Z",
+      "description": "Compliance Service"
+    },
+    "services/notification-service/src/server.js": {
+      "exists": true,
+      "size": 17538,
+      "modified": "2025-05-27T04:15:26.235Z",
+      "description": "Notification Service"
+    },
+    "services/api-gateway/src/server.js": {
+      "exists": true,
+      "size": 8515,
+      "modified": "2025-05-25T01:58:53.164Z",
+      "description": "API Gateway"
+    },
+    "services/user-service/src/server.ts": {
+      "exists": true,
+      "size": 21987,
+      "modified": "2025-05-25T05:18:30.519Z",
+      "description": "User Service"
+    },
+    "services/trading-service/src/server.ts": {
+      "exists": true,
+      "size": 25599,
+      "modified": "2025-05-25T05:18:30.519Z",
+      "description": "Trading Service"
+    },
+    "services/analytics-service/src/server.ts": {
+      "exists": true,
+      "size": 12187,
+      "modified": "2025-05-25T07:05:20.434Z",
+      "description": "Analytics Service"
+    },
+    "services/ai-core/src/adaptive_learning/AdaptiveLearner.py": {
+      "exists": true,
+      "size": 21441,
+      "modified": "2025-05-25T14:56:16.703Z",
+      "description": "Adaptive Learning Engine"
+    },
+    "services/analytics-service/src/sentiment/SentimentAnalyzer.py": {
+      "exists": true,
+      "size": 29404,
+      "modified": "2025-05-25T14:40:53.270Z",
+      "description": "Sentiment Analysis"
+    },
+    "services/trading-engine/src/arbitrage/ArbitrageEngine.py": {
+      "exists": true,
+      "size": 34594,
+      "modified": "2025-05-25T14:45:11.869Z",
+      "description": "Arbitrage Engine"
+    },
+    "dashboard/frontend/src/App.tsx": {
+      "exists": true,
+      "size": 4776,
+      "modified": "2025-05-26T03:10:25.837Z",
+      "description": "Frontend Dashboard"
+    },
+    "dashboard/frontend/package.json": {
+      "exists": true,
+      "size": 1748,
+      "modified": "2025-05-25T04:13:01.282Z",
+      "description": "Package Configuration"
+    },
+    "PROGRESS.md": {
+      "exists": true,
+      "size": 134367,
+      "modified": "2025-05-26T23:17:21.282Z",
+      "description": "Progress Documentation"
+    },
+    "docker-compose.yml": {
+      "exists": true,
+      "size": 8095,
+      "modified": "2025-05-25T09:21:06.065Z",
+      "description": "Docker Compose Configuration"
+    },
+    "services/compliance-service/package.json": {
+      "exists": true,
+      "size": 1203,
+      "modified": "2025-05-27T04:14:33.644Z",
+      "description": "Package Configuration"
+    },
+    "services/notification-service/package.json": {
+      "exists": true,
+      "size": 1260,
+      "modified": "2025-05-27T04:15:42.661Z",
+      "description": "Package Configuration"
+    },
+    "services/api-gateway/package.json": {
+      "exists": true,
+      "size": 944,
+      "modified": "2025-05-25T01:58:53.164Z",
+      "description": "Package Configuration"
+    },
+    "services/user-service/package.json": {
+      "exists": true,
+      "size": 1574,
+      "modified": "2025-05-25T04:28:19.264Z",
+      "description": "Package Configuration"
+    },
+    "services/trading-service/package.json": {
+      "exists": true,
+      "size": 1703,
+      "modified": "2025-05-25T05:01:12.774Z",
+      "description": "Package Configuration"
+    },
+    "services/analytics-service/package.json": {
+      "exists": true,
+      "size": 1505,
+      "modified": "2025-05-25T07:04:22.945Z",
+      "description": "Package Configuration"
+    },
+    "services/event-system/package.json": {
+      "exists": true,
+      "size": 1472,
+      "modified": "2025-05-25T03:03:17.625Z",
+      "description": "Package Configuration"
+    }
+  }
+}
