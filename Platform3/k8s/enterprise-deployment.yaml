@@ -1,0 +1,240 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform3-enterprise
+  labels:
+    name: platform3-enterprise
+---
+# Shadow Mode Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shadow-mode-service
+  namespace: platform3-enterprise
+  labels:
+    app: shadow-mode-service
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: shadow-mode-service
+  template:
+    metadata:
+      labels:
+        app: shadow-mode-service
+        version: v1
+    spec:
+      containers:
+      - name: shadow-mode-service
+        image: platform3/shadow-mode-service:latest
+        ports:
+        - containerPort: 3010
+        env:
+        - name: REDIS_URL
+          value: "redis://redis-service:6379"
+        - name: KAFKA_BROKER
+          value: "kafka-service:9092"
+        - name: SHADOW_MODE_ENABLED
+          value: "true"
+        - name: TRAFFIC_MIRROR_PERCENTAGE
+          value: "10"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3010
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3010
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shadow-mode-service
+  namespace: platform3-enterprise
+spec:
+  selector:
+    app: shadow-mode-service
+  ports:
+  - port: 3010
+    targetPort: 3010
+  type: ClusterIP
+---
+# Deployment Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-service
+  namespace: platform3-enterprise
+  labels:
+    app: deployment-service
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: deployment-service
+  template:
+    metadata:
+      labels:
+        app: deployment-service
+        version: v1
+    spec:
+      serviceAccountName: deployment-service-sa
+      containers:
+      - name: deployment-service
+        image: platform3/deployment-service:latest
+        ports:
+        - containerPort: 3011
+        env:
+        - name: REDIS_URL
+          value: "redis://redis-service:6379"
+        - name: ROLLBACK_ENABLED
+          value: "true"
+        - name: HEALTH_CHECK_INTERVAL
+          value: "30000"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3011
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3011
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: deployment-service
+  namespace: platform3-enterprise
+spec:
+  selector:
+    app: deployment-service
+  ports:
+  - port: 3011
+    targetPort: 3011
+  type: ClusterIP
+---
+# Monitoring Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-service
+  namespace: platform3-enterprise
+  labels:
+    app: monitoring-service
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: monitoring-service
+  template:
+    metadata:
+      labels:
+        app: monitoring-service
+        version: v1
+    spec:
+      containers:
+      - name: monitoring-service
+        image: platform3/monitoring-service:latest
+        ports:
+        - containerPort: 3012
+        env:
+        - name: REDIS_URL
+          value: "redis://redis-service:6379"
+        - name: MONITORING_ENABLED
+          value: "true"
+        - name: BUSINESS_METRICS_ENABLED
+          value: "true"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3012
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3012
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-service
+  namespace: platform3-enterprise
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3012"
+    prometheus.io/path: "/metrics"
+spec:
+  selector:
+    app: monitoring-service
+  ports:
+  - port: 3012
+    targetPort: 3012
+  type: ClusterIP
+---
+# Service Account for Deployment Service
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: deployment-service-sa
+  namespace: platform3-enterprise
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deployment-service-role
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "patch", "update"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: deployment-service-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: deployment-service-role
+subjects:
+- kind: ServiceAccount
+  name: deployment-service-sa
+  namespace: platform3-enterprise

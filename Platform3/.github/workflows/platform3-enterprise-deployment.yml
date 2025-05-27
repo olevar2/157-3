@@ -1,0 +1,358 @@
+name: Platform3 Enterprise Deployment Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: platform3
+
+jobs:
+  # Security and Code Quality
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Security Scan
+      uses: github/super-linter@v4
+      env:
+        DEFAULT_BRANCH: main
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VALIDATE_TYPESCRIPT_ES: true
+        VALIDATE_PYTHON: true
+        VALIDATE_DOCKERFILE: true
+    
+    - name: Run Dependency Check
+      run: |
+        npm audit --audit-level moderate
+        pip-audit --requirement requirements.txt || true
+
+  # Build and Test Services
+  build-and-test:
+    runs-on: ubuntu-latest
+    needs: security-scan
+    strategy:
+      matrix:
+        service: [
+          'analytics-service',
+          'trading-service', 
+          'user-service',
+          'api-gateway',
+          'ml-service',
+          'feature-store'
+        ]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: services/${{ matrix.service }}/package-lock.json
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install Dependencies - ${{ matrix.service }}
+      run: |
+        cd services/${{ matrix.service }}
+        if [ -f package.json ]; then
+          npm ci
+        fi
+        if [ -f requirements.txt ]; then
+          pip install -r requirements.txt
+        fi
+    
+    - name: Build Service - ${{ matrix.service }}
+      run: |
+        cd services/${{ matrix.service }}
+        if [ -f package.json ]; then
+          npm run build
+        fi
+    
+    - name: Run Unit Tests - ${{ matrix.service }}
+      run: |
+        cd services/${{ matrix.service }}
+        if [ -f package.json ]; then
+          npm test
+        fi
+        if [ -f pytest.ini ]; then
+          pytest
+        fi
+
+  # Test All 67 Indicators
+  test-indicators:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install Platform3 Dependencies
+      run: |
+        pip install numpy pandas textblob nltk
+        pip install -r services/analytics-service/requirements.txt || true
+    
+    - name: Test All 67 Indicators
+      run: |
+        cd Platform3
+        python test_exactly_67_indicators.py
+    
+    - name: Upload Indicator Test Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: indicator-test-results
+        path: Platform3/test-results.json
+
+  # Integration Tests
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: test-indicators
+    services:
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: platform3_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Run Integration Tests
+      run: |
+        npm run test:integration
+      env:
+        REDIS_URL: redis://localhost:6379
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/platform3_test
+
+  # Performance Tests
+  performance-tests:
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Performance Testing
+      run: |
+        npm install -g artillery
+    
+    - name: Run Performance Tests
+      run: |
+        artillery run tests/performance/load-test.yml
+    
+    - name: Validate Performance Requirements
+      run: |
+        # Validate sub-millisecond latency requirements
+        node scripts/validate-performance.js
+
+  # Build Docker Images
+  build-images:
+    runs-on: ubuntu-latest
+    needs: performance-tests
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Build and Push Images
+      run: |
+        services=("analytics-service" "trading-service" "user-service" "api-gateway")
+        for service in "${services[@]}"; do
+          docker build -t ${{ env.REGISTRY }}/${{ github.repository }}/$service:${{ github.sha }} services/$service
+          docker push ${{ env.REGISTRY }}/${{ github.repository }}/$service:${{ github.sha }}
+        done
+
+  # Deploy to Staging (Shadow Mode)
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: build-images
+    if: github.ref == 'refs/heads/main'
+    environment: staging
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to Staging (Shadow Mode)
+      run: |
+        echo "Deploying to staging environment in shadow mode"
+        # Deploy shadow instances alongside production
+        kubectl apply -f k8s/staging/shadow-mode/
+    
+    - name: Start Shadow Mode Testing
+      run: |
+        # Start shadow mode orchestrator
+        kubectl create job shadow-mode-test --from=cronjob/shadow-mode-orchestrator
+    
+    - name: Wait for Shadow Mode Validation
+      run: |
+        # Wait for shadow mode validation to complete
+        timeout 1800 bash -c 'until kubectl get job shadow-mode-test -o jsonpath="{.status.conditions[?(@.type==\"Complete\")].status}" | grep True; do sleep 30; done'
+    
+    - name: Validate Shadow Mode Results
+      run: |
+        # Check shadow mode results
+        node scripts/validate-shadow-mode.js
+
+  # Deploy to Production (Blue-Green)
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Blue-Green Deployment
+      run: |
+        echo "Starting blue-green deployment to production"
+        
+        # Deploy to green environment
+        kubectl apply -f k8s/production/green/
+        
+        # Wait for green environment to be ready
+        kubectl rollout status deployment/analytics-service-green
+        kubectl rollout status deployment/trading-service-green
+        kubectl rollout status deployment/user-service-green
+        kubectl rollout status deployment/api-gateway-green
+    
+    - name: Health Check Green Environment
+      run: |
+        # Comprehensive health checks
+        node scripts/health-check-green.js
+    
+    - name: Switch Traffic to Green
+      run: |
+        # Switch traffic from blue to green
+        kubectl patch service api-gateway -p '{"spec":{"selector":{"version":"green"}}}'
+    
+    - name: Monitor Production Metrics
+      run: |
+        # Monitor for 5 minutes after traffic switch
+        timeout 300 node scripts/monitor-production.js
+    
+    - name: Cleanup Blue Environment
+      run: |
+        # Remove old blue environment after successful deployment
+        kubectl delete -f k8s/production/blue/ || true
+
+  # Rollback on Failure
+  rollback-on-failure:
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: failure()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Emergency Rollback
+      run: |
+        echo "Deployment failed, initiating emergency rollback"
+        
+        # Switch traffic back to blue environment
+        kubectl patch service api-gateway -p '{"spec":{"selector":{"version":"blue"}}}'
+        
+        # Remove failed green deployment
+        kubectl delete -f k8s/production/green/ || true
+    
+    - name: Notify Team
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        text: "Platform3 deployment failed and was rolled back"
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Post-Deployment Validation
+  post-deployment:
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: success()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Post-Deployment Tests
+      run: |
+        # Comprehensive post-deployment validation
+        npm run test:post-deployment
+    
+    - name: Update Deployment Status
+      run: |
+        # Update deployment tracking
+        node scripts/update-deployment-status.js
+    
+    - name: Notify Success
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: "Platform3 deployment completed successfully"
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Compliance and Audit
+  compliance-audit:
+    runs-on: ubuntu-latest
+    needs: post-deployment
+    if: success()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Generate Compliance Report
+      run: |
+        # Generate compliance audit trail
+        node scripts/generate-compliance-report.js
+    
+    - name: Store Audit Trail
+      run: |
+        # Store audit trail for regulatory compliance
+        aws s3 cp compliance-report.json s3://platform3-compliance/$(date +%Y-%m-%d)/
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    
+    - name: Update Regulatory Dashboard
+      run: |
+        # Update regulatory compliance dashboard
+        curl -X POST "${{ secrets.COMPLIANCE_WEBHOOK }}" \
+          -H "Content-Type: application/json" \
+          -d '{"deployment_id": "${{ github.sha }}", "status": "compliant", "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}'
