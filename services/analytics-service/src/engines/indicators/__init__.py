@@ -31,26 +31,127 @@ from .momentum import (
 
 # Import trend indicators
 from .trend import (
-    MovingAverages, MASignal, MAResult, MAData, MAType
+    MovingAverages, MASignal, MAResult, MAData, MAType,
+    ADX, ADXSignal, ADXResult, TrendStrength, TrendDirection, ADXSignalType,
+    Ichimoku, IchimokuSignal, IchimokuResult, CloudPosition, CloudColor, IchimokuSignalType
 )
 
-# Note: Additional indicator imports will be added as they are implemented
-# from .volatility import (...)
-# from .volume import (...)
-# from .cycle import (...)
-# from .advanced import (...)
+# Import volatility indicators (if available)
+try:
+    from .volatility import (
+        BollingerBands, BollingerBandSignal, BandType,
+        ATR, ATRSignal, ATRSmoothingMethod, VolatilityRegime,
+        KeltnerChannels, KeltnerSignal, ChannelPosition,
+        SuperTrend, SuperTrendSignal, TrendDirection as STTrendDirection, SignalStrength,
+        VortexIndicator, VortexIndicatorSignal, VortexSignal,
+        ParabolicSAR, ParabolicSARSignal, SARTrend, SARSignalType,
+        CCI, CCISignal, CCIZone, CCISignalType,
+        VolatilityIndicatorSuite
+    )
+    VOLATILITY_AVAILABLE = True
+except ImportError:
+    VOLATILITY_AVAILABLE = False
 
+# Import volume indicators (if available)
+try:
+    from .volume import (
+        OBV, OBVSignal, OBVSignalType, OBVTrend,
+        MFI, MFISignal, MFISignalType, MFITrend,
+        VFI, VFISignal, VFISignalType, VFITrend,
+        AdvanceDecline, ADSignal, ADSignalType, ADTrend,
+        VolumeIndicatorSuite
+    )
+    VOLUME_AVAILABLE = True
+except ImportError:
+    VOLUME_AVAILABLE = False
+
+# Import cycle indicators (if available)
+try:
+    from .cycle import (
+        Alligator, AlligatorSignal, AlligatorTrend, AlligatorSignalType,
+        HurstExponent, HurstSignal, MarketRegime, HurstSignalType,
+        FisherTransform, FisherSignal, FisherTrend, FisherSignalType,
+        CycleIndicatorSuite
+    )
+    CYCLE_AVAILABLE = True
+except ImportError:
+    CYCLE_AVAILABLE = False
+
+# Import advanced indicators (if available)
+try:
+    from .advanced import (
+        TimeWeightedVolatility, VolatilityMetrics, VolatilityRegime as AdvVolatilityRegime, TradingSession,
+        PCAFeatures, PCAResults, ComponentType,
+        AutoencoderFeatures, AutoencoderResults, AutoencoderType, AnomalyLevel,
+        SentimentScores, SentimentResults, SentimentLevel, SentimentSource, SentimentData,
+        AdvancedIndicatorSuite
+    )
+    ADVANCED_AVAILABLE = True
+except ImportError:
+    ADVANCED_AVAILABLE = False
+
+# Import pivot indicators
+from .pivot import (
+    PivotPointCalculator, PivotType, TimeFrame, PivotLevel, PivotPointResult
+)
+
+# Build __all__ list dynamically based on available modules
 __all__ = [
     # Momentum indicators
     'RSI', 'RSISignal', 'RSIResult',
     'MACD', 'MACDSignal', 'MACDResult', 'MACDData',
     'Stochastic', 'StochasticSignal', 'StochasticResult', 'StochasticData',
-    
+
     # Trend indicators
     'MovingAverages', 'MASignal', 'MAResult', 'MAData', 'MAType',
-    
-    # Additional indicators will be added here as implemented
+    'ADX', 'ADXSignal', 'ADXResult', 'TrendStrength', 'TrendDirection', 'ADXSignalType',
+    'Ichimoku', 'IchimokuSignal', 'IchimokuResult', 'CloudPosition', 'CloudColor', 'IchimokuSignalType',
+
+    # Pivot indicators
+    'PivotPointCalculator', 'PivotType', 'TimeFrame', 'PivotLevel', 'PivotPointResult'
 ]
+
+# Add volatility indicators if available
+if VOLATILITY_AVAILABLE:
+    __all__.extend([
+        'BollingerBands', 'BollingerBandSignal', 'BandType',
+        'ATR', 'ATRSignal', 'ATRSmoothingMethod', 'VolatilityRegime',
+        'KeltnerChannels', 'KeltnerSignal', 'ChannelPosition',
+        'SuperTrend', 'SuperTrendSignal', 'STTrendDirection', 'SignalStrength',
+        'VortexIndicator', 'VortexIndicatorSignal', 'VortexSignal',
+        'ParabolicSAR', 'ParabolicSARSignal', 'SARTrend', 'SARSignalType',
+        'CCI', 'CCISignal', 'CCIZone', 'CCISignalType',
+        'VolatilityIndicatorSuite'
+    ])
+
+# Add volume indicators if available
+if VOLUME_AVAILABLE:
+    __all__.extend([
+        'OBV', 'OBVSignal', 'OBVSignalType', 'OBVTrend',
+        'MFI', 'MFISignal', 'MFISignalType', 'MFITrend',
+        'VFI', 'VFISignal', 'VFISignalType', 'VFITrend',
+        'AdvanceDecline', 'ADSignal', 'ADSignalType', 'ADTrend',
+        'VolumeIndicatorSuite'
+    ])
+
+# Add cycle indicators if available
+if CYCLE_AVAILABLE:
+    __all__.extend([
+        'Alligator', 'AlligatorSignal', 'AlligatorTrend', 'AlligatorSignalType',
+        'HurstExponent', 'HurstSignal', 'MarketRegime', 'HurstSignalType',
+        'FisherTransform', 'FisherSignal', 'FisherTrend', 'FisherSignalType',
+        'CycleIndicatorSuite'
+    ])
+
+# Add advanced indicators if available
+if ADVANCED_AVAILABLE:
+    __all__.extend([
+        'TimeWeightedVolatility', 'VolatilityMetrics', 'AdvVolatilityRegime', 'TradingSession',
+        'PCAFeatures', 'PCAResults', 'ComponentType',
+        'AutoencoderFeatures', 'AutoencoderResults', 'AutoencoderType', 'AnomalyLevel',
+        'SentimentScores', 'SentimentResults', 'SentimentLevel', 'SentimentSource', 'SentimentData',
+        'AdvancedIndicatorSuite'
+    ])
 
 __version__ = "1.0.0"
 __author__ = "Platform3 Analytics Team"
@@ -72,11 +173,11 @@ INDICATOR_REGISTRY = {
 def get_indicator(category: str, indicator_name: str):
     """
     Get indicator class by category and name
-    
+
     Args:
         category: Indicator category (momentum, trend, volatility, etc.)
         indicator_name: Name of the indicator
-        
+
     Returns:
         Indicator class or None if not found
     """
@@ -88,10 +189,10 @@ def get_indicator(category: str, indicator_name: str):
 def list_indicators(category: str = None) -> dict:
     """
     List available indicators by category
-    
+
     Args:
         category: Optional category filter
-        
+
     Returns:
         Dictionary of available indicators
     """
@@ -111,10 +212,10 @@ def get_all_trend_indicators():
 def calculate_indicator_consensus(indicator_results: dict) -> dict:
     """
     Calculate consensus from multiple indicator results
-    
+
     Args:
         indicator_results: Dictionary of indicator analysis results
-        
+
     Returns:
         Dictionary with consensus analysis
     """
@@ -124,28 +225,28 @@ def calculate_indicator_consensus(indicator_results: dict) -> dict:
         neutral_signals = 0
         total_strength = 0.0
         signal_count = 0
-        
+
         for result in indicator_results.values():
             if isinstance(result, dict):
                 signal = result.get('primary_signal', 'neutral')
                 strength = result.get('signal_strength', 0.0)
-                
+
                 if 'bullish' in signal or 'buy' in signal:
                     bullish_signals += 1
                 elif 'bearish' in signal or 'sell' in signal:
                     bearish_signals += 1
                 else:
                     neutral_signals += 1
-                
+
                 total_strength += strength
                 signal_count += 1
-        
+
         if signal_count == 0:
             return {'consensus': 'neutral', 'confidence': 0.0, 'strength': 0.0}
-        
+
         avg_strength = total_strength / signal_count
         total_signals = bullish_signals + bearish_signals + neutral_signals
-        
+
         if bullish_signals > bearish_signals:
             consensus = 'bullish'
             confidence = bullish_signals / total_signals
@@ -155,7 +256,7 @@ def calculate_indicator_consensus(indicator_results: dict) -> dict:
         else:
             consensus = 'neutral'
             confidence = neutral_signals / total_signals
-        
+
         return {
             'consensus': consensus,
             'confidence': confidence,
@@ -165,17 +266,17 @@ def calculate_indicator_consensus(indicator_results: dict) -> dict:
             'neutral_signals': neutral_signals,
             'total_signals': total_signals
         }
-        
+
     except Exception:
         return {'consensus': 'neutral', 'confidence': 0.0, 'strength': 0.0}
 
 def generate_trading_recommendations(consensus_analysis: dict) -> list:
     """
     Generate trading recommendations based on consensus analysis
-    
+
     Args:
         consensus_analysis: Result from calculate_indicator_consensus
-        
+
     Returns:
         List of trading recommendations
     """
@@ -184,7 +285,7 @@ def generate_trading_recommendations(consensus_analysis: dict) -> list:
         consensus = consensus_analysis.get('consensus', 'neutral')
         confidence = consensus_analysis.get('confidence', 0.0)
         strength = consensus_analysis.get('strength', 0.0)
-        
+
         if consensus == 'bullish' and confidence > 0.7 and strength > 0.6:
             recommendations.append("Strong buy signal - High confidence bullish consensus")
         elif consensus == 'bearish' and confidence > 0.7 and strength > 0.6:
@@ -197,14 +298,14 @@ def generate_trading_recommendations(consensus_analysis: dict) -> list:
             recommendations.append("Mixed signals - Wait for clearer market direction")
         else:
             recommendations.append("Neutral market conditions - Monitor for signal development")
-        
+
         # Additional recommendations based on strength
         if strength > 0.8:
             recommendations.append("Very strong signal strength - High probability setup")
         elif strength < 0.3:
             recommendations.append("Weak signal strength - Consider waiting for confirmation")
-        
+
         return recommendations
-        
+
     except Exception:
         return ["Unable to generate recommendations"]

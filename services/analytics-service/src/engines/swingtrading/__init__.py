@@ -1,41 +1,5 @@
 """
 Swing Trading Pattern Engine Package
-<<<<<<< HEAD
-Short-term pattern recognition for 1-5 day maximum trades (H4 focus)
-
-This package provides comprehensive swing trading analysis including:
-- Elliott wave pattern recognition (3-5 wave structures)
-- Fibonacci retracement calculations for reversals
-- Session-based support/resistance levels
-- Rapid trend line analysis and breakouts
-- Swing high/low detection for entry timing
-
-All modules are optimized for H4 timeframe with maximum 3-5 day trade duration.
-"""
-
-from .ShortTermElliottWaves import ShortTermElliottWaves, ShortTermElliottResult
-from .QuickFibonacci import QuickFibonacci, QuickFibonacciResult
-from .SessionSupportResistance import SessionSupportResistance, SessionSupportResistanceResult
-from .RapidTrendlines import RapidTrendlines, RapidTrendlinesResult
-from .SwingHighLowDetector import SwingHighLowDetector, SwingHighLowResult
-
-__all__ = [
-    'ShortTermElliottWaves',
-    'ShortTermElliottResult',
-    'QuickFibonacci', 
-    'QuickFibonacciResult',
-    'SessionSupportResistance',
-    'SessionSupportResistanceResult',
-    'RapidTrendlines',
-    'RapidTrendlinesResult',
-    'SwingHighLowDetector',
-    'SwingHighLowResult'
-]
-
-__version__ = '1.0.0'
-__author__ = 'Platform3 Analytics Team'
-__description__ = 'Swing Trading Pattern Engine for H4 Focus (Max 3-5 Days)'
-=======
 Short-term pattern recognition for 1-5 day maximum trades (H4 focus).
 
 This package provides comprehensive swing trading analysis including:
@@ -90,13 +54,8 @@ from .SessionSupportResistance import (
 # Import placeholder classes for remaining components
 # These will be implemented as separate files
 
-class RapidTrendlines:
-    """Placeholder for rapid trend line analysis"""
-    pass
-
-class SwingHighLowDetector:
-    """Placeholder for swing high/low detection"""
-    pass
+from .RapidTrendlines import RapidTrendlines
+from .SwingHighLowDetector import SwingHighLowDetector
 
 __all__ = [
     # Main engine classes
@@ -105,21 +64,21 @@ __all__ = [
     'SessionSupportResistance',
     'RapidTrendlines',
     'SwingHighLowDetector',
-    
+
     # Elliott Wave components
     'WaveType',
     'WaveDirection',
     'WavePoint',
     'ElliottWavePattern',
     'WaveAnalysisResult',
-    
+
     # Fibonacci components
     'FibLevel',
     'TrendDirection',
     'FibonacciLevel',
     'FibonacciRetracement',
     'FibonacciSignal',
-    
+
     # Support/Resistance components
     'TradingSession',
     'LevelType',
@@ -133,4 +92,3 @@ __all__ = [
 __version__ = "1.0.0"
 __author__ = "Platform3 Analytics Team"
 __description__ = "Swing Trading Pattern Engine for H4 focus with 1-5 day maximum patterns"
->>>>>>> 5e659b3064c215382ffc9ef1f13510cbfdd547a7

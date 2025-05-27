@@ -678,3 +678,176 @@ class SwingHighLowDetector:
             })
             
         return test_data
+
+    def calculate(self, high: np.ndarray, low: np.ndarray, close: np.ndarray) -> Dict:
+        """
+        Standard calculate interface for Universal Adapter compatibility
+        
+        Args:
+            high: High prices as numpy array
+            low: Low prices as numpy array
+            close: Close prices as numpy array
+            
+        Returns:
+            Dict with swing point analysis results
+        """
+        try:
+            # Convert numpy arrays to the format expected by async method
+            price_data = []
+            for i in range(len(close)):
+                price_data.append({
+                    'high': float(high[i]),
+                    'low': float(low[i]),
+                    'close': float(close[i]),
+                    'timestamp': i  # Use index as timestamp for simplicity
+                })
+            
+            # Detect swing points using the core logic
+            swing_points = self._detect_swing_points_sync(price_data)
+            
+            # Calculate swing levels
+            swing_highs = [sp for sp in swing_points if sp['type'] == 'high']
+            swing_lows = [sp for sp in swing_points if sp['type'] == 'low']
+            
+            # Calculate support/resistance levels
+            support_level = min([sp['price'] for sp in swing_lows]) if swing_lows else float(np.min(low))
+            resistance_level = max([sp['price'] for sp in swing_highs]) if swing_highs else float(np.max(high))
+            
+            # Generate entry signals
+            current_price = float(close[-1])
+            signals = self._generate_entry_signals(swing_points, current_price)
+            
+            return {
+                'swing_points': swing_points,
+                'swing_highs': len(swing_highs),
+                'swing_lows': len(swing_lows),
+                'support_level': support_level,
+                'resistance_level': resistance_level,
+                'current_trend': self._determine_trend(swing_points),
+                'entry_signals': signals,
+                'last_swing_high': swing_highs[-1]['price'] if swing_highs else None,
+                'last_swing_low': swing_lows[-1]['price'] if swing_lows else None
+            }
+            
+        except Exception as e:
+            self.logger.error(f"SwingHighLowDetector calculate error: {e}")
+            return {
+                'swing_points': [],
+                'swing_highs': 0,
+                'swing_lows': 0,
+                'support_level': float(np.min(low)),
+                'resistance_level': float(np.max(high)),
+                'current_trend': 'neutral',
+                'entry_signals': [],
+                'error': str(e)
+            }
+
+    def _detect_swing_points_sync(self, price_data: List[Dict]) -> List[Dict]:
+        """Synchronous swing point detection for calculate method"""
+        swing_points = []
+        lookback = self.default_lookback
+        
+        if len(price_data) < lookback * 2 + 1:
+            return swing_points
+            
+        for i in range(lookback, len(price_data) - lookback):
+            current_high = price_data[i]['high']
+            current_low = price_data[i]['low']
+            
+            # Check for swing high
+            is_swing_high = True
+            for j in range(i - lookback, i + lookback + 1):
+                if j != i and price_data[j]['high'] >= current_high:
+                    is_swing_high = False
+                    break
+                    
+            if is_swing_high:
+                swing_points.append({
+                    'index': i,
+                    'type': 'high',
+                    'price': current_high,
+                    'timestamp': price_data[i]['timestamp'],
+                    'strength': self._calculate_swing_strength(price_data, i, 'high')
+                })
+            
+            # Check for swing low
+            is_swing_low = True
+            for j in range(i - lookback, i + lookback + 1):
+                if j != i and price_data[j]['low'] <= current_low:
+                    is_swing_low = False
+                    break
+                    
+            if is_swing_low:
+                swing_points.append({
+                    'index': i,
+                    'type': 'low',
+                    'price': current_low,
+                    'timestamp': price_data[i]['timestamp'],
+                    'strength': self._calculate_swing_strength(price_data, i, 'low')
+                })
+                
+        return swing_points
+    
+    def _calculate_swing_strength(self, price_data: List[Dict], index: int, swing_type: str) -> float:
+        """Calculate the strength of a swing point"""
+        try:
+            lookback = min(10, index, len(price_data) - index - 1)
+            if lookback <= 0:
+                return 0.5
+                
+            if swing_type == 'high':
+                current_price = price_data[index]['high']
+                surrounding_highs = [price_data[i]['high'] for i in range(index - lookback, index + lookback + 1) if i != index]
+                avg_surrounding = np.mean(surrounding_highs)
+                strength = min(1.0, max(0.0, (current_price - avg_surrounding) / avg_surrounding + 0.5))
+            else:  # swing_type == 'low'
+                current_price = price_data[index]['low']
+                surrounding_lows = [price_data[i]['low'] for i in range(index - lookback, index + lookback + 1) if i != index]
+                avg_surrounding = np.mean(surrounding_lows)
+                strength = min(1.0, max(0.0, (avg_surrounding - current_price) / avg_surrounding + 0.5))
+                
+            return strength
+        except Exception:
+            return 0.5
+    
+    def _determine_trend(self, swing_points: List[Dict]) -> str:
+        """Determine current trend based on swing points"""
+        if len(swing_points) < 4:
+            return 'neutral'
+            
+        recent_highs = [sp for sp in swing_points[-4:] if sp['type'] == 'high']
+        recent_lows = [sp for sp in swing_points[-4:] if sp['type'] == 'low']
+        
+        if len(recent_highs) >= 2 and len(recent_lows) >= 2:
+            if recent_highs[-1]['price'] > recent_highs[-2]['price'] and recent_lows[-1]['price'] > recent_lows[-2]['price']:
+                return 'uptrend'
+            elif recent_highs[-1]['price'] < recent_highs[-2]['price'] and recent_lows[-1]['price'] < recent_lows[-2]['price']:
+                return 'downtrend'
+                
+        return 'neutral'
+    
+    def _generate_entry_signals(self, swing_points: List[Dict], current_price: float) -> List[Dict]:
+        """Generate entry signals based on swing points"""
+        signals = []
+        
+        if not swing_points:
+            return signals
+            
+        recent_swings = swing_points[-5:] if len(swing_points) >= 5 else swing_points
+        
+        for swing in recent_swings:
+            if swing['strength'] > 0.7:  # Only consider strong swings
+                price_distance = abs(current_price - swing['price']) / current_price
+                
+                if price_distance < 0.005:  # Within 0.5% of swing level
+                    signal_type = 'buy' if swing['type'] == 'low' else 'sell'
+                    confidence = swing['strength'] * (1 - price_distance * 10)  # Closer = higher confidence
+                    
+                    signals.append({
+                        'type': signal_type,
+                        'level': swing['price'],
+                        'confidence': min(1.0, confidence),
+                        'reason': f'Near {swing["type"]} swing at {swing["price"]:.5f}'
+                    })
+                    
+        return signals

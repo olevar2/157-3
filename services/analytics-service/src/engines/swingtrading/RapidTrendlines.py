@@ -698,3 +698,310 @@ class RapidTrendlines:
         # This would normally retrieve actual price data
         # For testing, return dummy data
         return [{'high': 1.1000, 'low': 1.0990} for _ in timestamps]
+    
+    def calculate(self, high: np.ndarray, low: np.ndarray, close: np.ndarray) -> Dict:
+        """
+        Standard calculate interface for Universal Adapter compatibility
+        
+        Args:
+            high: High prices as numpy array
+            low: Low prices as numpy array
+            close: Close prices as numpy array
+            
+        Returns:
+            Dict with trendline analysis results
+        """
+        try:
+            # Convert numpy arrays to the format expected by trendline detection
+            price_data = []
+            for i in range(len(close)):
+                price_data.append({
+                    'high': float(high[i]),
+                    'low': float(low[i]),
+                    'close': float(close[i]),
+                    'timestamp': i  # Use index as timestamp for simplicity
+                })
+            
+            # Detect trendlines using core logic
+            trendlines = self._detect_trendlines_sync(price_data)
+            
+            # Analyze breakouts and signals
+            current_price = float(close[-1])
+            breakout_signals = self._analyze_breakouts_sync(trendlines, current_price, price_data)
+            
+            # Calculate trend strength
+            trend_strength = self._calculate_trend_strength(trendlines, price_data)
+            
+            return {
+                'trendlines': trendlines,
+                'support_lines': [tl for tl in trendlines if tl['type'] == 'support'],
+                'resistance_lines': [tl for tl in trendlines if tl['type'] == 'resistance'],
+                'breakout_signals': breakout_signals,
+                'trend_strength': trend_strength,
+                'current_trend': self._determine_trend_direction(trendlines),
+                'nearest_support': self._find_nearest_level(trendlines, current_price, 'support'),
+                'nearest_resistance': self._find_nearest_level(trendlines, current_price, 'resistance'),
+                'active_trendlines': len([tl for tl in trendlines if tl['active']])
+            }
+            
+        except Exception as e:
+            self.logger.error(f"RapidTrendlines calculate error: {e}")
+            return {
+                'trendlines': [],
+                'support_lines': [],
+                'resistance_lines': [],
+                'breakout_signals': [],
+                'trend_strength': 0.0,
+                'current_trend': 'neutral',
+                'nearest_support': None,
+                'nearest_resistance': None,
+                'active_trendlines': 0,
+                'error': str(e)
+            }
+
+    def _detect_trendlines_sync(self, price_data: List[Dict]) -> List[Dict]:
+        """Synchronous trendline detection for calculate method"""
+        trendlines = []
+        min_periods = 10
+        
+        if len(price_data) < min_periods:
+            return trendlines
+            
+        # Detect support trendlines (connecting lows)
+        support_lines = self._find_support_trendlines(price_data)
+        trendlines.extend(support_lines)
+        
+        # Detect resistance trendlines (connecting highs)
+        resistance_lines = self._find_resistance_trendlines(price_data)
+        trendlines.extend(resistance_lines)
+        
+        return trendlines
+    
+    def _find_support_trendlines(self, price_data: List[Dict]) -> List[Dict]:
+        """Find support trendlines by connecting significant lows"""
+        support_lines = []
+        lows = [(i, data['low']) for i, data in enumerate(price_data)]
+        
+        # Find local lows (simplified approach)
+        local_lows = []
+        for i in range(2, len(lows) - 2):
+            if (lows[i][1] < lows[i-1][1] and lows[i][1] < lows[i-2][1] and 
+                lows[i][1] < lows[i+1][1] and lows[i][1] < lows[i+2][1]):
+                local_lows.append(lows[i])
+        
+        # Connect pairs of lows to form trendlines
+        for i in range(len(local_lows) - 1):
+            for j in range(i + 1, len(local_lows)):
+                point1 = local_lows[i]
+                point2 = local_lows[j]
+                
+                if point2[0] - point1[0] >= 5:  # Minimum distance between points
+                    slope = (point2[1] - point1[1]) / (point2[0] - point1[0])
+                    
+                    # Check if line is approximately horizontal or slightly ascending (support)
+                    if -0.001 <= slope <= 0.002:  # Allow slight positive slope for support
+                        strength = self._calculate_trendline_strength(price_data, point1, point2, 'support')
+                        
+                        if strength > 0.3:  # Only keep reasonably strong trendlines
+                            support_lines.append({
+                                'type': 'support',
+                                'point1': {'index': point1[0], 'price': point1[1]},
+                                'point2': {'index': point2[0], 'price': point2[1]},
+                                'slope': slope,
+                                'strength': strength,
+                                'active': self._is_trendline_active(point2[0], len(price_data)),
+                                'touches': self._count_trendline_touches(price_data, point1, point2, 'support')
+                            })
+        
+        return support_lines
+    
+    def _find_resistance_trendlines(self, price_data: List[Dict]) -> List[Dict]:
+        """Find resistance trendlines by connecting significant highs"""
+        resistance_lines = []
+        highs = [(i, data['high']) for i, data in enumerate(price_data)]
+        
+        # Find local highs (simplified approach)
+        local_highs = []
+        for i in range(2, len(highs) - 2):
+            if (highs[i][1] > highs[i-1][1] and highs[i][1] > highs[i-2][1] and 
+                highs[i][1] > highs[i+1][1] and highs[i][1] > highs[i+2][1]):
+                local_highs.append(highs[i])
+        
+        # Connect pairs of highs to form trendlines
+        for i in range(len(local_highs) - 1):
+            for j in range(i + 1, len(local_highs)):
+                point1 = local_highs[i]
+                point2 = local_highs[j]
+                
+                if point2[0] - point1[0] >= 5:  # Minimum distance between points
+                    slope = (point2[1] - point1[1]) / (point2[0] - point1[0])
+                    
+                    # Check if line is approximately horizontal or slightly descending (resistance)
+                    if -0.002 <= slope <= 0.001:  # Allow slight negative slope for resistance
+                        strength = self._calculate_trendline_strength(price_data, point1, point2, 'resistance')
+                        
+                        if strength > 0.3:  # Only keep reasonably strong trendlines
+                            resistance_lines.append({
+                                'type': 'resistance',
+                                'point1': {'index': point1[0], 'price': point1[1]},
+                                'point2': {'index': point2[0], 'price': point2[1]},
+                                'slope': slope,
+                                'strength': strength,
+                                'active': self._is_trendline_active(point2[0], len(price_data)),
+                                'touches': self._count_trendline_touches(price_data, point1, point2, 'resistance')
+                            })
+        
+        return resistance_lines
+    
+    def _calculate_trendline_strength(self, price_data: List[Dict], point1: tuple, point2: tuple, line_type: str) -> float:
+        """Calculate the strength of a trendline based on how well price respects it"""
+        try:
+            touches = 0
+            near_misses = 0
+            violations = 0
+            
+            for i in range(point1[0], min(point2[0] + 10, len(price_data))):
+                # Calculate expected price at this point on the trendline
+                expected_price = point1[1] + (point2[1] - point1[1]) * (i - point1[0]) / (point2[0] - point1[0])
+                
+                if line_type == 'support':
+                    low_price = price_data[i]['low']
+                    price_diff = abs(low_price - expected_price) / expected_price
+                    
+                    if price_diff < 0.001:  # Very close to line
+                        touches += 1
+                    elif price_diff < 0.003:  # Near the line
+                        near_misses += 1
+                    elif low_price < expected_price * 0.995:  # Significantly below support
+                        violations += 1
+                        
+                else:  # resistance
+                    high_price = price_data[i]['high']
+                    price_diff = abs(high_price - expected_price) / expected_price
+                    
+                    if price_diff < 0.001:  # Very close to line
+                        touches += 1
+                    elif price_diff < 0.003:  # Near the line
+                        near_misses += 1
+                    elif high_price > expected_price * 1.005:  # Significantly above resistance
+                        violations += 1
+            
+            # Calculate strength score
+            total_points = touches + near_misses + violations
+            if total_points == 0:
+                return 0.5
+                
+            strength = (touches * 2 + near_misses - violations * 2) / (total_points * 2)
+            return max(0.0, min(1.0, strength))
+            
+        except Exception:
+            return 0.5
+    
+    def _is_trendline_active(self, last_point_index: int, total_length: int) -> bool:
+        """Check if trendline is still active (recent enough)"""
+        return (total_length - last_point_index) <= 20  # Active if within last 20 periods
+    
+    def _count_trendline_touches(self, price_data: List[Dict], point1: tuple, point2: tuple, line_type: str) -> int:
+        """Count how many times price touched the trendline"""
+        touches = 2  # Start with 2 for the defining points
+        
+        for i in range(point1[0] + 1, min(point2[0] + 5, len(price_data))):
+            expected_price = point1[1] + (point2[1] - point1[1]) * (i - point1[0]) / (point2[0] - point1[0])
+            
+            if line_type == 'support':
+                if abs(price_data[i]['low'] - expected_price) / expected_price < 0.002:
+                    touches += 1
+            else:  # resistance
+                if abs(price_data[i]['high'] - expected_price) / expected_price < 0.002:
+                    touches += 1
+                    
+        return touches
+    
+    def _analyze_breakouts_sync(self, trendlines: List[Dict], current_price: float, price_data: List[Dict]) -> List[Dict]:
+        """Analyze potential breakout signals"""
+        signals = []
+        
+        for trendline in trendlines:
+            if not trendline['active']:
+                continue
+                
+            # Calculate current trendline level
+            point1 = trendline['point1']
+            point2 = trendline['point2']
+            current_index = len(price_data) - 1
+            
+            if current_index > point2['index']:
+                current_level = point2['price'] + trendline['slope'] * (current_index - point2['index'])
+                
+                distance_pct = abs(current_price - current_level) / current_level
+                
+                if distance_pct < 0.01:  # Within 1% of trendline
+                    if trendline['type'] == 'support' and current_price > current_level * 1.002:
+                        signals.append({
+                            'type': 'buy',
+                            'reason': 'Support breakout',
+                            'level': current_level,
+                            'strength': trendline['strength'],
+                            'confidence': min(0.9, trendline['strength'] + 0.2)
+                        })
+                    elif trendline['type'] == 'resistance' and current_price < current_level * 0.998:
+                        signals.append({
+                            'type': 'sell',
+                            'reason': 'Resistance breakout',
+                            'level': current_level,
+                            'strength': trendline['strength'],
+                            'confidence': min(0.9, trendline['strength'] + 0.2)
+                        })
+        
+        return signals
+    
+    def _calculate_trend_strength(self, trendlines: List[Dict], price_data: List[Dict]) -> float:
+        """Calculate overall trend strength based on trendlines"""
+        if not trendlines:
+            return 0.0
+            
+        active_lines = [tl for tl in trendlines if tl['active']]
+        if not active_lines:
+            return 0.0
+            
+        total_strength = sum(tl['strength'] for tl in active_lines)
+        return min(1.0, total_strength / len(active_lines))
+    
+    def _determine_trend_direction(self, trendlines: List[Dict]) -> str:
+        """Determine trend direction based on trendlines"""
+        if not trendlines:
+            return 'neutral'
+            
+        active_support = [tl for tl in trendlines if tl['active'] and tl['type'] == 'support']
+        active_resistance = [tl for tl in trendlines if tl['active'] and tl['type'] == 'resistance']
+        
+        support_strength = sum(tl['strength'] for tl in active_support)
+        resistance_strength = sum(tl['strength'] for tl in active_resistance)
+        
+        if support_strength > resistance_strength * 1.5:
+            return 'uptrend'
+        elif resistance_strength > support_strength * 1.5:
+            return 'downtrend'
+        else:
+            return 'neutral'
+    
+    def _find_nearest_level(self, trendlines: List[Dict], current_price: float, level_type: str) -> Optional[float]:
+        """Find the nearest support or resistance level"""
+        relevant_lines = [tl for tl in trendlines if tl['active'] and tl['type'] == level_type]
+        
+        if not relevant_lines:
+            return None
+            
+        nearest_level = None
+        min_distance = float('inf')
+        
+        for tl in relevant_lines:
+            # Use the second point price as the level (simplified)
+            level_price = tl['point2']['price']
+            distance = abs(current_price - level_price)
+            
+            if distance < min_distance:
+                min_distance = distance
+                nearest_level = level_price
+                
+        return nearest_level

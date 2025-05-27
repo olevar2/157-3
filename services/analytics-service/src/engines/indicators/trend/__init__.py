@@ -28,10 +28,23 @@ from .SMA_EMA import (
     MAType
 )
 
-# Note: Additional trend indicators will be imported as they are implemented
-# from .ADX import (...)
-# from .Ichimoku import (...)
-# from .ParabolicSAR import (...)
+from .ADX import (
+    ADX,
+    ADXSignal,
+    ADXResult,
+    TrendStrength,
+    TrendDirection,
+    ADXSignalType
+)
+
+from .Ichimoku import (
+    Ichimoku,
+    IchimokuSignal,
+    IchimokuResult,
+    CloudPosition,
+    CloudColor,
+    IchimokuSignalType
+)
 
 __all__ = [
     # Moving Averages
@@ -40,8 +53,22 @@ __all__ = [
     'MAResult',
     'MAData',
     'MAType',
-    
-    # Additional indicators will be added here as implemented
+
+    # ADX
+    'ADX',
+    'ADXSignal',
+    'ADXResult',
+    'TrendStrength',
+    'TrendDirection',
+    'ADXSignalType',
+
+    # Ichimoku
+    'Ichimoku',
+    'IchimokuSignal',
+    'IchimokuResult',
+    'CloudPosition',
+    'CloudColor',
+    'IchimokuSignalType'
 ]
 
 __version__ = "1.0.0"
