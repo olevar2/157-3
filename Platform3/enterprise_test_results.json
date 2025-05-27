@@ -1,0 +1,160 @@
+{
+  "files_validation": {
+    "services/shadow-mode-service/src/ShadowModeOrchestrator.ts": {
+      "exists": true,
+      "size": 12782
+    },
+    "services/shadow-mode-service/src/server.ts": {
+      "exists": true,
+      "size": 5232
+    },
+    "services/shadow-mode-service/package.json": {
+      "exists": true,
+      "size": 1321
+    },
+    "services/shadow-mode-service/Dockerfile": {
+      "exists": true,
+      "size": 692
+    },
+    "services/deployment-service/src/RollbackManager.ts": {
+      "exists": true,
+      "size": 13684
+    },
+    "services/deployment-service/src/server.ts": {
+      "exists": true,
+      "size": 5688
+    },
+    "services/deployment-service/package.json": {
+      "exists": true,
+      "size": 1342
+    },
+    "services/deployment-service/Dockerfile": {
+      "exists": true,
+      "size": 946
+    },
+    "services/monitoring-service/src/PerformanceMonitor.ts": {
+      "exists": true,
+      "size": 16090
+    },
+    "services/monitoring-service/src/server.ts": {
+      "exists": true,
+      "size": 4383
+    },
+    "services/monitoring-service/package.json": {
+      "exists": true,
+      "size": 1389
+    },
+    "services/monitoring-service/Dockerfile": {
+      "exists": true,
+      "size": 692
+    },
+    ".github/workflows/platform3-enterprise-deployment.yml": {
+      "exists": true,
+      "size": 9998
+    },
+    "k8s/enterprise-deployment.yaml": {
+      "exists": true,
+      "size": 5291
+    },
+    "config/enterprise-config.yaml": {
+      "exists": true,
+      "size": 4348
+    },
+    "scripts/deploy-enterprise.sh": {
+      "exists": true,
+      "size": 5597
+    },
+    "enterprise-deployment-framework.md": {
+      "exists": true,
+      "size": 9932
+    },
+    "ENTERPRISE_DEPLOYMENT_COMPLETE.md": {
+      "exists": true,
+      "size": 7467
+    },
+    "ENTERPRISE_DEPLOYMENT_FILES.md": {
+      "exists": true,
+      "size": 6877
+    }
+  },
+  "configuration_validation": {
+    "config/enterprise-config.yaml": {
+      "valid": true,
+      "size": 4348,
+      "structure": "dict"
+    },
+    ".github/workflows/platform3-enterprise-deployment.yml": {
+      "valid": true,
+      "size": 9998,
+      "structure": "dict"
+    },
+    "k8s/enterprise-deployment.yaml": {
+      "valid": false,
+      "error": "expected a single document in the stream\n  in \"<unicode string>\", line 1, column 1:\n    apiVersion: v1\n    ^\nbut found another document\n  in \"<unicode string>\", line 7, column 1:\n    ---\n    ^"
+    }
+  },
+  "docker_validation": {
+    "services/shadow-mode-service/Dockerfile": {
+      "valid": true,
+      "missing_components": [],
+      "size": 692
+    },
+    "services/deployment-service/Dockerfile": {
+      "valid": true,
+      "missing_components": [],
+      "size": 946
+    },
+    "services/monitoring-service/Dockerfile": {
+      "valid": true,
+      "missing_components": [],
+      "size": 692
+    }
+  },
+  "kubernetes_validation": {
+    "enterprise-deployment.yaml": {
+      "valid": true,
+      "documents_count": 10,
+      "found_kinds": [
+        "Namespace",
+        "Deployment",
+        "Service",
+        "Deployment",
+        "Service",
+        "Deployment",
+        "Service",
+        "ServiceAccount",
+        "ClusterRole",
+        "ClusterRoleBinding"
+      ],
+      "missing_kinds": []
+    }
+  },
+  "service_structure": {
+    "shadow-mode-service": {
+      "valid": true,
+      "package_json_valid": true,
+      "missing_fields": [],
+      "dependencies_count": 10
+    },
+    "deployment-service": {
+      "valid": true,
+      "package_json_valid": true,
+      "missing_fields": [],
+      "dependencies_count": 10
+    },
+    "monitoring-service": {
+      "valid": true,
+      "package_json_valid": true,
+      "missing_fields": [],
+      "dependencies_count": 11
+    }
+  },
+  "deployment_scripts": {
+    "deploy-enterprise.sh": {
+      "valid": true,
+      "missing_components": [],
+      "size": 5537,
+      "executable": true
+    }
+  }
+}
