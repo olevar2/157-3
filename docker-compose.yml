@@ -6,7 +6,7 @@ services:
   # ========================================
   # DATABASE LAYER
   # ========================================
-  
+
   # Primary PostgreSQL Database
   postgres:
     image: postgres:15-alpine
@@ -197,11 +197,82 @@ services:
       NODE_ENV: production
       PORT: 3006
       DATABASE_URL: postgresql://forex_admin:${POSTGRES_PASSWORD:-ForexSecure2025!}@postgres:5432/forex_trading
+      CONFIG_SERVICE_URL: http://config-service:3007
+      VAULT_URL: http://vault:8200
     depends_on:
       - postgres
+      - config-service
+      - vault
     networks:
       - forex-network
     restart: unless-stopped
+
+  # ========================================
+  # CONFIGURATION MANAGEMENT
+  # ========================================
+
+  # HashiCorp Vault for Secret Management
+  vault:
+    image: vault:1.15
+    container_name: forex-vault
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_ROOT_TOKEN:-dev-root-token}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_LOCAL_CONFIG: |
+        {
+          "backend": {"file": {"path": "/vault/data"}},
+          "listener": {"tcp": {"address": "0.0.0.0:8200", "tls_disable": true}},
+          "ui": true,
+          "disable_mlock": true
+        }
+    ports:
+      - "8200:8200"
+    volumes:
+      - vault_data:/vault/data
+      - ./infrastructure/vault:/vault/config:ro
+      - ./infrastructure/tls/certs:/vault/certs:ro
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - forex-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Configuration Service
+  config-service:
+    build:
+      context: ./services/config-service
+      dockerfile: Dockerfile
+    container_name: forex-config-service
+    environment:
+      NODE_ENV: production
+      PORT: 3007
+      VAULT_URL: http://vault:8200
+      VAULT_TOKEN: ${VAULT_SERVICE_TOKEN:-dev-service-token}
+      REDIS_URL: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-RedisSecure2025!}
+      VALID_API_KEYS: ${VALID_API_KEYS:-config-service-key-1,config-service-key-2}
+      LOG_LEVEL: info
+    ports:
+      - "3007:3007"
+    volumes:
+      - ./config:/app/config:ro
+      - config_logs:/app/logs
+    depends_on:
+      - vault
+      - redis
+    networks:
+      - forex-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3007/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
   # ========================================
   # WEB DASHBOARD
   # ========================================
@@ -294,13 +365,19 @@ volumes:
     driver: local
   influxdb_data:
     driver: local
-  
+
   # Message queue volumes
   kafka_data:
     driver: local
   zookeeper_data:
     driver: local
-  
+
+  # Configuration management volumes
+  vault_data:
+    driver: local
+  config_logs:
+    driver: local
+
   # Monitoring volumes
   prometheus_data:
     driver: local

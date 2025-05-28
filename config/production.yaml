@@ -1,0 +1,180 @@
+# Platform3 Production Configuration
+# Environment-specific settings for production
+
+# Global Configuration
+global:
+  environment: production
+  region: us-east-1
+  cluster: platform3-prod
+  namespace: platform3-prod
+  debug: false
+
+# Service Configuration
+services:
+  # API Gateway
+  api-gateway:
+    port: 3000
+    host: "0.0.0.0"
+    cors:
+      enabled: true
+      origins: ["https://platform3.com", "https://app.platform3.com"]
+    rateLimit:
+      windowMs: 60000
+      maxRequests: 500
+    logging:
+      level: info
+
+  # Configuration Service
+  config-service:
+    port: 3007
+    vault:
+      endpoint: "https://vault.platform3.internal:8200"
+      timeout: 10000
+      retries: 5
+    cache:
+      ttl: 600
+      maxSize: 10000
+      enabled: true
+    refreshInterval: 300000
+
+  # Trading Service
+  trading-service:
+    port: 3003
+    maxTradeAmount: 10000000
+    minTradeAmount: 0.01
+    defaultTradeFee: 0.0005
+    riskLimits:
+      maxDailyLoss: 50000
+      maxPositionSize: 1000000
+
+  # Analytics Service
+  analytics-service:
+    port: 3005
+    indicators:
+      cacheSize: 100000
+      calculationTimeout: 10000
+    ml:
+      modelRefreshInterval: 1800000
+      predictionCacheSize: 50000
+
+  # Risk Service
+  risk-service:
+    port: 3009
+    monitoring:
+      checkInterval: 500
+      alertThreshold: 0.9
+    limits:
+      maxDrawdown: 0.02
+      maxLeverage: 50
+
+# Database Configuration
+database:
+  postgres:
+    host: postgres-cluster.platform3.internal
+    port: 5432
+    database: forex_trading
+    user: forex_admin
+    maxConnections: 100
+    idleTimeout: 60000
+    connectionTimeout: 5000
+    ssl: true
+
+  redis:
+    host: redis-cluster.platform3.internal
+    port: 6379
+    db: 0
+    maxRetries: 5
+    retryDelay: 2000
+    cluster: true
+
+  influxdb:
+    host: influxdb-cluster.platform3.internal
+    port: 8086
+    database: platform3_metrics
+    retention: "365d"
+
+# Message Queue Configuration
+messaging:
+  kafka:
+    brokers: 
+      - "kafka-1.platform3.internal:9092"
+      - "kafka-2.platform3.internal:9092"
+      - "kafka-3.platform3.internal:9092"
+    clientId: platform3-prod
+    groupId: platform3-prod-group
+    topics:
+      marketData: "market-data-prod"
+      trades: "trades-prod"
+      signals: "signals-prod"
+      events: "events-prod"
+
+# External Services
+external:
+  brokers:
+    oanda:
+      environment: live
+      timeout: 3000
+    mt5:
+      enabled: true
+      timeout: 3000
+
+# Security Configuration
+security:
+  jwt:
+    expiresIn: "8h"
+    algorithm: "RS256"
+  
+  mtls:
+    enabled: true
+    certificatePath: "/app/certs"
+    
+  cors:
+    enabled: true
+    credentials: true
+
+# Monitoring Configuration
+monitoring:
+  metrics:
+    enabled: true
+    interval: 15000
+    retention: "90d"
+  
+  logging:
+    level: info
+    format: json
+    outputs: ["file", "elasticsearch"]
+  
+  tracing:
+    enabled: true
+    samplingRate: 0.1
+
+# Feature Flags
+features:
+  advancedAnalytics: true
+  mlPredictions: true
+  realTimeAlerts: true
+  backtesting: true
+  paperTrading: true
+  socialTrading: true
+
+# Performance Settings
+performance:
+  caching:
+    enabled: true
+    defaultTtl: 600
+  
+  compression:
+    enabled: true
+    level: 9
+  
+  connectionPooling:
+    enabled: true
+    maxConnections: 500
+
+# Production Settings
+production:
+  autoScaling: true
+  healthChecks: true
+  gracefulShutdown: true
+  circuitBreaker: true
+  bulkhead: true

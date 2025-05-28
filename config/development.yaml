@@ -1,0 +1,175 @@
+# Platform3 Development Configuration
+# Environment-specific settings for development
+
+# Global Configuration
+global:
+  environment: development
+  region: local
+  cluster: platform3-dev
+  namespace: platform3-dev
+  debug: true
+
+# Service Configuration
+services:
+  # API Gateway
+  api-gateway:
+    port: 3000
+    host: "0.0.0.0"
+    cors:
+      enabled: true
+      origins: ["http://localhost:3000", "http://localhost:5173", "http://localhost:8080"]
+    rateLimit:
+      windowMs: 60000
+      maxRequests: 1000
+    logging:
+      level: debug
+
+  # Configuration Service
+  config-service:
+    port: 3007
+    vault:
+      endpoint: "http://vault:8200"
+      timeout: 5000
+      retries: 3
+    cache:
+      ttl: 300
+      maxSize: 1000
+      enabled: true
+    refreshInterval: 60000
+
+  # Trading Service
+  trading-service:
+    port: 3003
+    maxTradeAmount: 1000000
+    minTradeAmount: 0.01
+    defaultTradeFee: 0.001
+    riskLimits:
+      maxDailyLoss: 1000
+      maxPositionSize: 100000
+
+  # Analytics Service
+  analytics-service:
+    port: 3005
+    indicators:
+      cacheSize: 10000
+      calculationTimeout: 5000
+    ml:
+      modelRefreshInterval: 3600000
+      predictionCacheSize: 5000
+
+  # Risk Service
+  risk-service:
+    port: 3009
+    monitoring:
+      checkInterval: 1000
+      alertThreshold: 0.8
+    limits:
+      maxDrawdown: 0.05
+      maxLeverage: 100
+
+# Database Configuration
+database:
+  postgres:
+    host: postgres
+    port: 5432
+    database: forex_trading
+    user: forex_admin
+    maxConnections: 20
+    idleTimeout: 30000
+    connectionTimeout: 2000
+    ssl: false
+
+  redis:
+    host: redis
+    port: 6379
+    db: 0
+    maxRetries: 3
+    retryDelay: 1000
+
+  influxdb:
+    host: influxdb
+    port: 8086
+    database: platform3_metrics
+    retention: "30d"
+
+# Message Queue Configuration
+messaging:
+  kafka:
+    brokers: ["kafka:9092"]
+    clientId: platform3-dev
+    groupId: platform3-dev-group
+    topics:
+      marketData: "market-data-dev"
+      trades: "trades-dev"
+      signals: "signals-dev"
+      events: "events-dev"
+
+# External Services
+external:
+  brokers:
+    oanda:
+      environment: practice
+      timeout: 5000
+    mt5:
+      enabled: false
+
+# Security Configuration
+security:
+  jwt:
+    expiresIn: "24h"
+    algorithm: "HS256"
+  
+  mtls:
+    enabled: true
+    certificatePath: "/app/certs"
+    
+  cors:
+    enabled: true
+    credentials: true
+
+# Monitoring Configuration
+monitoring:
+  metrics:
+    enabled: true
+    interval: 30000
+    retention: "7d"
+  
+  logging:
+    level: debug
+    format: json
+    outputs: ["console", "file"]
+  
+  tracing:
+    enabled: true
+    samplingRate: 1.0
+
+# Feature Flags
+features:
+  advancedAnalytics: true
+  mlPredictions: true
+  realTimeAlerts: true
+  backtesting: true
+  paperTrading: true
+  socialTrading: false
+
+# Performance Settings
+performance:
+  caching:
+    enabled: true
+    defaultTtl: 300
+  
+  compression:
+    enabled: true
+    level: 6
+  
+  connectionPooling:
+    enabled: true
+    maxConnections: 100
+
+# Development Tools
+development:
+  hotReload: true
+  debugMode: true
+  mockData: true
+  testMode: false
+  profiling: true
