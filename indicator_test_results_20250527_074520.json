@@ -1,0 +1,485 @@
+{
+  "timestamp": "20250527_074520",
+  "total_indicators": 67,
+  "results": {
+    "RSI": {
+      "status": "execution_error",
+      "error": "name 'RSI' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'RSI' is not defined\n"
+    },
+    "MACD": {
+      "status": "execution_error",
+      "error": "name 'MACD' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'MACD' is not defined\n"
+    },
+    "Stochastic": {
+      "status": "execution_error",
+      "error": "name 'Stochastic' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'Stochastic' is not defined\n"
+    },
+    "ScalpingMomentum": {
+      "status": "execution_error",
+      "error": "name 'ScalpingMomentum' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'ScalpingMomentum' is not defined\n"
+    },
+    "DayTradingMomentum": {
+      "status": "execution_error",
+      "error": "name 'DayTradingMomentum' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'DayTradingMomentum' is not defined\n"
+    },
+    "SwingMomentum": {
+      "status": "execution_error",
+      "error": "name 'SwingMomentum' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'SwingMomentum' is not defined\n"
+    },
+    "FastMomentumOscillators": {
+      "status": "execution_error",
+      "error": "name 'FastMomentumOscillators' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'FastMomentumOscillators' is not defined\n"
+    },
+    "WilliamsR": {
+      "status": "import_error",
+      "error": "No module named 'WilliamsR'",
+      "execution_time": 0
+    },
+    "SMA_EMA": {
+      "status": "execution_error",
+      "error": "name 'SMA_EMA' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'SMA_EMA' is not defined\n"
+    },
+    "ADX": {
+      "status": "execution_error",
+      "error": "name 'ADX' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'ADX' is not defined\n"
+    },
+    "Ichimoku": {
+      "status": "execution_error",
+      "error": "name 'Ichimoku' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'Ichimoku' is not defined\n"
+    },
+    "IntradayTrendAnalysis": {
+      "status": "execution_error",
+      "error": "name 'IntradayTrendAnalysis' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'IntradayTrendAnalysis' is not defined\n"
+    },
+    "ATR": {
+      "status": "execution_error",
+      "error": "name 'ATR' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'ATR' is not defined\n"
+    },
+    "BollingerBands": {
+      "status": "execution_error",
+      "error": "name 'BollingerBands' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'BollingerBands' is not defined\n"
+    },
+    "CCI": {
+      "status": "execution_error",
+      "error": "name 'CCI' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'CCI' is not defined\n"
+    },
+    "KeltnerChannels": {
+      "status": "execution_error",
+      "error": "name 'KeltnerChannels' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'KeltnerChannels' is not defined\n"
+    },
+    "ParabolicSAR": {
+      "status": "execution_error",
+      "error": "name 'ParabolicSAR' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'ParabolicSAR' is not defined\n"
+    },
+    "SuperTrend": {
+      "status": "execution_error",
+      "error": "name 'SuperTrend' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'SuperTrend' is not defined\n"
+    },
+    "Vortex": {
+      "status": "execution_error",
+      "error": "name 'Vortex' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'Vortex' is not defined. Did you mean: 'sorted'?\n"
+    },
+    "VolatilitySpikesDetector": {
+      "status": "execution_error",
+      "error": "name 'VolatilitySpikesDetector' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'VolatilitySpikesDetector' is not defined\n"
+    },
+    "TimeWeightedVolatility": {
+      "status": "execution_error",
+      "error": "name 'TimeWeightedVolatility' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'TimeWeightedVolatility' is not defined\n"
+    },
+    "AutoencoderFeatures": {
+      "status": "execution_error",
+      "error": "name 'AutoencoderFeatures' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'AutoencoderFeatures' is not defined\n"
+    },
+    "PCAFeatures": {
+      "status": "execution_error",
+      "error": "name 'PCAFeatures' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'PCAFeatures' is not defined\n"
+    },
+    "SentimentScores": {
+      "status": "execution_error",
+      "error": "name 'SentimentScores' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'SentimentScores' is not defined\n"
+    },
+    "NoiseFilter": {
+      "status": "import_error",
+      "error": "No module named 'NoiseFilter'",
+      "execution_time": 0
+    },
+    "ScalpingLSTM": {
+      "status": "import_error",
+      "error": "No module named 'ScalpingLSTM'",
+      "execution_time": 0
+    },
+    "SpreadPredictor": {
+      "status": "import_error",
+      "error": "No module named 'SpreadPredictor'",
+      "execution_time": 0
+    },
+    "TickClassifier": {
+      "status": "import_error",
+      "error": "No module named 'TickClassifier'",
+      "execution_time": 0
+    },
+    "OBV": {
+      "status": "execution_error",
+      "error": "name 'OBV' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'OBV' is not defined\n"
+    },
+    "MFI": {
+      "status": "execution_error",
+      "error": "name 'MFI' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'MFI' is not defined\n"
+    },
+    "VFI": {
+      "status": "execution_error",
+      "error": "name 'VFI' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'VFI' is not defined\n"
+    },
+    "AdvanceDecline": {
+      "status": "execution_error",
+      "error": "name 'AdvanceDecline' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'AdvanceDecline' is not defined\n"
+    },
+    "VolumeProfiles": {
+      "status": "import_error",
+      "error": "No module named 'VolumeProfiles'",
+      "execution_time": 0
+    },
+    "OrderFlowImbalance": {
+      "status": "import_error",
+      "error": "No module named 'OrderFlowImbalance'",
+      "execution_time": 0
+    },
+    "SmartMoneyIndicators": {
+      "status": "import_error",
+      "error": "No module named 'SmartMoneyIndicators'",
+      "execution_time": 0
+    },
+    "TickVolumeIndicators": {
+      "status": "execution_error",
+      "error": "name 'TickVolumeIndicators' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'TickVolumeIndicators' is not defined\n"
+    },
+    "VolumeSpreadAnalysis": {
+      "status": "import_error",
+      "error": "No module named 'VolumeSpreadAnalysis'",
+      "execution_time": 0
+    },
+    "Alligator": {
+      "status": "execution_error",
+      "error": "name 'Alligator' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'Alligator' is not defined\n"
+    },
+    "FisherTransform": {
+      "status": "execution_error",
+      "error": "name 'FisherTransform' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'FisherTransform' is not defined\n"
+    },
+    "HurstExponent": {
+      "status": "execution_error",
+      "error": "name 'HurstExponent' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'HurstExponent' is not defined\n"
+    },
+    "GannAnglesCalculator": {
+      "status": "execution_error",
+      "error": "name 'GannAnglesCalculator' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'GannAnglesCalculator' is not defined\n"
+    },
+    "GannFanAnalysis": {
+      "status": "execution_error",
+      "error": "name 'GannFanAnalysis' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'GannFanAnalysis' is not defined\n"
+    },
+    "GannPatternDetector": {
+      "status": "execution_error",
+      "error": "name 'GannPatternDetector' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'GannPatternDetector' is not defined\n"
+    },
+    "GannSquareOfNine": {
+      "status": "execution_error",
+      "error": "name 'GannSquareOfNine' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'GannSquareOfNine' is not defined\n"
+    },
+    "GannTimePrice": {
+      "status": "execution_error",
+      "error": "name 'GannTimePrice' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'GannTimePrice' is not defined\n"
+    },
+    "FibonacciRetracement": {
+      "status": "execution_error",
+      "error": "name 'FibonacciRetracement' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'FibonacciRetracement' is not defined\n"
+    },
+    "FibonacciExtension": {
+      "status": "execution_error",
+      "error": "name 'FibonacciExtension' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'FibonacciExtension' is not defined\n"
+    },
+    "FibonacciTimeZones": {
+      "status": "import_error",
+      "error": "No module named 'FibonacciTimeZones'",
+      "execution_time": 0
+    },
+    "FibonacciArcs": {
+      "status": "import_error",
+      "error": "No module named 'FibonacciArcs'",
+      "execution_time": 0
+    },
+    "FibonacciFan": {
+      "status": "import_error",
+      "error": "No module named 'FibonacciFan'",
+      "execution_time": 0
+    },
+    "QuickFibonacci": {
+      "status": "execution_error",
+      "error": "name 'QuickFibonacci' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'QuickFibonacci' is not defined\n"
+    },
+    "MicrostructureFilters": {
+      "status": "execution_error",
+      "error": "name 'MicrostructureFilters' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'MicrostructureFilters' is not defined\n"
+    },
+    "OrderBookAnalysis": {
+      "status": "execution_error",
+      "error": "name 'OrderBookAnalysis' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'OrderBookAnalysis' is not defined\n"
+    },
+    "ScalpingPriceAction": {
+      "status": "execution_error",
+      "error": "name 'ScalpingPriceAction' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'ScalpingPriceAction' is not defined\n"
+    },
+    "VWAPScalping": {
+      "status": "execution_error",
+      "error": "name 'VWAPScalping' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'VWAPScalping' is not defined\n"
+    },
+    "PivotPointCalculator": {
+      "status": "execution_error",
+      "error": "name 'PivotPointCalculator' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'PivotPointCalculator' is not defined\n"
+    },
+    "SessionBreakouts": {
+      "status": "execution_error",
+      "error": "name 'SessionBreakouts' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'SessionBreakouts' is not defined\n"
+    },
+    "SwingHighLowDetector": {
+      "status": "import_error",
+      "error": "No module named 'SwingHighLowDetector'",
+      "execution_time": 0
+    },
+    "SwingPatternRecognition": {
+      "status": "import_error",
+      "error": "No module named 'SwingPatternRecognition'",
+      "execution_time": 0
+    },
+    "SwingTrendAnalysis": {
+      "status": "import_error",
+      "error": "No module named 'SwingTrendAnalysis'",
+      "execution_time": 0
+    },
+    "SwingVolumeAnalysis": {
+      "status": "import_error",
+      "error": "No module named 'SwingVolumeAnalysis'",
+      "execution_time": 0
+    },
+    "SessionMomentum": {
+      "status": "execution_error",
+      "error": "name 'SessionMomentum' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'SessionMomentum' is not defined\n"
+    },
+    "ConfidenceCalculator": {
+      "status": "execution_error",
+      "error": "name 'ConfidenceCalculator' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'ConfidenceCalculator' is not defined\n"
+    },
+    "ConflictResolver": {
+      "status": "execution_error",
+      "error": "name 'ConflictResolver' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'ConflictResolver' is not defined\n"
+    },
+    "QuickDecisionMatrix": {
+      "status": "execution_error",
+      "error": "name 'QuickDecisionMatrix' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'QuickDecisionMatrix' is not defined\n"
+    },
+    "SignalAggregator": {
+      "status": "execution_error",
+      "error": "name 'SignalAggregator' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'SignalAggregator' is not defined\n"
+    },
+    "TimeframeSynchronizer": {
+      "status": "execution_error",
+      "error": "name 'TimeframeSynchronizer' is not defined",
+      "execution_time": 0,
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_all_67_indicators_comprehensive.py\", line 210, in test_single_indicator\n    indicator_class = eval(class_name)\n  File \"<string>\", line 1, in <module>\nNameError: name 'TimeframeSynchronizer' is not defined\n"
+    }
+  },
+  "category_stats": {
+    "momentum": {
+      "success": 0,
+      "failed": 8,
+      "total": 8,
+      "success_rate": 0.0,
+      "total_time": 0
+    },
+    "trend": {
+      "success": 0,
+      "failed": 4,
+      "total": 4,
+      "success_rate": 0.0,
+      "total_time": 0
+    },
+    "volatility": {
+      "success": 0,
+      "failed": 8,
+      "total": 8,
+      "success_rate": 0.0,
+      "total_time": 0
+    },
+    "advanced": {
+      "success": 0,
+      "failed": 8,
+      "total": 8,
+      "success_rate": 0.0,
+      "total_time": 0
+    },
+    "volume": {
+      "success": 0,
+      "failed": 9,
+      "total": 9,
+      "success_rate": 0.0,
+      "total_time": 0
+    },
+    "cycle": {
+      "success": 0,
+      "failed": 3,
+      "total": 3,
+      "success_rate": 0.0,
+      "total_time": 0
+    },
+    "gann": {
+      "success": 0,
+      "failed": 5,
+      "total": 5,
+      "success_rate": 0.0,
+      "total_time": 0
+    },
+    "fibonacci": {
+      "success": 0,
+      "failed": 6,
+      "total": 6,
+      "success_rate": 0.0,
+      "total_time": 0
+    },
+    "scalping": {
+      "success": 0,
+      "failed": 4,
+      "total": 4,
+      "success_rate": 0.0,
+      "total_time": 0
+    },
+    "pivot": {
+      "success": 0,
+      "failed": 1,
+      "total": 1,
+      "success_rate": 0.0,
+      "total_time": 0
+    },
+    "daytrading": {
+      "success": 0,
+      "failed": 1,
+      "total": 1,
+      "success_rate": 0.0,
+      "total_time": 0
+    },
+    "swingtrading": {
+      "success": 0,
+      "failed": 5,
+      "total": 5,
+      "success_rate": 0.0,
+      "total_time": 0
+    },
+    "signals": {
+      "success": 0,
+      "failed": 5,
+      "total": 5,
+      "success_rate": 0.0,
+      "total_time": 0
+    }
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "timestamp": "2025-05-27T07:33:47.888426",
+  "summary": {
+    "total_tests": 8,
+    "passed_tests": 5,
+    "partial_tests": 3,
+    "success_rate": 62.5
+  },
+  "detailed_results": {
+    "Feature Store": {
+      "status": "success",
+      "feature_count": 18,
+      "has_40_plus_features": false,
+      "has_importance_ranking": false,
+      "details": {
+        "feature_file_exists": true,
+        "feature_count": 18,
+        "importance_ranking_available": false
+      }
+    },
+    "Pattern Recognition Models": {
+      "status": "success",
+      "models_tested": {
+        "ScalpingLSTM": true,
+        "TickClassifier": true,
+        "GRU_Support": "Failed: name 'Model' is not defined"
+      },
+      "success_count": 2,
+      "total_models": 3
+    },
+    "Volume Indicators": {
+      "status": "partial",
+      "indicators_tested": {
+        "OBV": "Failed: No module named 'OBV'",
+        "MFI": "Failed: No module named 'MFI'",
+        "VFI": "Failed: No module named 'VFI'",
+        "AdvanceDecline": "Failed: No module named 'AdvanceDecline'"
+      },
+      "success_count": 0,
+      "total_indicators": 4
+    },
+    "Volatility Indicators": {
+      "status": "partial",
+      "indicators_tested": {
+        "ATR": "Failed: No module named 'ATR'",
+        "BollingerBands": "Failed: No module named 'BollingerBands'",
+        "SuperTrend": "Failed: No module named 'SuperTrend'",
+        "KeltnerChannels": "Failed: No module named 'KeltnerChannels'"
+      },
+      "success_count": 0,
+      "total_indicators": 4
+    },
+    "Sentiment Analysis": {
+      "status": "partial",
+      "sentiment_tested": {
+        "SentimentAnalyzer": "Failed: No module named 'textblob'",
+        "SentimentPipeline": true,
+        "SentimentScores": "Failed: No module named 'SentimentScores'"
+      },
+      "success_count": 1,
+      "total_components": 3
+    },
+    "Reinforcement Learning": {
+      "status": "success",
+      "rl_tested": {
+        "MLInfrastructure_RL_Support": true,
+        "OnlineLearning_RL_Mode": "Failed: No module named 'OnlineLearning'",
+        "AdaptiveLearner_RL_Mode": true
+      },
+      "success_count": 2,
+      "total_components": 3
+    },
+    "Microservices Architecture": {
+      "status": "success",
+      "services_found": {
+        "analytics-service": true,
+        "trading-service": true,
+        "user-service": true,
+        "market-data-service": true,
+        "ml-service": false,
+        "feature-store": true,
+        "api-gateway": true,
+        "event-system": true
+      },
+      "soa_compliance": {
+        "separate_data_stores": true,
+        "api_definitions": true,
+        "service_independence": true
+      },
+      "success_count": 7,
+      "total_services": 8
+    },
+    "Integration Testing": {
+      "status": "success",
+      "integration_tests": {
+        "feature_store_ml_integration": true,
+        "analytics_indicators_integration": true,
+        "trading_service_integration": true
+      },
+      "success_count": 3,
+      "total_tests": 3
+    }
+  }
+}

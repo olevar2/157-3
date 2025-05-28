@@ -12,9 +12,20 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const authMiddleware = require('./middleware/auth');
 const logger = require('./utils/logger');
 const healthCheck = require('./middleware/healthCheck');
+const ServiceDiscoveryMiddleware = require('./middleware/serviceDiscovery');
+const mTLSMiddleware = require('./middleware/mtls');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Initialize service discovery and mTLS
+const serviceDiscovery = new ServiceDiscoveryMiddleware();
+const mtlsHandler = new mTLSMiddleware({
+  caCertPath: process.env.CA_CERT_PATH || './certs/ca-cert.pem',
+  serverCertPath: process.env.SERVER_CERT_PATH || './certs/api-gateway-cert.pem',
+  serverKeyPath: process.env.SERVER_KEY_PATH || './certs/api-gateway-key.pem',
+  requireClientCert: process.env.REQUIRE_CLIENT_CERT !== 'false'
+});
 
 // Trust proxy (important for rate limiting behind reverse proxy)
 app.set('trust proxy', 1);
@@ -74,8 +85,34 @@ const marketDataLimiter = createRateLimiter(60 * 1000, 200, 'Market data API rat
 // Apply general rate limiting
 app.use(generalLimiter);
 
+// Apply service discovery and mTLS middleware
+app.use(serviceDiscovery.resolveService());
+app.use(mtlsHandler.validateClientCertificate());
+
 // Health check endpoint (no auth required)
-app.get('/health', healthCheck);
+app.get('/health', async (req, res) => {
+  const serviceDiscoveryHealth = await serviceDiscovery.healthCheck();
+  const mtlsHealth = mtlsHandler.healthCheck();
+  const health = await healthCheck(req, res, () => {});
+
+  // If health check passed, also check service discovery and mTLS
+  if (res.statusCode === 200) {
+    const overallHealthy = serviceDiscoveryHealth && mtlsHealth.status === 'healthy';
+
+    const healthData = {
+      status: overallHealthy ? 'healthy' : 'degraded',
+      timestamp: new Date().toISOString(),
+      service: 'api-gateway',
+      serviceDiscovery: {
+        status: serviceDiscoveryHealth ? 'connected' : 'disconnected',
+        cacheStats: serviceDiscovery.getCacheStats()
+      },
+      mTLS: mtlsHealth
+    };
+
+    res.status(overallHealthy ? 200 : 200).json(healthData);
+  }
+});
 
 // API Gateway info endpoint
 app.get('/api/info', (req, res) => {
@@ -105,13 +142,16 @@ app.get('/api/info', (req, res) => {
 
 // Authentication endpoints (high security)
 app.use('/api/auth', authLimiter, createProxyMiddleware({
-  target: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
+  target: 'http://placeholder', // Will be replaced by router
   changeOrigin: true,
   pathRewrite: {
     '^/api/auth': '/api/auth'
   },
+  router: async (req) => {
+    return req.serviceUrl || process.env.AUTH_SERVICE_URL || 'http://localhost:3001';
+  },
   onProxyReq: (proxyReq, req, res) => {
-    logger.info(`Proxying auth request: ${req.method} ${req.path}`);
+    logger.info(`Proxying auth request: ${req.method} ${req.path} to ${req.serviceUrl}`);
   },
   onError: (err, req, res) => {
     logger.error(`Auth service proxy error: ${err.message}`);
@@ -123,13 +163,16 @@ app.use('/api/auth', authLimiter, createProxyMiddleware({
 }));
 
 // User management endpoints (authentication required)
-app.use('/api/users', 
+app.use('/api/users',
   authMiddleware.validateToken,
   createProxyMiddleware({
-    target: process.env.USER_SERVICE_URL || 'http://localhost:3002',
+    target: 'http://placeholder', // Will be replaced by router
     changeOrigin: true,
     pathRewrite: {
       '^/api/users': '/api/users'
+    },
+    router: async (req) => {
+      return req.serviceUrl || process.env.USER_SERVICE_URL || 'http://localhost:3002';
     },
     onProxyReq: (proxyReq, req, res) => {
       // Forward user info from JWT
@@ -137,7 +180,7 @@ app.use('/api/users',
         proxyReq.setHeader('X-User-ID', req.user.id);
         proxyReq.setHeader('X-User-Role', req.user.role);
       }
-      logger.info(`Proxying user request: ${req.method} ${req.path}`);
+      logger.info(`Proxying user request: ${req.method} ${req.path} to ${req.serviceUrl}`);
     },
     onError: (err, req, res) => {
       logger.error(`User service proxy error: ${err.message}`);
@@ -154,10 +197,13 @@ app.use('/api/trading',
   tradingLimiter,
   authMiddleware.validateToken,
   createProxyMiddleware({
-    target: process.env.TRADING_SERVICE_URL || 'http://localhost:3003',
+    target: 'http://placeholder', // Will be replaced by router
     changeOrigin: true,
     pathRewrite: {
       '^/api/trading': '/api'
+    },
+    router: async (req) => {
+      return req.serviceUrl || process.env.TRADING_SERVICE_URL || 'http://localhost:3003';
     },
     onProxyReq: (proxyReq, req, res) => {
       // Forward user info from JWT
@@ -165,7 +211,7 @@ app.use('/api/trading',
         proxyReq.setHeader('X-User-ID', req.user.id);
         proxyReq.setHeader('X-User-Role', req.user.role);
       }
-      logger.info(`Proxying trading request: ${req.method} ${req.path}`);
+      logger.info(`Proxying trading request: ${req.method} ${req.path} to ${req.serviceUrl}`);
     },
     onError: (err, req, res) => {
       logger.error(`Trading service proxy error: ${err.message}`);
@@ -182,17 +228,20 @@ app.use('/api/market-data',
   marketDataLimiter,
   authMiddleware.validateToken,
   createProxyMiddleware({
-    target: process.env.MARKET_DATA_SERVICE_URL || 'http://localhost:3004',
+    target: 'http://placeholder', // Will be replaced by router
     changeOrigin: true,
     pathRewrite: {
       '^/api/market-data': '/api/market-data'
+    },
+    router: async (req) => {
+      return req.serviceUrl || process.env.MARKET_DATA_SERVICE_URL || 'http://localhost:3004';
     },
     onProxyReq: (proxyReq, req, res) => {
       if (req.user) {
         proxyReq.setHeader('X-User-ID', req.user.id);
         proxyReq.setHeader('X-User-Role', req.user.role);
       }
-      logger.info(`Proxying market data request: ${req.method} ${req.path}`);
+      logger.info(`Proxying market data request: ${req.method} ${req.path} to ${req.serviceUrl}`);
     },
     onError: (err, req, res) => {
       logger.error(`Market data service proxy error: ${err.message}`);
@@ -216,16 +265,16 @@ app.use('/ws', createProxyMiddleware({
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  logger.error(`Unhandled error: ${err.message}`, { 
+  logger.error(`Unhandled error: ${err.message}`, {
     stack: err.stack,
     url: req.url,
     method: req.method,
     ip: req.ip
   });
-  
+
   res.status(err.status || 500).json({
-    error: process.env.NODE_ENV === 'production' 
-      ? 'Internal server error' 
+    error: process.env.NODE_ENV === 'production'
+      ? 'Internal server error'
       : err.message,
     timestamp: new Date().toISOString()
   });
@@ -244,12 +293,12 @@ app.use('*', (req, res) => {
 // Graceful shutdown
 const gracefulShutdown = (signal) => {
   logger.info(`Received ${signal}, shutting down gracefully...`);
-  
+
   server.close(() => {
     logger.info('HTTP server closed');
     process.exit(0);
   });
-  
+
   // Force shutdown after 10 seconds
   setTimeout(() => {
     logger.error('Forced shutdown after timeout');
@@ -257,12 +306,48 @@ const gracefulShutdown = (signal) => {
   }, 10000);
 };
 
-// Start server
-const server = app.listen(PORT, () => {
-  logger.info(`🚀 API Gateway running on port ${PORT}`);
-  logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  logger.info(`🔐 Authentication: ${process.env.JWT_SECRET ? 'Enabled' : 'Disabled'}`);
-});
+// Start server with HTTPS if certificates are available
+const https = require('https');
+const httpsOptions = mtlsHandler.getHttpsOptions();
+
+let server;
+if (httpsOptions && process.env.ENABLE_HTTPS !== 'false') {
+  // Start HTTPS server with mTLS
+  server = https.createServer(httpsOptions, app).listen(PORT, async () => {
+    logger.info(`🚀 API Gateway running on HTTPS port ${PORT} with mTLS`);
+    logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`🔐 Authentication: ${process.env.JWT_SECRET ? 'Enabled' : 'Disabled'}`);
+    logger.info(`🔒 mTLS: Enabled with client certificate validation`);
+
+    // Register with service discovery
+    try {
+      await serviceDiscovery.registerSelf();
+      logger.info('✅ API Gateway registered with service discovery');
+    } catch (error) {
+      logger.warn('⚠️ Failed to register with service discovery, continuing without it', {
+        error: error.message
+      });
+    }
+  });
+} else {
+  // Fallback to HTTP server
+  server = app.listen(PORT, async () => {
+    logger.info(`🚀 API Gateway running on HTTP port ${PORT}`);
+    logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`🔐 Authentication: ${process.env.JWT_SECRET ? 'Enabled' : 'Disabled'}`);
+    logger.warn('⚠️ mTLS: Disabled - certificates not found or HTTPS disabled');
+
+    // Register with service discovery
+    try {
+      await serviceDiscovery.registerSelf();
+      logger.info('✅ API Gateway registered with service discovery');
+    } catch (error) {
+      logger.warn('⚠️ Failed to register with service discovery, continuing without it', {
+        error: error.message
+      });
+    }
+  });
+}
 
 // Signal handlers
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  consul-server-1:
+    image: consul:1.16
+    container_name: consul-server-1
+    restart: unless-stopped
+    volumes:
+      - consul-server-1-data:/consul/data
+      - ./consul-config:/consul/config
+    environment:
+      - CONSUL_BIND_INTERFACE=eth0
+      - CONSUL_CLIENT_INTERFACE=eth0
+    command: >
+      consul agent -server -bootstrap-expect=3 -datacenter=dc1 -data-dir=/consul/data
+      -node=consul-server-1 -bind={{ GetInterfaceIP "eth0" }} -client=0.0.0.0
+      -retry-join=consul-server-2 -retry-join=consul-server-3 -ui -log-level=INFO
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+    networks:
+      - consul-network
+      - platform3-network
+
+  consul-server-2:
+    image: consul:1.16
+    container_name: consul-server-2
+    restart: unless-stopped
+    volumes:
+      - consul-server-2-data:/consul/data
+      - ./consul-config:/consul/config
+    environment:
+      - CONSUL_BIND_INTERFACE=eth0
+      - CONSUL_CLIENT_INTERFACE=eth0
+    command: >
+      consul agent -server -bootstrap-expect=3 -datacenter=dc1 -data-dir=/consul/data
+      -node=consul-server-2 -bind={{ GetInterfaceIP "eth0" }} -client=0.0.0.0
+      -retry-join=consul-server-1 -retry-join=consul-server-3 -log-level=INFO
+    networks:
+      - consul-network
+      - platform3-network
+
+  consul-server-3:
+    image: consul:1.16
+    container_name: consul-server-3
+    restart: unless-stopped
+    volumes:
+      - consul-server-3-data:/consul/data
+      - ./consul-config:/consul/config
+    environment:
+      - CONSUL_BIND_INTERFACE=eth0
+      - CONSUL_CLIENT_INTERFACE=eth0
+    command: >
+      consul agent -server -bootstrap-expect=3 -datacenter=dc1 -data-dir=/consul/data
+      -node=consul-server-3 -bind={{ GetInterfaceIP "eth0" }} -client=0.0.0.0
+      -retry-join=consul-server-1 -retry-join=consul-server-2 -log-level=INFO
+    networks:
+      - consul-network
+      - platform3-network
+
+  consul-client:
+    image: consul:1.16
+    container_name: consul-client
+    restart: unless-stopped
+    volumes:
+      - ./consul-config:/consul/config
+    environment:
+      - CONSUL_BIND_INTERFACE=eth0
+      - CONSUL_CLIENT_INTERFACE=eth0
+    command: >
+      consul agent -datacenter=dc1 -node=consul-client
+      -bind={{ GetInterfaceIP "eth0" }} -client=0.0.0.0
+      -retry-join=consul-server-1 -retry-join=consul-server-2 -retry-join=consul-server-3
+      -log-level=INFO
+    networks:
+      - consul-network
+      - platform3-network
+
+volumes:
+  consul-server-1-data:
+  consul-server-2-data:
+  consul-server-3-data:
+
+networks:
+  consul-network:
+    driver: bridge
+  platform3-network:
+    external: true
