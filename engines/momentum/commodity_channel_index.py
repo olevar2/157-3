@@ -1,0 +1,479 @@
+"""
+Commodity Channel Index (CCI) Implementation
+Advanced momentum oscillator for measuring deviation from statistical mean
+"""
+
+import numpy as np
+import pandas as pd
+from typing import Dict, List, Tuple, Optional, Any
+from dataclasses import dataclass
+from ..indicator_base import TechnicalIndicator, IndicatorConfig, IndicatorSignal, ValidationResult
+
+@dataclass
+class CCIConfig(IndicatorConfig):
+    """Configuration for Commodity Channel Index"""
+    period: int = 20
+    constant: float = 0.015  # Lambert's constant
+    oversold_level: float = -100
+    overbought_level: float = 100
+    extreme_oversold: float = -200
+    extreme_overbought: float = 200
+    enable_divergence: bool = True
+    enable_pattern_recognition: bool = True
+    volatility_adjustment: bool = True
+
+class CommodityChannelIndex(TechnicalIndicator):
+    """
+    Commodity Channel Index (CCI)
+    
+    Measures the deviation of price from its statistical mean to identify
+    cyclical turning points, overbought/oversold conditions, and trend strength.
+    
+    Features:
+    - Traditional CCI calculation with Lambert's constant
+    - Overbought/oversold level analysis
+    - Divergence detection
+    - Pattern recognition (triple peaks, channels)
+    - Volatility-adjusted signals
+    - Multi-timeframe coordination
+    """
+    
+    def __init__(self, config: CCIConfig):
+        super().__init__(config)
+        self.config = config
+        self.cci_values = []
+        self.typical_prices = []
+        self.sma_values = []
+        self.mean_deviations = []
+        
+        # Pattern tracking
+        self.peaks = []
+        self.troughs = []
+        self.last_signals = []
+        
+    def calculate(self, high: float, low: float, close: float, 
+                 volume: Optional[float] = None, timestamp: Optional[Any] = None) -> IndicatorSignal:
+        """Calculate CCI with comprehensive analysis"""
+        
+        # Calculate typical price
+        typical_price = (high + low + close) / 3
+        self.typical_prices.append(typical_price)
+        
+        if len(self.typical_prices) < self.config.period:
+            return self._create_signal(0, 0, "INSUFFICIENT_DATA", {
+                'typical_price': typical_price,
+                'values_needed': self.config.period - len(self.typical_prices)
+            })
+        
+        # Keep only required values
+        if len(self.typical_prices) > self.config.period * 2:
+            self.typical_prices = self.typical_prices[-self.config.period * 2:]
+        
+        # Calculate Simple Moving Average of typical price
+        sma = np.mean(self.typical_prices[-self.config.period:])
+        self.sma_values.append(sma)
+        
+        # Calculate Mean Deviation
+        mean_deviation = np.mean([abs(tp - sma) for tp in self.typical_prices[-self.config.period:]])
+        self.mean_deviations.append(mean_deviation)
+        
+        # Calculate CCI
+        if mean_deviation == 0:
+            cci = 0
+        else:
+            cci = (typical_price - sma) / (self.config.constant * mean_deviation)
+        
+        self.cci_values.append(cci)
+        
+        # Keep history manageable
+        if len(self.cci_values) > 200:
+            self.cci_values = self.cci_values[-200:]
+            self.sma_values = self.sma_values[-200:]
+            self.mean_deviations = self.mean_deviations[-200:]
+        
+        # Generate signals
+        return self._generate_comprehensive_signal(cci, high, low, close, volume, timestamp)
+    
+    def _generate_comprehensive_signal(self, cci: float, high: float, low: float, 
+                                     close: float, volume: Optional[float], 
+                                     timestamp: Optional[Any]) -> IndicatorSignal:
+        """Generate comprehensive CCI signal with multiple analysis layers"""
+        
+        signal_strength = 0
+        confidence = 0.5
+        signals = []
+        metadata = {
+            'cci': cci,
+            'sma': self.sma_values[-1] if self.sma_values else 0,
+            'mean_deviation': self.mean_deviations[-1] if self.mean_deviations else 0,
+            'typical_price': self.typical_prices[-1] if self.typical_prices else 0
+        }
+        
+        # 1. Level-based signals
+        level_analysis = self._analyze_levels(cci)
+        signal_strength += level_analysis['strength']
+        confidence += level_analysis['confidence']
+        signals.extend(level_analysis['signals'])
+        metadata.update(level_analysis['metadata'])
+        
+        # 2. Zero-line analysis
+        if len(self.cci_values) >= 2:
+            zero_analysis = self._analyze_zero_line_cross(cci)
+            signal_strength += zero_analysis['strength']
+            confidence += zero_analysis['confidence']
+            signals.extend(zero_analysis['signals'])
+            metadata.update(zero_analysis['metadata'])
+        
+        # 3. Divergence analysis
+        if self.config.enable_divergence and len(self.cci_values) >= 10:
+            div_analysis = self._analyze_divergence(close)
+            signal_strength += div_analysis['strength']
+            confidence += div_analysis['confidence']
+            signals.extend(div_analysis['signals'])
+            metadata.update(div_analysis['metadata'])
+        
+        # 4. Pattern recognition
+        if self.config.enable_pattern_recognition and len(self.cci_values) >= 15:
+            pattern_analysis = self._analyze_patterns()
+            signal_strength += pattern_analysis['strength']
+            confidence += pattern_analysis['confidence']
+            signals.extend(pattern_analysis['signals'])
+            metadata.update(pattern_analysis['metadata'])
+        
+        # 5. Volatility adjustment
+        if self.config.volatility_adjustment and volume is not None:
+            vol_analysis = self._analyze_volatility_context(cci, volume)
+            signal_strength *= vol_analysis['multiplier']
+            confidence += vol_analysis['confidence_adj']
+            signals.extend(vol_analysis['signals'])
+            metadata.update(vol_analysis['metadata'])
+        
+        # Normalize values
+        signal_strength = max(-1, min(1, signal_strength))
+        confidence = max(0, min(1, confidence / 4))  # Normalize multi-component confidence
+        
+        # Determine overall signal
+        if abs(signal_strength) < 0.2:
+            overall_signal = "NEUTRAL"
+        elif signal_strength > 0:
+            overall_signal = "BULLISH"
+        else:
+            overall_signal = "BEARISH"
+        
+        metadata['component_signals'] = signals
+        metadata['analysis_components'] = len([x for x in [level_analysis, zero_analysis] if x['signals']])
+        
+        return self._create_signal(signal_strength, confidence, overall_signal, metadata)
+    
+    def _analyze_levels(self, cci: float) -> Dict:
+        """Analyze CCI level-based signals"""
+        strength = 0
+        confidence = 0
+        signals = []
+        metadata = {}
+        
+        # Extreme levels
+        if cci > self.config.extreme_overbought:
+            strength = -0.8  # Strong sell signal
+            confidence = 0.8
+            signals.append("EXTREME_OVERBOUGHT")
+            metadata['level'] = 'extreme_overbought'
+        elif cci > self.config.overbought_level:
+            strength = -0.4  # Moderate sell signal
+            confidence = 0.6
+            signals.append("OVERBOUGHT")
+            metadata['level'] = 'overbought'
+        elif cci < self.config.extreme_oversold:
+            strength = 0.8  # Strong buy signal
+            confidence = 0.8
+            signals.append("EXTREME_OVERSOLD")
+            metadata['level'] = 'extreme_oversold'
+        elif cci < self.config.oversold_level:
+            strength = 0.4  # Moderate buy signal
+            confidence = 0.6
+            signals.append("OVERSOLD")
+            metadata['level'] = 'oversold'
+        else:
+            metadata['level'] = 'normal'
+        
+        # Level persistence analysis
+        if len(self.cci_values) >= 3:
+            recent_values = self.cci_values[-3:]
+            if all(v > self.config.overbought_level for v in recent_values):
+                confidence += 0.2
+                signals.append("PERSISTENT_OVERBOUGHT")
+            elif all(v < self.config.oversold_level for v in recent_values):
+                confidence += 0.2
+                signals.append("PERSISTENT_OVERSOLD")
+        
+        return {
+            'strength': strength,
+            'confidence': confidence,
+            'signals': signals,
+            'metadata': metadata
+        }
+    
+    def _analyze_zero_line_cross(self, cci: float) -> Dict:
+        """Analyze zero-line crossover signals"""
+        strength = 0
+        confidence = 0
+        signals = []
+        metadata = {}
+        
+        prev_cci = self.cci_values[-2]
+        
+        # Zero-line crossovers
+        if prev_cci <= 0 and cci > 0:
+            strength = 0.3
+            confidence = 0.6
+            signals.append("ZERO_LINE_CROSS_UP")
+            metadata['crossover'] = 'bullish'
+        elif prev_cci >= 0 and cci < 0:
+            strength = -0.3
+            confidence = 0.6
+            signals.append("ZERO_LINE_CROSS_DOWN")
+            metadata['crossover'] = 'bearish'
+        
+        # Momentum analysis around zero line
+        if len(self.cci_values) >= 5:
+            momentum = cci - self.cci_values[-5]
+            if abs(cci) < 50 and momentum > 20:
+                signals.append("ACCELERATING_UP")
+                strength += 0.2
+            elif abs(cci) < 50 and momentum < -20:
+                signals.append("ACCELERATING_DOWN")
+                strength -= 0.2
+        
+        metadata['momentum'] = cci - prev_cci if len(self.cci_values) >= 2 else 0
+        
+        return {
+            'strength': strength,
+            'confidence': confidence,
+            'signals': signals,
+            'metadata': metadata
+        }
+    
+    def _analyze_divergence(self, close: float) -> Dict:
+        """Analyze price-CCI divergence patterns"""
+        strength = 0
+        confidence = 0
+        signals = []
+        metadata = {}
+        
+        if len(self.cci_values) < 10:
+            return {'strength': 0, 'confidence': 0, 'signals': [], 'metadata': {}}
+        
+        # Find recent peaks and troughs
+        cci_recent = self.cci_values[-10:]
+        
+        # Simple peak/trough detection
+        cci_peaks = []
+        cci_troughs = []
+        
+        for i in range(1, len(cci_recent) - 1):
+            if cci_recent[i] > cci_recent[i-1] and cci_recent[i] > cci_recent[i+1]:
+                cci_peaks.append((i, cci_recent[i]))
+            elif cci_recent[i] < cci_recent[i-1] and cci_recent[i] < cci_recent[i+1]:
+                cci_troughs.append((i, cci_recent[i]))
+        
+        # Divergence detection (simplified)
+        if len(cci_peaks) >= 2:
+            if cci_peaks[-1][1] < cci_peaks[-2][1]:  # Lower peak in CCI
+                strength = 0.2  # Potential bullish divergence
+                signals.append("POTENTIAL_BULLISH_DIVERGENCE")
+                confidence = 0.4
+        
+        if len(cci_troughs) >= 2:
+            if cci_troughs[-1][1] > cci_troughs[-2][1]:  # Higher trough in CCI
+                strength = -0.2  # Potential bearish divergence
+                signals.append("POTENTIAL_BEARISH_DIVERGENCE")
+                confidence = 0.4
+        
+        metadata['cci_peaks'] = len(cci_peaks)
+        metadata['cci_troughs'] = len(cci_troughs)
+        
+        return {
+            'strength': strength,
+            'confidence': confidence,
+            'signals': signals,
+            'metadata': metadata
+        }
+    
+    def _analyze_patterns(self) -> Dict:
+        """Analyze CCI patterns"""
+        strength = 0
+        confidence = 0
+        signals = []
+        metadata = {}
+        
+        if len(self.cci_values) < 15:
+            return {'strength': 0, 'confidence': 0, 'signals': [], 'metadata': {}}
+        
+        recent_cci = self.cci_values[-15:]
+        
+        # Triple peak pattern
+        peaks = []
+        for i in range(1, len(recent_cci) - 1):
+            if recent_cci[i] > recent_cci[i-1] and recent_cci[i] > recent_cci[i+1]:
+                peaks.append((i, recent_cci[i]))
+        
+        if len(peaks) >= 3:
+            # Check for triple peak formation
+            last_three_peaks = peaks[-3:]
+            if all(p[1] > 100 for p in last_three_peaks):
+                strength = -0.3
+                confidence = 0.5
+                signals.append("TRIPLE_PEAK_OVERBOUGHT")
+        
+        # Channel analysis
+        max_cci = max(recent_cci)
+        min_cci = min(recent_cci)
+        range_cci = max_cci - min_cci
+        
+        if range_cci < 50:  # Narrow channel
+            signals.append("NARROW_CHANNEL")
+            metadata['channel_type'] = 'narrow'
+        elif range_cci > 200:  # Wide channel
+            signals.append("WIDE_CHANNEL")
+            metadata['channel_type'] = 'wide'
+        
+        metadata['cci_range'] = range_cci
+        metadata['pattern_peaks'] = len(peaks)
+        
+        return {
+            'strength': strength,
+            'confidence': confidence,
+            'signals': signals,
+            'metadata': metadata
+        }
+    
+    def _analyze_volatility_context(self, cci: float, volume: float) -> Dict:
+        """Analyze CCI in volatility context"""
+        multiplier = 1.0
+        confidence_adj = 0
+        signals = []
+        metadata = {}
+        
+        # Volume confirmation
+        if volume > 0:
+            # Simple volume analysis - in real implementation would use volume MA
+            if abs(cci) > 100:  # Extreme readings
+                if volume > 1.5:  # Assume normalized volume
+                    multiplier = 1.2
+                    confidence_adj = 0.1
+                    signals.append("VOLUME_CONFIRMED")
+                else:
+                    multiplier = 0.8
+                    signals.append("LOW_VOLUME_EXTREME")
+        
+        # Volatility regime
+        if len(self.mean_deviations) >= 5:
+            recent_dev = np.mean(self.mean_deviations[-5:])
+            historical_dev = np.mean(self.mean_deviations[-20:]) if len(self.mean_deviations) >= 20 else recent_dev
+            
+            if recent_dev > historical_dev * 1.5:
+                signals.append("HIGH_VOLATILITY_REGIME")
+                multiplier *= 0.9  # Reduce signal strength in high volatility
+            elif recent_dev < historical_dev * 0.7:
+                signals.append("LOW_VOLATILITY_REGIME")
+                multiplier *= 1.1  # Enhance signal strength in low volatility
+        
+        metadata['volatility_multiplier'] = multiplier
+        metadata['volume_analysis'] = len([s for s in signals if 'VOLUME' in s]) > 0
+        
+        return {
+            'multiplier': multiplier,
+            'confidence_adj': confidence_adj,
+            'signals': signals,
+            'metadata': metadata
+        }
+    
+    def get_current_value(self) -> float:
+        """Get the current CCI value"""
+        return self.cci_values[-1] if self.cci_values else 0
+    
+    def get_signal_strength(self) -> float:
+        """Get current signal strength"""
+        if not self.cci_values:
+            return 0
+        
+        cci = self.cci_values[-1]
+        
+        # Normalize CCI to -1 to 1 range
+        if cci > self.config.extreme_overbought:
+            return -1
+        elif cci > self.config.overbought_level:
+            return -0.5
+        elif cci < self.config.extreme_oversold:
+            return 1
+        elif cci < self.config.oversold_level:
+            return 0.5
+        else:
+            return cci / 200  # Normalize around zero
+    
+    def validate_data(self, high: float, low: float, close: float, 
+                     volume: Optional[float] = None) -> ValidationResult:
+        """Validate input data for CCI calculation"""
+        if high < 0 or low < 0 or close < 0:
+            return ValidationResult(False, "Price values cannot be negative")
+        
+        if high < low:
+            return ValidationResult(False, "High price cannot be less than low price")
+        
+        if close < low or close > high:
+            return ValidationResult(False, "Close price must be between low and high")
+        
+        if volume is not None and volume < 0:
+            return ValidationResult(False, "Volume cannot be negative")
+        
+        return ValidationResult(True, "Data validation passed")
+
+def test_cci():
+    """Test CCI implementation with sample data"""
+    config = CCIConfig(period=14, enable_divergence=True, enable_pattern_recognition=True)
+    cci = CommodityChannelIndex(config)
+    
+    # Test with sample EURUSD data
+    test_data = [
+        # (High, Low, Close, Volume)
+        (1.1050, 1.1000, 1.1025, 1000),
+        (1.1075, 1.1020, 1.1060, 1200),
+        (1.1080, 1.1030, 1.1070, 1100),
+        (1.1090, 1.1040, 1.1085, 1300),
+        (1.1100, 1.1050, 1.1095, 1400),
+        (1.1120, 1.1070, 1.1110, 1500),
+        (1.1140, 1.1090, 1.1130, 1600),
+        (1.1160, 1.1110, 1.1150, 1700),
+        (1.1180, 1.1130, 1.1170, 1800),
+        (1.1200, 1.1150, 1.1190, 1900),
+        (1.1220, 1.1170, 1.1210, 2000),
+        (1.1240, 1.1190, 1.1230, 2100),
+        (1.1260, 1.1210, 1.1250, 2200),
+        (1.1280, 1.1230, 1.1270, 2300),
+        (1.1300, 1.1250, 1.1290, 2400),
+        # Some volatility
+        (1.1280, 1.1200, 1.1240, 2500),
+        (1.1260, 1.1180, 1.1200, 2600),
+        (1.1240, 1.1160, 1.1180, 2700),
+        (1.1220, 1.1140, 1.1160, 2800),
+        (1.1200, 1.1120, 1.1140, 2900),
+    ]
+    
+    print("Testing Commodity Channel Index (CCI)")
+    print("=" * 50)
+    
+    for i, (high, low, close, volume) in enumerate(test_data):
+        signal = cci.calculate(high, low, close, volume, f"2024-01-{i+1:02d}")
+        
+        print(f"Day {i+1:2d}: CCI={cci.get_current_value():7.2f} | "
+              f"Signal={signal.signal:8s} | Strength={signal.strength:6.2f} | "
+              f"Confidence={signal.confidence:5.2f}")
+        
+        if signal.metadata.get('component_signals'):
+            print(f"         Signals: {', '.join(signal.metadata['component_signals'])}")
+    
+    print(f"\nFinal CCI Value: {cci.get_current_value():.2f}")
+    print(f"Signal Strength: {cci.get_signal_strength():.2f}")
+
+if __name__ == "__main__":
+    test_cci()

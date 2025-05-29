@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: platform3-vault
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: dev-token
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault-data:/vault/data
+      - ./vault/policies:/vault/policies
+    command: vault server -dev -dev-root-token-id=dev-token
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: platform3-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --requirepass redis-secret
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis-secret", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  vault-data:
+  redis-data:
+
+networks:
+  default:
+    name: platform3-network

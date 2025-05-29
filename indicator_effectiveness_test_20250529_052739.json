@@ -1,0 +1,222 @@
+{
+  "test_summary": {
+    "total_tests": 15,
+    "successful_tests": 9,
+    "failed_tests": 6
+  },
+  "indicator_performance": {
+    "Williams %R": {
+      "success_rate": 0.4,
+      "average_calculation_time_ms": 0.09429454803466797,
+      "signal_generation_rate": 0.5,
+      "average_signal_confidence": 0.7,
+      "total_tests": 5
+    },
+    "CCI": {
+      "success_rate": 1.0,
+      "average_calculation_time_ms": 0.052547454833984375,
+      "signal_generation_rate": 0.8,
+      "average_signal_confidence": 0.6,
+      "total_tests": 5
+    },
+    "ROC": {
+      "success_rate": 0.4,
+      "average_calculation_time_ms": 0.08392333984375,
+      "signal_generation_rate": 0.0,
+      "average_signal_confidence": 0,
+      "total_tests": 5
+    }
+  },
+  "market_condition_analysis": {
+    "trending_up": {
+      "Williams %R": {
+        "indicator_name": "Williams %R",
+        "calculation_success": false,
+        "calculation_time_ms": null,
+        "signal_generated": false,
+        "signal_type": null,
+        "signal_strength": null,
+        "signal_confidence": null,
+        "error_message": "Insufficient data for Williams %R calculation. Need 14 periods, got 100",
+        "value_range": null,
+        "raw_value": null
+      },
+      "CCI": {
+        "indicator_name": "CCI",
+        "calculation_success": true,
+        "calculation_time_ms": 0.04267692565917969,
+        "signal_generated": true,
+        "signal_type": "sell",
+        "signal_strength": 0.6273352898552534,
+        "signal_confidence": 0.6,
+        "error_message": null,
+        "value_range": "-100 to 125.46705797105069",
+        "raw_value": 125.46705797105069
+      },
+      "ROC": {
+        "indicator_name": "ROC",
+        "calculation_success": false,
+        "calculation_time_ms": null,
+        "signal_generated": false,
+        "signal_type": null,
+        "signal_strength": null,
+        "signal_confidence": null,
+        "error_message": "Insufficient data for ROC calculation. Need 13 periods, got 100",
+        "value_range": null,
+        "raw_value": null
+      }
+    },
+    "trending_down": {
+      "Williams %R": {
+        "indicator_name": "Williams %R",
+        "calculation_success": false,
+        "calculation_time_ms": null,
+        "signal_generated": false,
+        "signal_type": null,
+        "signal_strength": null,
+        "signal_confidence": null,
+        "error_message": "Insufficient data for Williams %R calculation. Need 14 periods, got 100",
+        "value_range": null,
+        "raw_value": null
+      },
+      "CCI": {
+        "indicator_name": "CCI",
+        "calculation_success": true,
+        "calculation_time_ms": 0.033855438232421875,
+        "signal_generated": true,
+        "signal_type": "buy",
+        "signal_strength": 0.634360259746656,
+        "signal_confidence": 0.6,
+        "error_message": null,
+        "value_range": "-126.8720519493312 to 100",
+        "raw_value": -126.8720519493312
+      },
+      "ROC": {
+        "indicator_name": "ROC",
+        "calculation_success": false,
+        "calculation_time_ms": null,
+        "signal_generated": false,
+        "signal_type": null,
+        "signal_strength": null,
+        "signal_confidence": null,
+        "error_message": "Insufficient data for ROC calculation. Need 13 periods, got 100",
+        "value_range": null,
+        "raw_value": null
+      }
+    },
+    "sideways": {
+      "Williams %R": {
+        "indicator_name": "Williams %R",
+        "calculation_success": true,
+        "calculation_time_ms": 0.10967254638671875,
+        "signal_generated": true,
+        "signal_type": "sell",
+        "signal_strength": 0.3520447185889311,
+        "signal_confidence": 0.7,
+        "error_message": null,
+        "value_range": "-100 to 100",
+        "raw_value": -7.040894371778622
+      },
+      "CCI": {
+        "indicator_name": "CCI",
+        "calculation_success": true,
+        "calculation_time_ms": 0.0553131103515625,
+        "signal_generated": true,
+        "signal_type": "sell",
+        "signal_strength": 0.804169521030896,
+        "signal_confidence": 0.6,
+        "error_message": null,
+        "value_range": "-100 to 160.8339042061792",
+        "raw_value": 160.8339042061792
+      },
+      "ROC": {
+        "indicator_name": "ROC",
+        "calculation_success": true,
+        "calculation_time_ms": 0.09131431579589844,
+        "signal_generated": false,
+        "signal_type": null,
+        "signal_strength": null,
+        "signal_confidence": null,
+        "error_message": null,
+        "value_range": "-100 to 100",
+        "raw_value": 4.0747242522248985
+      }
+    },
+    "volatile": {
+      "Williams %R": {
+        "indicator_name": "Williams %R",
+        "calculation_success": true,
+        "calculation_time_ms": 0.07891654968261719,
+        "signal_generated": false,
+        "signal_type": null,
+        "signal_strength": null,
+        "signal_confidence": null,
+        "error_message": null,
+        "value_range": "-100 to 100",
+        "raw_value": -29.383643058942226
+      },
+      "CCI": {
+        "indicator_name": "CCI",
+        "calculation_success": true,
+        "calculation_time_ms": 0.03814697265625,
+        "signal_generated": false,
+        "signal_type": null,
+        "signal_strength": null,
+        "signal_confidence": null,
+        "error_message": null,
+        "value_range": "-100 to 100",
+        "raw_value": 82.16007086273618
+      },
+      "ROC": {
+        "indicator_name": "ROC",
+        "calculation_success": true,
+        "calculation_time_ms": 0.07653236389160156,
+        "signal_generated": false,
+        "signal_type": null,
+        "signal_strength": null,
+        "signal_confidence": null,
+        "error_message": null,
+        "value_range": "-100 to 100",
+        "raw_value": 6.793497261423015
+      }
+    },
+    "breakout": {
+      "Williams %R": {
+        "indicator_name": "Williams %R",
+        "calculation_success": false,
+        "calculation_time_ms": null,
+        "signal_generated": false,
+        "signal_type": null,
+        "signal_strength": null,
+        "signal_confidence": null,
+        "error_message": "Insufficient data for Williams %R calculation. Need 14 periods, got 100",
+        "value_range": null,
+        "raw_value": null
+      },
+      "CCI": {
+        "indicator_name": "CCI",
+        "calculation_success": true,
+        "calculation_time_ms": 0.09274482727050781,
+        "signal_generated": true,
+        "signal_type": "sell",
+        "signal_strength": 0.6988579229527683,
+        "signal_confidence": 0.6,
+        "error_message": null,
+        "value_range": "-100 to 139.77158459055366",
+        "raw_value": 139.77158459055366
+      },
+      "ROC": {
+        "indicator_name": "ROC",
+        "calculation_success": false,
+        "calculation_time_ms": null,
+        "signal_generated": false,
+        "signal_type": null,
+        "signal_strength": null,
+        "signal_confidence": null,
+        "error_message": "Insufficient data for ROC calculation. Need 13 periods, got 100",
+        "value_range": null,
+        "raw_value": null
+      }
+    }
+  }
+}

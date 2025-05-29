@@ -1,0 +1,707 @@
+"""
+Cycle Period Identification - Advanced Dominant Cycle Detection
+============================================================
+
+This module implements sophisticated cycle period identification using multiple 
+spectral analysis methods to detect dominant market cycles and their periods.
+
+Key Features:
+- Fourier Transform Analysis (FFT) for frequency domain analysis
+- Autocorrelation Function for cycle detection
+- Maximum Entropy Method (MEM) for high-resolution spectral estimation
+- Hilbert Transform for instantaneous frequency analysis
+- Statistical validation of detected cycles
+- Multi-method consensus for robust cycle identification
+
+Author: Platform3 Development Team
+Date: May 29, 2025
+"""
+
+import numpy as np
+import pandas as pd
+from typing import Dict, List, Tuple, Optional, Union
+from scipy import signal
+from scipy.fft import fft, fftfreq
+from scipy.stats import pearsonr
+import warnings
+
+class CyclePeriodIdentification:
+    """
+    Advanced cycle period identification using multiple spectral analysis methods.
+    
+    This class provides comprehensive cycle detection capabilities including:
+    - FFT-based spectral analysis
+    - Autocorrelation cycle detection
+    - Maximum Entropy Method spectral estimation
+    - Hilbert Transform instantaneous frequency
+    - Statistical validation and consensus scoring
+    """
+    
+    def __init__(self, 
+                 min_cycle_length: int = 8,
+                 max_cycle_length: int = 120,
+                 spectral_window: str = 'hann',
+                 confidence_threshold: float = 0.6,
+                 consensus_threshold: float = 0.7):
+        """
+        Initialize the Cycle Period Identification system.
+        
+        Parameters:
+        -----------
+        min_cycle_length : int
+            Minimum cycle length to detect (default: 8 periods)
+        max_cycle_length : int  
+            Maximum cycle length to detect (default: 120 periods)
+        spectral_window : str
+            Window function for spectral analysis ('hann', 'hamming', 'blackman')
+        confidence_threshold : float
+            Minimum confidence level for cycle validation (0.0-1.0)
+        consensus_threshold : float
+            Minimum consensus score across methods (0.0-1.0)
+        """
+        self.min_cycle_length = min_cycle_length
+        self.max_cycle_length = max_cycle_length
+        self.spectral_window = spectral_window
+        self.confidence_threshold = confidence_threshold
+        self.consensus_threshold = consensus_threshold
+        
+        # Cycle detection results storage
+        self.detected_cycles = {}
+        self.cycle_strengths = {}
+        self.cycle_confidence = {}
+        
+    def calculate(self, 
+                  data: Union[pd.Series, np.ndarray],
+                  price_column: str = 'close') -> Dict[str, Union[float, List, Dict]]:
+        """
+        Perform comprehensive cycle period identification analysis.
+        
+        Parameters:
+        -----------
+        data : pd.Series or np.ndarray
+            Price data for cycle analysis
+        price_column : str
+            Column name if data is DataFrame (default: 'close')
+            
+        Returns:
+        --------
+        Dict containing:
+            - dominant_cycle: Primary cycle period
+            - cycle_strength: Strength of dominant cycle (0-1)
+            - cycle_confidence: Statistical confidence (0-1)
+            - detected_cycles: List of all significant cycles
+            - cycle_methods: Results from each detection method
+            - spectral_density: Frequency domain analysis
+            - consensus_score: Agreement across methods
+        """
+        try:
+            # Data validation and preprocessing
+            if isinstance(data, pd.DataFrame):
+                prices = data[price_column].values
+            else:
+                prices = np.array(data)
+                
+            if len(prices) < self.max_cycle_length:
+                raise ValueError(f"Insufficient data: need at least {self.max_cycle_length} periods")
+                
+            # Remove NaN values and detrend
+            prices = prices[~np.isnan(prices)]
+            detrended_prices = self._detrend_data(prices)
+            
+            # Apply multiple cycle detection methods
+            cycle_methods = {}
+            
+            # 1. FFT-based spectral analysis
+            cycle_methods['fft'] = self._fft_cycle_detection(detrended_prices)
+            
+            # 2. Autocorrelation function
+            cycle_methods['autocorr'] = self._autocorrelation_cycles(detrended_prices)
+            
+            # 3. Maximum Entropy Method
+            cycle_methods['mem'] = self._maximum_entropy_cycles(detrended_prices)
+            
+            # 4. Hilbert Transform instantaneous frequency
+            cycle_methods['hilbert'] = self._hilbert_cycles(detrended_prices)
+            
+            # Calculate consensus and identify dominant cycle
+            consensus_results = self._calculate_consensus(cycle_methods)
+            
+            # Validate and score cycles
+            validated_cycles = self._validate_cycles(detrended_prices, consensus_results)
+            
+            # Generate spectral density analysis
+            spectral_analysis = self._spectral_density_analysis(detrended_prices)
+            
+            return {
+                'dominant_cycle': validated_cycles.get('dominant_cycle', None),
+                'cycle_strength': validated_cycles.get('cycle_strength', 0.0),
+                'cycle_confidence': validated_cycles.get('cycle_confidence', 0.0),
+                'detected_cycles': validated_cycles.get('detected_cycles', []),
+                'cycle_methods': cycle_methods,
+                'spectral_density': spectral_analysis,
+                'consensus_score': consensus_results.get('consensus_score', 0.0),
+                'cycle_harmonics': validated_cycles.get('harmonics', []),
+                'cycle_stability': validated_cycles.get('stability', 0.0)
+            }
+            
+        except Exception as e:
+            return {
+                'dominant_cycle': None,
+                'cycle_strength': 0.0,
+                'cycle_confidence': 0.0,
+                'detected_cycles': [],
+                'cycle_methods': {},
+                'spectral_density': {},
+                'consensus_score': 0.0,
+                'error': str(e)
+            }
+    
+    def _detrend_data(self, prices: np.ndarray) -> np.ndarray:
+        """Remove trend component using multiple detrending methods."""
+        try:
+            # Linear detrending
+            x = np.arange(len(prices))
+            coeffs = np.polyfit(x, prices, 1)
+            trend = np.polyval(coeffs, x)
+            linear_detrended = prices - trend
+            
+            # Additional high-pass filtering for cycle isolation
+            if len(prices) > 2 * self.max_cycle_length:
+                # Butterworth high-pass filter
+                nyquist = 0.5
+                cutoff = 1.0 / self.max_cycle_length
+                normalized_cutoff = cutoff / nyquist
+                
+                if normalized_cutoff < 1.0:
+                    b, a = signal.butter(2, normalized_cutoff, btype='high')
+                    filtered = signal.filtfilt(b, a, linear_detrended)
+                    return filtered
+                    
+            return linear_detrended
+            
+        except Exception:
+            # Fallback to simple differencing
+            return np.diff(prices, prepend=prices[0])
+    
+    def _fft_cycle_detection(self, data: np.ndarray) -> Dict:
+        """Detect cycles using Fast Fourier Transform."""
+        try:
+            n = len(data)
+            
+            # Apply window function
+            if self.spectral_window == 'hann':
+                windowed_data = data * np.hanning(n)
+            elif self.spectral_window == 'hamming':
+                windowed_data = data * np.hamming(n)
+            elif self.spectral_window == 'blackman':
+                windowed_data = data * np.blackman(n)
+            else:
+                windowed_data = data
+            
+            # Compute FFT
+            fft_values = fft(windowed_data)
+            frequencies = fftfreq(n)
+            
+            # Convert to power spectral density
+            power_spectrum = np.abs(fft_values) ** 2
+            
+            # Find peaks in valid frequency range
+            min_freq = 1.0 / self.max_cycle_length
+            max_freq = 1.0 / self.min_cycle_length
+            
+            valid_indices = np.where(
+                (frequencies >= min_freq) & 
+                (frequencies <= max_freq) & 
+                (frequencies > 0)
+            )[0]
+            
+            if len(valid_indices) == 0:
+                return {'cycles': [], 'strengths': [], 'method': 'fft'}
+            
+            valid_freqs = frequencies[valid_indices]
+            valid_powers = power_spectrum[valid_indices]
+            
+            # Find peaks
+            peaks, properties = signal.find_peaks(
+                valid_powers, 
+                height=np.mean(valid_powers),
+                distance=max(1, len(valid_indices) // 20)
+            )
+            
+            if len(peaks) == 0:
+                return {'cycles': [], 'strengths': [], 'method': 'fft'}
+            
+            # Convert frequencies to periods
+            peak_freqs = valid_freqs[peaks]
+            peak_powers = valid_powers[peaks]
+            periods = 1.0 / peak_freqs
+            
+            # Normalize strengths
+            max_power = np.max(peak_powers)
+            strengths = peak_powers / max_power if max_power > 0 else np.zeros_like(peak_powers)
+            
+            # Sort by strength
+            sort_indices = np.argsort(strengths)[::-1]
+            
+            return {
+                'cycles': periods[sort_indices].tolist(),
+                'strengths': strengths[sort_indices].tolist(),
+                'frequencies': peak_freqs[sort_indices].tolist(),
+                'method': 'fft'
+            }
+            
+        except Exception as e:
+            return {'cycles': [], 'strengths': [], 'method': 'fft', 'error': str(e)}
+    
+    def _autocorrelation_cycles(self, data: np.ndarray) -> Dict:
+        """Detect cycles using autocorrelation function."""
+        try:
+            n = len(data)
+            max_lag = min(self.max_cycle_length, n // 3)
+            
+            # Calculate autocorrelation
+            autocorr = np.correlate(data, data, mode='full')
+            autocorr = autocorr[autocorr.size // 2:]
+            
+            # Normalize
+            autocorr = autocorr / autocorr[0]
+            autocorr = autocorr[:max_lag]
+            
+            # Find peaks (local maxima)
+            peaks, properties = signal.find_peaks(
+                autocorr[self.min_cycle_length:],
+                height=0.1,
+                distance=self.min_cycle_length // 2
+            )
+            
+            if len(peaks) == 0:
+                return {'cycles': [], 'strengths': [], 'method': 'autocorr'}
+            
+            # Adjust peak positions for offset
+            peaks = peaks + self.min_cycle_length
+            peak_values = autocorr[peaks]
+            
+            # Filter valid cycles
+            valid_cycles = peaks[(peaks >= self.min_cycle_length) & 
+                               (peaks <= self.max_cycle_length)]
+            valid_strengths = peak_values[(peaks >= self.min_cycle_length) & 
+                                        (peaks <= self.max_cycle_length)]
+            
+            if len(valid_cycles) == 0:
+                return {'cycles': [], 'strengths': [], 'method': 'autocorr'}
+            
+            # Sort by strength
+            sort_indices = np.argsort(valid_strengths)[::-1]
+            
+            return {
+                'cycles': valid_cycles[sort_indices].tolist(),
+                'strengths': valid_strengths[sort_indices].tolist(),
+                'method': 'autocorr'
+            }
+            
+        except Exception as e:
+            return {'cycles': [], 'strengths': [], 'method': 'autocorr', 'error': str(e)}
+    
+    def _maximum_entropy_cycles(self, data: np.ndarray) -> Dict:
+        """Detect cycles using Maximum Entropy Method for high-resolution spectral estimation."""
+        try:
+            # Simplified MEM implementation using AR model
+            n = len(data)
+            
+            # Estimate optimal AR order (typically 10-20% of data length)
+            max_order = min(20, n // 5)
+            
+            best_cycles = []
+            best_strengths = []
+            
+            for order in range(8, max_order + 1, 2):
+                try:
+                    # Estimate AR coefficients using Yule-Walker equations
+                    autocorr_coeffs = np.correlate(data, data, mode='full')
+                    autocorr_coeffs = autocorr_coeffs[autocorr_coeffs.size // 2:]
+                    autocorr_coeffs = autocorr_coeffs[:order + 1]
+                    autocorr_coeffs = autocorr_coeffs / autocorr_coeffs[0]
+                    
+                    # Solve Yule-Walker equations
+                    R = np.array([[autocorr_coeffs[abs(i-j)] for j in range(order)] 
+                                 for i in range(order)])
+                    r = autocorr_coeffs[1:order + 1]
+                    
+                    if np.linalg.det(R) != 0:
+                        ar_coeffs = np.linalg.solve(R, r)
+                        
+                        # Find roots of AR polynomial
+                        poly_coeffs = np.concatenate(([1], -ar_coeffs))
+                        roots = np.roots(poly_coeffs)
+                        
+                        # Extract cycles from complex roots
+                        for root in roots:
+                            if np.abs(root) > 0.9 and np.abs(root) < 1.1:  # Near unit circle
+                                angle = np.angle(root)
+                                if angle > 0:
+                                    period = 2 * np.pi / angle
+                                    if self.min_cycle_length <= period <= self.max_cycle_length:
+                                        strength = np.abs(root)
+                                        best_cycles.append(period)
+                                        best_strengths.append(strength)
+                                        
+                except Exception:
+                    continue
+            
+            if len(best_cycles) == 0:
+                return {'cycles': [], 'strengths': [], 'method': 'mem'}
+            
+            # Remove duplicates and sort
+            cycles_array = np.array(best_cycles)
+            strengths_array = np.array(best_strengths)
+            
+            # Group similar cycles
+            unique_cycles = []
+            unique_strengths = []
+            tolerance = 2.0
+            
+            for i, cycle in enumerate(cycles_array):
+                similar = np.abs(cycles_array - cycle) < tolerance
+                if not any(np.abs(np.array(unique_cycles) - cycle) < tolerance):
+                    # Take strongest among similar cycles
+                    similar_strengths = strengths_array[similar]
+                    max_idx = np.argmax(similar_strengths)
+                    similar_cycles = cycles_array[similar]
+                    
+                    unique_cycles.append(similar_cycles[max_idx])
+                    unique_strengths.append(similar_strengths[max_idx])
+            
+            # Sort by strength
+            if len(unique_cycles) > 0:
+                sort_indices = np.argsort(unique_strengths)[::-1]
+                return {
+                    'cycles': [unique_cycles[i] for i in sort_indices],
+                    'strengths': [unique_strengths[i] for i in sort_indices],
+                    'method': 'mem'
+                }
+            else:
+                return {'cycles': [], 'strengths': [], 'method': 'mem'}
+                
+        except Exception as e:
+            return {'cycles': [], 'strengths': [], 'method': 'mem', 'error': str(e)}
+    
+    def _hilbert_cycles(self, data: np.ndarray) -> Dict:
+        """Detect cycles using Hilbert Transform for instantaneous frequency analysis."""
+        try:
+            # Apply Hilbert transform
+            analytic_signal = signal.hilbert(data)
+            instantaneous_phase = np.unwrap(np.angle(analytic_signal))
+            instantaneous_freq = np.diff(instantaneous_phase) / (2.0 * np.pi)
+            
+            # Convert frequency to period
+            valid_freqs = instantaneous_freq[
+                (instantaneous_freq > 1.0 / self.max_cycle_length) &
+                (instantaneous_freq < 1.0 / self.min_cycle_length) &
+                (instantaneous_freq > 0)
+            ]
+            
+            if len(valid_freqs) == 0:
+                return {'cycles': [], 'strengths': [], 'method': 'hilbert'}
+            
+            periods = 1.0 / valid_freqs
+            
+            # Create histogram to find dominant periods
+            bins = np.linspace(self.min_cycle_length, self.max_cycle_length, 50)
+            hist, bin_edges = np.histogram(periods, bins=bins)
+            bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+            
+            # Find peaks in histogram
+            peaks, properties = signal.find_peaks(
+                hist,
+                height=np.max(hist) * 0.1,
+                distance=5
+            )
+            
+            if len(peaks) == 0:
+                return {'cycles': [], 'strengths': [], 'method': 'hilbert'}
+            
+            peak_periods = bin_centers[peaks]
+            peak_strengths = hist[peaks] / np.max(hist)
+            
+            # Sort by strength
+            sort_indices = np.argsort(peak_strengths)[::-1]
+            
+            return {
+                'cycles': peak_periods[sort_indices].tolist(),
+                'strengths': peak_strengths[sort_indices].tolist(),
+                'method': 'hilbert'
+            }
+            
+        except Exception as e:
+            return {'cycles': [], 'strengths': [], 'method': 'hilbert', 'error': str(e)}
+    
+    def _calculate_consensus(self, cycle_methods: Dict) -> Dict:
+        """Calculate consensus across different cycle detection methods."""
+        try:
+            all_cycles = []
+            all_strengths = []
+            method_weights = {'fft': 0.3, 'autocorr': 0.25, 'mem': 0.25, 'hilbert': 0.2}
+            
+            # Collect all detected cycles
+            for method_name, results in cycle_methods.items():
+                cycles = results.get('cycles', [])
+                strengths = results.get('strengths', [])
+                weight = method_weights.get(method_name, 0.25)
+                
+                for cycle, strength in zip(cycles, strengths):
+                    all_cycles.append(cycle)
+                    all_strengths.append(strength * weight)
+            
+            if len(all_cycles) == 0:
+                return {'consensus_cycles': [], 'consensus_score': 0.0}
+            
+            all_cycles = np.array(all_cycles)
+            all_strengths = np.array(all_strengths)
+            
+            # Group similar cycles
+            consensus_cycles = []
+            consensus_strengths = []
+            tolerance = 3.0  # Cycles within 3 periods are considered similar
+            
+            processed = np.zeros(len(all_cycles), dtype=bool)
+            
+            for i, cycle in enumerate(all_cycles):
+                if processed[i]:
+                    continue
+                    
+                # Find similar cycles
+                similar_mask = np.abs(all_cycles - cycle) <= tolerance
+                similar_cycles = all_cycles[similar_mask]
+                similar_strengths = all_strengths[similar_mask]
+                
+                # Calculate weighted average
+                total_strength = np.sum(similar_strengths)
+                if total_strength > 0:
+                    weighted_cycle = np.sum(similar_cycles * similar_strengths) / total_strength
+                    consensus_cycles.append(weighted_cycle)
+                    consensus_strengths.append(total_strength)
+                
+                processed[similar_mask] = True
+            
+            if len(consensus_cycles) == 0:
+                return {'consensus_cycles': [], 'consensus_score': 0.0}
+            
+            # Calculate consensus score based on method agreement
+            consensus_score = len([s for s in consensus_strengths if s > 0.5]) / len(consensus_strengths)
+            
+            # Sort by strength
+            consensus_cycles = np.array(consensus_cycles)
+            consensus_strengths = np.array(consensus_strengths)
+            sort_indices = np.argsort(consensus_strengths)[::-1]
+            
+            return {
+                'consensus_cycles': consensus_cycles[sort_indices].tolist(),
+                'consensus_strengths': consensus_strengths[sort_indices].tolist(),
+                'consensus_score': min(consensus_score, 1.0)
+            }
+            
+        except Exception as e:
+            return {'consensus_cycles': [], 'consensus_score': 0.0, 'error': str(e)}
+    
+    def _validate_cycles(self, data: np.ndarray, consensus_results: Dict) -> Dict:
+        """Validate detected cycles using statistical tests."""
+        try:
+            consensus_cycles = consensus_results.get('consensus_cycles', [])
+            consensus_strengths = consensus_results.get('consensus_strengths', [])
+            
+            if len(consensus_cycles) == 0:
+                return {
+                    'dominant_cycle': None,
+                    'cycle_strength': 0.0,
+                    'cycle_confidence': 0.0,
+                    'detected_cycles': [],
+                    'harmonics': [],
+                    'stability': 0.0
+                }
+            
+            validated_cycles = []
+            validated_strengths = []
+            validated_confidence = []
+            
+            for cycle, strength in zip(consensus_cycles, consensus_strengths):
+                # Statistical validation using sine wave correlation
+                cycle_period = int(round(cycle))
+                if cycle_period < self.min_cycle_length or cycle_period > len(data) // 3:
+                    continue
+                
+                # Generate reference sine wave
+                n_complete_cycles = len(data) // cycle_period
+                if n_complete_cycles < 2:
+                    continue
+                
+                t = np.arange(len(data))
+                reference_wave = np.sin(2 * np.pi * t / cycle_period)
+                
+                # Calculate correlation
+                correlation, p_value = pearsonr(data, reference_wave)
+                confidence = abs(correlation) * (1 - p_value) if p_value < 0.05 else 0.0
+                
+                if confidence > self.confidence_threshold:
+                    validated_cycles.append(cycle)
+                    validated_strengths.append(strength)
+                    validated_confidence.append(confidence)
+            
+            if len(validated_cycles) == 0:
+                return {
+                    'dominant_cycle': None,
+                    'cycle_strength': 0.0,
+                    'cycle_confidence': 0.0,
+                    'detected_cycles': [],
+                    'harmonics': [],
+                    'stability': 0.0
+                }
+            
+            # Identify dominant cycle
+            max_idx = np.argmax(validated_strengths)
+            dominant_cycle = validated_cycles[max_idx]
+            dominant_strength = validated_strengths[max_idx]
+            dominant_confidence = validated_confidence[max_idx]
+            
+            # Find harmonics
+            harmonics = []
+            for cycle in validated_cycles:
+                ratio = cycle / dominant_cycle
+                if 0.45 <= ratio <= 0.55 or 1.8 <= ratio <= 2.2:  # Half or double
+                    harmonics.append(cycle)
+            
+            # Calculate stability (consistency across data)
+            stability = self._calculate_cycle_stability(data, dominant_cycle)
+            
+            return {
+                'dominant_cycle': dominant_cycle,
+                'cycle_strength': dominant_strength,
+                'cycle_confidence': dominant_confidence,
+                'detected_cycles': validated_cycles,
+                'harmonics': harmonics,
+                'stability': stability
+            }
+            
+        except Exception as e:
+            return {
+                'dominant_cycle': None,
+                'cycle_strength': 0.0,
+                'cycle_confidence': 0.0,
+                'detected_cycles': [],
+                'harmonics': [],
+                'stability': 0.0,
+                'error': str(e)
+            }
+    
+    def _calculate_cycle_stability(self, data: np.ndarray, cycle_period: float) -> float:
+        """Calculate stability of detected cycle across different data segments."""
+        try:
+            if len(data) < 3 * cycle_period:
+                return 0.0
+            
+            segment_length = int(2 * cycle_period)
+            n_segments = len(data) // segment_length
+            
+            if n_segments < 2:
+                return 0.0
+            
+            correlations = []
+            
+            for i in range(n_segments - 1):
+                start_idx = i * segment_length
+                end_idx = start_idx + segment_length
+                segment = data[start_idx:end_idx]
+                
+                # Generate reference wave for this segment
+                t = np.arange(len(segment))
+                reference_wave = np.sin(2 * np.pi * t / cycle_period)
+                
+                correlation, _ = pearsonr(segment, reference_wave)
+                correlations.append(abs(correlation))
+            
+            if len(correlations) == 0:
+                return 0.0
+            
+            # Stability is the consistency of correlations
+            mean_corr = np.mean(correlations)
+            std_corr = np.std(correlations)
+            
+            stability = mean_corr * (1 - std_corr / (mean_corr + 1e-6))
+            return max(0.0, min(1.0, stability))
+            
+        except Exception:
+            return 0.0
+    
+    def _spectral_density_analysis(self, data: np.ndarray) -> Dict:
+        """Generate comprehensive spectral density analysis."""
+        try:
+            # Welch's method for power spectral density
+            frequencies, psd = signal.welch(
+                data, 
+                nperseg=min(len(data) // 4, 256),
+                window=self.spectral_window
+            )
+            
+            # Convert to periods
+            valid_freq_mask = frequencies > 0
+            valid_frequencies = frequencies[valid_freq_mask]
+            valid_psd = psd[valid_freq_mask]
+            
+            periods = 1.0 / valid_frequencies
+            period_mask = (periods >= self.min_cycle_length) & (periods <= self.max_cycle_length)
+            
+            return {
+                'frequencies': valid_frequencies[period_mask].tolist(),
+                'periods': periods[period_mask].tolist(),
+                'power_density': valid_psd[period_mask].tolist(),
+                'peak_frequency': valid_frequencies[np.argmax(valid_psd)] if len(valid_psd) > 0 else None,
+                'peak_period': periods[np.argmax(valid_psd)] if len(valid_psd) > 0 else None
+            }
+            
+        except Exception as e:
+            return {'error': str(e)}
+    
+    def get_cycle_summary(self) -> Dict:
+        """Get summary of all detected cycles and their characteristics."""
+        return {
+            'detected_cycles': self.detected_cycles,
+            'cycle_strengths': self.cycle_strengths,
+            'cycle_confidence': self.cycle_confidence,
+            'min_cycle_length': self.min_cycle_length,
+            'max_cycle_length': self.max_cycle_length,
+            'confidence_threshold': self.confidence_threshold
+        }
+
+# Example usage and testing
+if __name__ == "__main__":
+    # Generate sample data with known cycles
+    np.random.seed(42)
+    t = np.arange(200)
+    
+    # Create composite signal with multiple cycles
+    signal_data = (
+        np.sin(2 * np.pi * t / 20) +           # 20-period cycle
+        0.7 * np.sin(2 * np.pi * t / 40) +    # 40-period cycle
+        0.5 * np.sin(2 * np.pi * t / 60) +    # 60-period cycle
+        0.3 * np.random.randn(len(t))          # Noise
+    )
+    
+    # Add trend
+    signal_data += 0.02 * t
+    
+    # Initialize cycle detector
+    cycle_detector = CyclePeriodIdentification(
+        min_cycle_length=10,
+        max_cycle_length=80,
+        confidence_threshold=0.5
+    )
+    
+    # Detect cycles
+    results = cycle_detector.calculate(signal_data)
+    
+    print("Cycle Period Identification Results:")
+    print(f"Dominant Cycle: {results['dominant_cycle']:.1f} periods")
+    print(f"Cycle Strength: {results['cycle_strength']:.3f}")
+    print(f"Cycle Confidence: {results['cycle_confidence']:.3f}")
+    print(f"Detected Cycles: {[f'{c:.1f}' for c in results['detected_cycles'][:5]]}")
+    print(f"Consensus Score: {results['consensus_score']:.3f}")
+    print(f"Cycle Stability: {results.get('cycle_stability', 0.0):.3f}")
