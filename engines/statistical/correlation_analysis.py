@@ -754,6 +754,47 @@ class CorrelationAnalysis(IndicatorBase):
             'error': 'Insufficient data for calculation'
         }
 
+    def generate_signal(self):
+        """Generate correlation-based signal"""
+        from ..indicator_base import IndicatorSignal, SignalType
+        
+        if not hasattr(self, '_last_result') or not self._last_result:
+            return IndicatorSignal(
+                signal_type=SignalType.NEUTRAL,
+                strength=0.0,
+                confidence=0.0,
+                message="No correlation data available"
+            )
+        
+        # Extract correlation statistics
+        stats = self._last_result.get('statistics', {})
+        current_correlation = stats.get('current_correlation', 0.0)
+        correlation_stability = stats.get('correlation_stability', 0.0)
+        
+        # Determine signal based on correlation strength and stability
+        if abs(current_correlation) > self.correlation_threshold and correlation_stability > 0.7:
+            signal_type = SignalType.STRONG_BUY if current_correlation > 0 else SignalType.STRONG_SELL
+            strength = min(1.0, abs(current_correlation))
+            confidence = correlation_stability
+            message = f"Strong correlation detected: {current_correlation:.3f}"
+        elif abs(current_correlation) > 0.5:
+            signal_type = SignalType.BUY if current_correlation > 0 else SignalType.SELL
+            strength = abs(current_correlation) * 0.7
+            confidence = correlation_stability * 0.8
+            message = f"Moderate correlation: {current_correlation:.3f}"
+        else:
+            signal_type = SignalType.NEUTRAL
+            strength = 0.3
+            confidence = 0.5
+            message = f"Weak correlation: {current_correlation:.3f}"
+        
+        return IndicatorSignal(
+            signal_type=signal_type,
+            strength=strength,
+            confidence=confidence,
+            message=message
+        )
+
 def calculate_correlation(primary_data: Union[pd.DataFrame, Dict],
                          secondary_data: Union[pd.DataFrame, Dict],
                          period: int = 20,

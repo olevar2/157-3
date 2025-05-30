@@ -34,8 +34,7 @@ __all__ = [
 
 __version__ = '1.0.0'
 __author__ = 'Platform3 Analytics Team'
-__description__ = 'High-Frequency Volume Analysis for Scalping/Day Trading Focus'
-=======
+__description__ = """
 High-Frequency Volume Analysis Engine for Scalping and Day Trading
 
 This package provides comprehensive volume analysis tools optimized for short-term trading:
@@ -145,4 +144,3 @@ __all__ = [
 __version__ = "1.0.0"
 __author__ = "Platform3 Analytics Team"
 __description__ = "High-frequency volume analysis for scalping and day trading"
->>>>>>> 5e659b3064c215382ffc9ef1f13510cbfdd547a7

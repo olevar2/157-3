@@ -23,34 +23,6 @@ Expected Benefits:
 - Mathematical precision in forecasting
 """
 
-from .GannAnglesCalculator import (
-    GannAnglesCalculator,
-    GannAngle,
-    GannFanLevel,
-    GannAnglesResult
-)
-
-from .GannSquareOfNine import (
-    GannSquareOfNine,
-    SquareOfNineResult,
-    PriceTimeTarget,
-    SquareLevel
-)
-
-from .GannFanAnalysis import (
-    GannFanAnalysis,
-    GannFanResult,
-    FanLine,
-    FanIntersection
-)
-
-from .GannTimePrice import (
-    GannTimePrice,
-    TimePriceResult,
-    CycleAnalysis,
-    TimeTarget
-)
-
 from .GannPatternDetector import (
     GannPatternDetector,
     GannPattern,
@@ -58,38 +30,59 @@ from .GannPatternDetector import (
     PatternResult
 )
 
+from .gann_square_of_nine import (
+    GannSquareOfNine,
+    SquareAnalysis,
+    SquarePoint
+)
+
+from .gann_fan_lines import (
+    GannFanLines,
+    GannAngle,
+    GannLine,
+    GannFanAnalysis
+)
+
+from .gann_time_cycles import (
+    GannTimeCycles,
+    TimeCycle,
+    GannTimeSignal
+)
+
+from .price_time_relationships import (
+    PriceTimeRelationships,
+    PriceTimeRelationship,
+    GannSquareLevel
+)
+
 __all__ = [
     # Main classes
-    'GannAnglesCalculator',
-    'GannSquareOfNine', 
-    'GannFanAnalysis',
-    'GannTimePrice',
     'GannPatternDetector',
+    'GannSquareOfNine', 
+    'GannFanLines',
+    'GannTimeCycles',
+    'PriceTimeRelationships',
     
-    # Angle calculator components
-    'GannAngle',
-    'GannFanLevel',
-    'GannAnglesResult',
-    
-    # Square of Nine components
-    'SquareOfNineResult',
-    'PriceTimeTarget',
-    'SquareLevel',
-    
-    # Fan analysis components
-    'GannFanResult',
-    'FanLine',
-    'FanIntersection',
-    
-    # Time-price components
-    'TimePriceResult',
-    'CycleAnalysis',
-    'TimeTarget',
-    
-    # Pattern detector components
+    # Pattern components
     'GannPattern',
     'PatternSignal',
-    'PatternResult'
+    'PatternResult',
+      # Square of Nine components
+    'SquareAnalysis',
+    'SquarePoint',
+    
+    # Fan analysis components
+    'GannAngle',
+    'GannLine',
+    'GannFanAnalysis',
+    
+    # Time cycle components
+    'TimeCycle',
+    'GannTimeSignal',
+    
+    # Price-time components
+    'PriceTimeRelationship',
+    'GannSquareLevel'
 ]
 
 __version__ = "1.0.0"

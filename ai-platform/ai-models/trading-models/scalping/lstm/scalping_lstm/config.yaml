@@ -1,0 +1,60 @@
+# Scalping LSTM Model Configuration
+
+# Model Architecture
+model:
+  sequence_length: 60        # Number of time steps to look back
+  features: 10              # Number of input features
+  lstm_units: [128, 64, 32] # LSTM layer sizes
+  dropout_rate: 0.2         # Dropout rate for regularization
+  batch_normalization: true # Use batch normalization
+  activation: 'relu'        # Activation function
+
+# Training Configuration
+training:
+  batch_size: 64
+  epochs: 100
+  learning_rate: 0.001
+  validation_split: 0.2
+  early_stopping:
+    patience: 10
+    restore_best_weights: true
+  reduce_lr:
+    patience: 5
+    factor: 0.5
+    min_lr: 0.00001
+
+# Data Processing
+data:
+  timeframes: ['M1', 'M5']
+  features:
+    - 'close'
+    - 'volume'
+    - 'rsi'
+    - 'macd'
+    - 'bollinger_upper'
+    - 'bollinger_lower'
+    - 'sma_20'
+    - 'ema_12'
+    - 'atr'
+    - 'stochastic'
+  target: 'price_direction'  # up/down/sideways
+  normalization: 'minmax'    # minmax, standard, robust
+
+# Prediction Settings
+prediction:
+  horizon_seconds: [5, 15, 30, 60]  # Prediction horizons
+  confidence_threshold: 0.7          # Minimum confidence for signals
+  price_change_threshold_pips: 1.0   # Minimum price change to consider
+
+# Model Metadata
+metadata:
+  version: "2.0.0"
+  description: "Ultra-fast LSTM for scalping strategies"
+  author: "Platform3 AI Team"
+  created_date: "2025-05-28"
+  currency_pairs: ["EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD"]
+  performance_target:
+    accuracy: 0.75
+    precision: 0.70
+    recall: 0.70
+    f1_score: 0.70

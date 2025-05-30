@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from typing import List, Optional
 from datetime import datetime
-from indicator_base import (
+from ..indicator_base import (
     MomentumIndicator, IndicatorResult, IndicatorSignal, MarketData, 
     SignalType, TimeFrame, typical_price, sma
 )

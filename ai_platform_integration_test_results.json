@@ -1,0 +1,86 @@
+{
+  "timestamp": "2025-05-30T04:51:43.010088",
+  "total_tests": 10,
+  "passed_tests": 0,
+  "failed_tests": 10,
+  "test_details": [
+    {
+      "test_name": "Import Test",
+      "status": "FAILED",
+      "details": "Failed to import AI platform modules",
+      "timestamp": "2025-05-30T04:51:43.050872",
+      "error": "No module named 'ai_services'",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_ai_platform_integration.py\", line 61, in test_imports\n    from ai_platform_manager import AIPlatformManager\n  File \"D:\\MD\\Platform3\\ai-platform\\ai_platform_manager.py\", line 20, in <module>\n    from ai_services.model_registry.model_registry import ModelRegistry, ModelType, ModelStatus\nModuleNotFoundError: No module named 'ai_services'\n"
+    },
+    {
+      "test_name": "Model Registry Initialization",
+      "status": "FAILED",
+      "details": "Model registry initialization failed",
+      "timestamp": "2025-05-30T04:51:43.561881",
+      "error": "No module named 'ai_services'",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_ai_platform_integration.py\", line 76, in test_model_registry_initialization\n    from ai_services.model_registry.model_registry import ModelRegistry\nModuleNotFoundError: No module named 'ai_services'\n"
+    },
+    {
+      "test_name": "AI Coordinator Initialization",
+      "status": "FAILED",
+      "details": "AI coordinator initialization failed",
+      "timestamp": "2025-05-30T04:51:44.064297",
+      "error": "No module named 'ai_services'",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_ai_platform_integration.py\", line 102, in test_ai_coordinator_initialization\n    from ai_services.coordination.ai_coordinator import AICoordinator\nModuleNotFoundError: No module named 'ai_services'\n"
+    },
+    {
+      "test_name": "Performance Monitor Initialization",
+      "status": "FAILED",
+      "details": "Performance monitor initialization failed",
+      "timestamp": "2025-05-30T04:51:44.567295",
+      "error": "No module named 'ai_services'",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_ai_platform_integration.py\", line 137, in test_performance_monitor_initialization\n    from ai_services.performance_monitoring.performance_monitor import PerformanceMonitor\nModuleNotFoundError: No module named 'ai_services'\n"
+    },
+    {
+      "test_name": "MLOps Service Initialization",
+      "status": "FAILED",
+      "details": "MLOps service initialization failed",
+      "timestamp": "2025-05-30T04:51:45.070059",
+      "error": "No module named 'ai_services'",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_ai_platform_integration.py\", line 164, in test_mlops_service_initialization\n    from ai_services.mlops.mlops_service import MLOpsService\nModuleNotFoundError: No module named 'ai_services'\n"
+    },
+    {
+      "test_name": "AI Platform Manager Initialization",
+      "status": "FAILED",
+      "details": "AI Platform Manager initialization failed",
+      "timestamp": "2025-05-30T04:51:45.585948",
+      "error": "No module named 'ai_services'",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_ai_platform_integration.py\", line 195, in test_ai_platform_manager_initialization\n    from ai_platform_manager import AIPlatformManager\n  File \"D:\\MD\\Platform3\\ai-platform\\ai_platform_manager.py\", line 20, in <module>\n    from ai_services.model_registry.model_registry import ModelRegistry, ModelType, ModelStatus\nModuleNotFoundError: No module named 'ai_services'\n"
+    },
+    {
+      "test_name": "Unified Prediction Interface",
+      "status": "SKIPPED",
+      "details": "AI Platform Manager not initialized",
+      "timestamp": "2025-05-30T04:51:46.088052"
+    },
+    {
+      "test_name": "Model Discovery Accuracy",
+      "status": "FAILED",
+      "details": "Model discovery accuracy test failed",
+      "timestamp": "2025-05-30T04:51:46.594725",
+      "error": "No module named 'ai_services'",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_ai_platform_integration.py\", line 278, in test_model_discovery_accuracy\n    from ai_services.model_registry.model_registry import ModelRegistry\nModuleNotFoundError: No module named 'ai_services'\n"
+    },
+    {
+      "test_name": "Performance Monitoring Alerts",
+      "status": "FAILED",
+      "details": "Performance monitoring alerts test failed",
+      "timestamp": "2025-05-30T04:51:47.101284",
+      "error": "No module named 'ai_services'",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_ai_platform_integration.py\", line 302, in test_performance_monitoring_alerts\n    from ai_services.performance_monitoring.performance_monitor import PerformanceMonitor\nModuleNotFoundError: No module named 'ai_services'\n"
+    },
+    {
+      "test_name": "MLOps Workflow",
+      "status": "FAILED",
+      "details": "MLOps workflow test failed",
+      "timestamp": "2025-05-30T04:51:47.604539",
+      "error": "No module named 'ai_services'",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\MD\\Platform3\\test_ai_platform_integration.py\", line 329, in test_mlops_workflow\n    from ai_services.mlops.mlops_service import MLOpsService\nModuleNotFoundError: No module named 'ai_services'\n"
+    }
+  ]
+}

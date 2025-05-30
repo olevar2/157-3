@@ -1,0 +1,29 @@
+{
+  "timestamp": "2025-05-30T02:13:50.962843",
+  "total_tests": 27,
+  "failures": 9,
+  "errors": 2,
+  "success_rate": 0.5925925925925926,
+  "failed_tests": [
+    "test_bulk_calculation_speed (__main__.TestMillisecondPerformance.test_bulk_calculation_speed)",
+    "test_single_calculation_speed (__main__.TestMillisecondPerformance.test_single_calculation_speed)",
+    "test_streaming_update_speed (__main__.TestMillisecondPerformance.test_streaming_update_speed)",
+    "test_kalman_filter_convergence (__main__.TestKalmanFilterAdaptation.test_kalman_filter_convergence)",
+    "test_genetic_algorithm_improvement (__main__.TestGeneticAlgorithmOptimization.test_genetic_algorithm_improvement)",
+    "test_population_diversity (__main__.TestGeneticAlgorithmOptimization.test_population_diversity)",
+    "test_memory_management (__main__.TestOnlineLearningAlgorithms.test_memory_management)",
+    "test_performance_scoring (__main__.TestPerformanceValidation.test_performance_scoring)",
+    "test_missing_data_handling (__main__.TestRobustness.test_missing_data_handling)",
+    "test_incremental_learning (__main__.TestOnlineLearningAlgorithms.test_incremental_learning)",
+    "test_regime_detection (__main__.TestPerformanceValidation.test_regime_detection)"
+  ],
+  "mathematical_foundations_tested": [
+    "Kalman Filter parameter adaptation",
+    "Genetic Algorithm optimization",
+    "Volatility-based parameter scaling",
+    "Regime-dependent parameter sets",
+    "Performance feedback loops",
+    "Online learning algorithms",
+    "Millisecond execution timing"
+  ]
+}
