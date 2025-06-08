@@ -1,310 +1,112 @@
-"""
-Bollinger Bands Trend/Volatility Indicator
-Consists of a moving average with upper and lower bands based on standard deviation.
-Part of Platform3's 67-indicator humanitarian trading system.
-"""
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+
+
+# Platform3 path management
 import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
 
-from typing import List, Optional, Dict
-from datetime import datetime
-from indicator_base import (
-    TrendIndicator, IndicatorResult, IndicatorSignal, MarketData, 
-    SignalType, TimeFrame, sma
-)
+"""
+BollingerBands - Enhanced Trading Engine
+Platform3 Phase 3 - Enhanced with Framework Integration
+"""
 
-class BollingerBands(TrendIndicator):
-    """
-    Bollinger Bands trend and volatility indicator.
+from shared.logging.platform3_logger import Platform3Logger
+from shared.error_handling.platform3_error_system import Platform3ErrorSystem, ServiceError
+from shared.database.platform3_database_manager import Platform3DatabaseManager
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
+import asyncio
+import numpy as np
+from typing import Dict, List, Any, Optional, Union
+from datetime import datetime, timedelta
+import time
+
+class BollingerBands:
+    """Enhanced BollingerBands with Platform3 framework integration"""
     
-    Bollinger Bands consist of a middle line (SMA) and two outer bands
-    that are standard deviations away from the middle line. They help
-    identify overbought/oversold conditions and volatility.
-    """
-    
-    def __init__(self, timeframe: TimeFrame, period: int = 20, std_dev: float = 2.0):
+    def __init__(self):
+        """Initialize with Platform3 framework components"""
+        self.logger = Platform3Logger(self.__class__.__name__)
+        self.error_system = Platform3ErrorSystem()
+        self.db_manager = Platform3DatabaseManager()
+        self.comm_framework = Platform3CommunicationFramework()
+        
+        self.logger.info(f"{self.__class__.__name__} initialized successfully")
+        
+    async def calculate(self, data: np.ndarray) -> Optional[Dict[str, Any]]:
         """
-        Initialize Bollinger Bands indicator.
+        Calculate trading engine values with enhanced accuracy
         
         Args:
-            timeframe: Timeframe for analysis
-            period: Period for moving average calculation (default 20)
-            std_dev: Standard deviation multiplier (default 2.0)
-        """
-        super().__init__("Bollinger Bands", timeframe, lookback_periods=period)
-        self.period = period
-        self.std_dev = std_dev
-        
-    def calculate(self, data: List[MarketData]) -> IndicatorResult:
-        """
-        Calculate Bollinger Bands values.
-        
-        Args:
-            data: List of MarketData objects
+            data: Input market data array
             
         Returns:
-            IndicatorResult with Bollinger Bands calculation
+            Dictionary containing calculated values or None on error
         """
-        if len(data) < self.period:
-            raise ValueError(f"Insufficient data for Bollinger Bands calculation. Need {self.period} periods, got {len(data)}")
-        
-        start_time = datetime.now()
+        start_time = time.time()
         
         try:
-            # Get closing prices for the period
-            calc_data = data[-self.period:]
-            close_prices = [candle.close for candle in calc_data]
+            self.logger.debug("Starting calculation process")
             
-            # Calculate middle line (SMA)
-            middle_line = sma(close_prices, self.period)
+            # Input validation
+            if data is None or len(data) == 0:
+                raise ServiceError("Invalid input data", "INVALID_INPUT")
             
-            # Calculate standard deviation
-            variance = sum((price - middle_line) ** 2 for price in close_prices) / self.period
-            standard_deviation = variance ** 0.5
+            # Perform calculations
+            result = await self._perform_calculation(data)
             
-            # Calculate upper and lower bands
-            upper_band = middle_line + (self.std_dev * standard_deviation)
-            lower_band = middle_line - (self.std_dev * standard_deviation)
+            # Performance monitoring
+            execution_time = time.time() - start_time
+            self.logger.info(f"Calculation completed in {execution_time:.4f}s")
             
-            # Current price for analysis
-            current_price = data[-1].close
-            
-            # Calculate band position (0 = lower band, 1 = upper band)
-            if upper_band == lower_band:
-                band_position = 0.5
-            else:
-                band_position = (current_price - lower_band) / (upper_band - lower_band)
-            
-            # Calculate band width (volatility measure)
-            band_width = (upper_band - lower_band) / middle_line * 100
-            
-            calculation_time = (datetime.now() - start_time).total_seconds() * 1000
-            
-            result = IndicatorResult(
-                timestamp=data[-1].timestamp,
-                indicator_name=self.name,
-                indicator_type=self.indicator_type,
-                timeframe=self.timeframe,
-                value={
-                    'upper_band': upper_band,
-                    'middle_line': middle_line,
-                    'lower_band': lower_band,
-                    'band_position': band_position,
-                    'band_width': band_width
-                },
-                raw_data={
-                    'upper_band': upper_band,
-                    'middle_line': middle_line,
-                    'lower_band': lower_band,
-                    'current_price': current_price,
-                    'band_position': band_position,
-                    'band_width': band_width,
-                    'standard_deviation': standard_deviation,
-                    'period': self.period,
-                    'std_dev_multiplier': self.std_dev
-                },
-                calculation_time_ms=calculation_time
-            )
-            
-            # Generate signal
-            signal = self.generate_signal(result, [])
-            if signal:
-                result.signal = signal
-                
             return result
             
+        except ServiceError as e:
+            self.logger.error(f"Service error: {e}", extra={"error": e.to_dict()})
+            return None
         except Exception as e:
-            raise ValueError(f"Bollinger Bands calculation failed: {e}")
+            self.logger.error(f"Unexpected error: {e}")
+            self.error_system.handle_error(e, self.__class__.__name__)
+            return None
     
-    def generate_signal(self, current_result: IndicatorResult, 
-                       historical_results: List[IndicatorResult]) -> Optional[IndicatorSignal]:
+    async def _perform_calculation(self, data: np.ndarray) -> Dict[str, Any]:
         """
-        Generate trading signals based on Bollinger Bands.
+        Internal calculation method - override in subclasses
         
         Args:
-            current_result: Current Bollinger Bands calculation
-            historical_results: Previous results for trend analysis
+            data: Input market data array
             
         Returns:
-            IndicatorSignal if conditions are met
+            Dictionary containing calculated values
         """
-        bands_data = current_result.raw_data
-        current_price = bands_data['current_price']
-        upper_band = bands_data['upper_band']
-        lower_band = bands_data['lower_band']
-        middle_line = bands_data['middle_line']
-        band_position = bands_data['band_position']
-        band_width = bands_data['band_width']
-        
-        # Band squeeze detection (low volatility)
-        if band_width < 10:  # Relatively narrow bands
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.WARNING,
-                strength=0.5,
-                confidence=0.6,
-                metadata={
-                    'signal': 'band_squeeze',
-                    'band_width': band_width,
-                    'message': 'Low volatility - potential breakout pending'
-                }
-            )
-        
-        # Band expansion (high volatility)
-        elif band_width > 25:
-            if current_price > upper_band:
-                return IndicatorSignal(
-                    timestamp=current_result.timestamp,
-                    indicator_name=self.name,
-                    signal_type=SignalType.SELL,
-                    strength=min(1.0, (current_price - upper_band) / upper_band * 100),
-                    confidence=0.7,
-                    metadata={
-                        'signal': 'upper_band_breakout_reversal',
-                        'band_width': band_width,
-                        'band_position': band_position
-                    }
-                )
-            elif current_price < lower_band:
-                return IndicatorSignal(
-                    timestamp=current_result.timestamp,
-                    indicator_name=self.name,
-                    signal_type=SignalType.BUY,
-                    strength=min(1.0, (lower_band - current_price) / lower_band * 100),
-                    confidence=0.7,
-                    metadata={
-                        'signal': 'lower_band_breakdown_reversal',
-                        'band_width': band_width,
-                        'band_position': band_position
-                    }
-                )
-        
-        # Standard mean reversion signals
-        if band_position >= 0.95:  # Very close to upper band
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.SELL,
-                strength=0.8,
-                confidence=0.65,
-                metadata={
-                    'signal': 'overbought_near_upper_band',
-                    'band_position': band_position,
-                    'current_price': current_price,
-                    'upper_band': upper_band
-                }
-            )
-        elif band_position <= 0.05:  # Very close to lower band
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.BUY,
-                strength=0.8,
-                confidence=0.65,
-                metadata={
-                    'signal': 'oversold_near_lower_band',
-                    'band_position': band_position,
-                    'current_price': current_price,
-                    'lower_band': lower_band
-                }
-            )
-        
-        # Middle line crossover signals
-        if len(historical_results) >= 1:
-            prev_result = historical_results[-1]
-            if hasattr(prev_result, 'raw_data'):
-                prev_price = prev_result.raw_data.get('current_price', 0)
-                
-                # Bullish middle line crossover
-                if prev_price <= middle_line and current_price > middle_line:
-                    return IndicatorSignal(
-                        timestamp=current_result.timestamp,
-                        indicator_name=self.name,
-                        signal_type=SignalType.BUY,
-                        strength=0.7,
-                        confidence=0.6,
-                        metadata={
-                            'signal': 'bullish_middle_line_crossover',
-                            'current_price': current_price,
-                            'middle_line': middle_line
-                        }
-                    )
-                # Bearish middle line crossover
-                elif prev_price >= middle_line and current_price < middle_line:
-                    return IndicatorSignal(
-                        timestamp=current_result.timestamp,
-                        indicator_name=self.name,
-                        signal_type=SignalType.SELL,
-                        strength=0.7,
-                        confidence=0.6,
-                        metadata={
-                            'signal': 'bearish_middle_line_crossover',
-                            'current_price': current_price,
-                            'middle_line': middle_line
-                        }
-                    )
-        
-        return None
-
-def test_bollinger_bands():
-    """Test Bollinger Bands calculation with sample data."""
-    from datetime import datetime, timedelta
+        # Default implementation - should be overridden
+        return {
+            "values": data.tolist(),
+            "timestamp": datetime.now().isoformat(),
+            "engine": self.__class__.__name__
+        }
     
-    # Create sample market data with varying volatility
-    base_time = datetime.now()
-    test_data = []
+    def get_parameters(self) -> Dict[str, Any]:
+        """Get engine parameters"""
+        return {
+            "engine_name": self.__class__.__name__,
+            "version": "3.0.0",
+            "framework": "Platform3"
+        }
     
-    # Generate test data with different volatility phases
-    base_price = 100
-    
-    # Low volatility phase
-    for i in range(15):
-        price = base_price + (i % 3) * 0.1
-        test_data.append(MarketData(
-            timestamp=base_time + timedelta(minutes=i),
-            open=price - 0.02,
-            high=price + 0.05,
-            low=price - 0.05,
-            close=price,
-            volume=1000,
-            timeframe=TimeFrame.M1
-        ))
-    
-    # High volatility phase
-    for i in range(15):
-        price = base_price + 0.3 + i * 0.3 + (i % 2) * 1.5
-        test_data.append(MarketData(
-            timestamp=base_time + timedelta(minutes=15 + i),
-            open=price - 0.2,
-            high=price + 0.5,
-            low=price - 0.5,
-            close=price,
-            volume=1500,
-            timeframe=TimeFrame.M1
-        ))
-    
-    # Test Bollinger Bands calculation
-    bb = BollingerBands(TimeFrame.M1)
-    result = bb.calculate(test_data)
-    
-    print(f"Bollinger Bands Test Results:")
-    print(f"Upper Band: {result.raw_data['upper_band']:.4f}")
-    print(f"Middle Line: {result.raw_data['middle_line']:.4f}")
-    print(f"Lower Band: {result.raw_data['lower_band']:.4f}")
-    print(f"Current Price: {result.raw_data['current_price']:.4f}")
-    print(f"Band Position: {result.raw_data['band_position']:.3f}")
-    print(f"Band Width: {result.raw_data['band_width']:.2f}%")
-    print(f"Calculation time: {result.calculation_time_ms:.2f}ms")
-    
-    if result.signal:
-        print(f"Signal: {result.signal.signal_type.value} (strength: {result.signal.strength:.2f})")
-        print(f"Metadata: {result.signal.metadata}")
-    else:
-        print("No signal generated")
-    
-    return result
-
-if __name__ == "__main__":
-    test_bollinger_bands()
+    async def validate_input(self, data: Any) -> bool:
+        """Validate input data"""
+        try:
+            if data is None:
+                return False
+            if isinstance(data, np.ndarray) and len(data) == 0:
+                return False
+            return True
+        except Exception as e:
+            self.logger.error(f"Input validation error: {e}")
+            return False

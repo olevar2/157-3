@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+
+# Platform3 path management
+import sys
+from typing import Any, Dict, List, Optional, Tuple, Union # Added Any
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
 GANN SQUARE OF NINE - Sacred Geometry Price and Time Calculator
 Platform3 Advanced Gann Analysis Engine
@@ -8,8 +19,8 @@ price and time relationships using sacred geometric principles.
 Features:
 - Complete Square of Nine price calculations
 - Time square calculations for turning point prediction
-- Cardinal cross analysis (0°, 90°, 180°, 270°)
-- Diagonal cross analysis (45°, 135°, 225°, 315°)
+- Cardinal cross analysis (0degree, 90degree, 180degree, 270degree)
+- Diagonal cross analysis (45degree, 135degree, 225degree, 315degree)
 - Support and resistance level identification from squares
 - Natural price progression calculations
 - Harmonic price relationships
@@ -39,12 +50,12 @@ from enum import Enum
 import logging
 import math
 from datetime import datetime, timedelta
-from ..indicator_base import IndicatorBase
+from engines.indicator_base import IndicatorBase
 
 class SquareLevel(Enum):
     """Square of Nine level types"""
-    CARDINAL_CROSS = "cardinal_cross"      # 0°, 90°, 180°, 270°
-    DIAGONAL_CROSS = "diagonal_cross"      # 45°, 135°, 225°, 315°
+    CARDINAL_CROSS = "cardinal_cross"      # 0degree, 90degree, 180degree, 270degree
+    DIAGONAL_CROSS = "diagonal_cross"      # 45degree, 135degree, 225degree, 315degree
     INTERMEDIATE = "intermediate"          # Other significant angles
     NATURAL_NUMBER = "natural_number"      # Perfect squares (1, 4, 9, 16, 25...)
 
@@ -94,6 +105,7 @@ class GannSquareOfNine(IndicatorBase):
     price and time relationships using sacred geometric principles.    """
     
     def __init__(self, 
+                 config: Optional[Dict[str, Any]] = None, # Added config
                  square_levels: int = 5,
                  min_price_move: float = 0.001,
                  time_analysis: bool = True,
@@ -102,14 +114,17 @@ class GannSquareOfNine(IndicatorBase):
         Initialize Square of Nine calculator
         
         Args:
+            config: Optional[Dict[str, Any]]
+                Configuration object for the indicator.
             square_levels: Number of square levels to calculate (default 5)
             min_price_move: Minimum price movement to consider (0.1%)
             time_analysis: Enable time-based square calculations
             harmonic_analysis: Enable harmonic relationship analysis
         """
-        from ..indicator_base import IndicatorType, TimeFrame
+        from engines.indicator_base import IndicatorType, TimeFrame
         
         super().__init__(
+            config=config, # Added super call with config
             name="GannSquareOfNine",
             indicator_type=IndicatorType.GANN,
             timeframe=TimeFrame.H1,
@@ -631,12 +646,12 @@ class GannSquareOfNine(IndicatorBase):
                 if square.is_support and current_price >= square.value:
                     signal = 'BUY'
                     strength = square.strength
-                    reason = f'Near cardinal support at {square.value:.4f} ({square.angle}°)'
+                    reason = f'Near cardinal support at {square.value:.4f} ({square.angle}degree)'
                     break
                 elif square.is_resistance and current_price <= square.value:
                     signal = 'SELL'
                     strength = square.strength
-                    reason = f'Near cardinal resistance at {square.value:.4f} ({square.angle}°)'
+                    reason = f'Near cardinal resistance at {square.value:.4f} ({square.angle}degree)'
                     break
         
         # Check natural number progression
@@ -677,7 +692,7 @@ class GannSquareOfNine(IndicatorBase):
         signal_type = current_result['signal']
         strength = current_result.get('strength', 0.5)
         
-        from ..indicator_base import IndicatorSignal, SignalType
+        from engines.indicator_base import IndicatorSignal, SignalType
         
         # Map signal types
         signal_mapping = {

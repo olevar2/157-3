@@ -1,0 +1,20 @@
+{
+  "agent_id": "decision_master",
+  "timestamp": "2025-06-04T21:25:00.487851",
+  "test_id": "c3d4395d-ea4d-4752-8662-dded930861a0",
+  "random_value": 0.9522043900393801,
+  "connected_agents": [
+    "pattern_master",
+    "decision_master",
+    "execution_expert",
+    "ai_model_coordinator",
+    "risk_genius"
+  ],
+  "message_counts": {
+    "sent": 607,
+    "received": 8278,
+    "pending": 47
+  },
+  "connection_quality": 0.6936783067406292,
+  "last_heartbeat": "2025-06-04T21:25:00.487945"
+}

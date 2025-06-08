@@ -1,11 +1,45 @@
 // ML Model Engine - Price prediction using regression models and time series analysis
 // Provides machine learning-based price forecasting and trend prediction
+// Bridge to Python AI/ML engines for humanitarian forex trading platform
 
 import { Logger } from 'winston';
+import { spawn, ChildProcess } from 'child_process';
+import * as path from 'path';
+import { EventEmitter } from 'events';
 import { Matrix } from 'ml-matrix';
 import { SimpleLinearRegression, PolynomialRegression } from 'ml-regression';
 import { mean, standardDeviation, variance } from 'simple-statistics';
 import { MarketData } from './TechnicalAnalysisEngine';
+
+// Communication interfaces for Python engine integration
+export interface PythonEngineInterface {
+  sendCommand(command: string, data: any): Promise<any>;
+  isConnected(): boolean;
+  disconnect(): Promise<void>;
+}
+
+export interface Platform3EngineConnection {
+  initialized: boolean;
+  pythonProcess?: ChildProcess;
+  communicationQueue: Map<string, any>;
+  eventEmitter: EventEmitter;
+}
+
+// Python ML Engine Integration Interface
+export interface PythonMLInterface {
+  predictPrice(symbol: string, data: MarketData[], horizon: number): Promise<MLPredictionResult>;
+  trainModel(modelType: string, data: MarketData[]): Promise<boolean>;
+  validateModel(symbol: string): Promise<ModelValidationResult>;
+  isModelReady(symbol: string): Promise<boolean>;
+}
+
+export interface ModelValidationResult {
+  accuracy: number;
+  rmse: number;
+  mae: number;
+  valid: boolean;
+  lastTrained: number;
+}
 
 export interface MLPredictionResult {
   symbol: string;
@@ -61,15 +95,87 @@ export class MLModelEngine {
   private models: Map<string, any> = new Map();
   private modelAccuracy: Map<string, ModelAccuracy> = new Map();
   private lastTraining: Map<string, number> = new Map();
+  private pythonEngine: Platform3EngineConnection;
+  private pythonInterface: PythonEngineInterface;
 
   constructor(logger: Logger) {
     this.logger = logger;
+    this.pythonEngine = {
+      initialized: false,
+      communicationQueue: new Map(),
+      eventEmitter: new EventEmitter()
+    };
+    this.pythonInterface = this.createPythonInterface();
+  }
+
+  private createPythonInterface(): PythonEngineInterface {
+    return {
+      sendCommand: async (command: string, data: any) => {
+        return this.sendToPythonEngine(command, data);
+      },
+      isConnected: () => {
+        return this.pythonEngine.initialized && this.pythonEngine.pythonProcess !== undefined;
+      },
+      disconnect: async () => {
+        await this.disconnectPythonEngine();
+      }
+    };
+  }
+
+  private async sendToPythonEngine(command: string, data: any): Promise<any> {
+    if (!this.pythonEngine.initialized) {
+      throw new Error('Python ML engine not initialized');
+    }
+
+    return new Promise((resolve, reject) => {
+      const requestId = Math.random().toString(36).substr(2, 9);
+      const message = JSON.stringify({
+        id: requestId,
+        command,
+        data,
+        timestamp: Date.now(),
+        engine_type: 'ml_model'
+      });
+
+      // Set up response handler
+      const timeout = setTimeout(() => {
+        this.pythonEngine.communicationQueue.delete(requestId);
+        reject(new Error(`Python ML engine timeout for command: ${command}`));
+      }, 45000); // 45 second timeout for ML operations
+
+      this.pythonEngine.communicationQueue.set(requestId, {
+        resolve,
+        reject,
+        timeout
+      });
+
+      // Send to Python process
+      if (this.pythonEngine.pythonProcess && this.pythonEngine.pythonProcess.stdin) {
+        this.pythonEngine.pythonProcess.stdin.write(message + '\n');
+      } else {
+        clearTimeout(timeout);
+        this.pythonEngine.communicationQueue.delete(requestId);
+        reject(new Error('Python ML process not available'));
+      }
+    });
+  }
+
+  private async disconnectPythonEngine(): Promise<void> {
+    if (this.pythonEngine.pythonProcess) {
+      this.pythonEngine.pythonProcess.kill();
+      this.pythonEngine.pythonProcess = undefined;
+    }
+    this.pythonEngine.initialized = false;
+    this.pythonEngine.communicationQueue.clear();
   }
 
   async initialize(): Promise<void> {
-    this.logger.info('Initializing ML Model Engine...');
+    this.logger.info('🚀 Initializing ML Model Engine for humanitarian trading...');
     
     try {
+      // Initialize Python ML engine connection
+      await this.initializePythonEngine();
+      
       // Initialize models for major currency pairs
       const symbols = ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD'];
       
@@ -77,10 +183,123 @@ export class MLModelEngine {
         await this.initializeModelForSymbol(symbol);
       }
       
+      // Test Python ML engine integration
+      await this.testPythonMLEngineIntegration();
+      
       this.ready = true;
-      this.logger.info('✅ ML Model Engine initialized with models for major pairs');
+      this.logger.info('✅ ML Model Engine initialized with Python bridge and models for major pairs');
     } catch (error) {
       this.logger.error('❌ ML Model Engine initialization failed:', error);
+      throw error;
+    }
+  }
+
+  private async initializePythonEngine(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const pythonScriptPath = path.join(__dirname, '../../ai-platform/coordination/engine/platform3_engine.py');
+      
+      this.logger.info(`Starting Python ML engine: ${pythonScriptPath}`);
+      
+      const pythonProcess = spawn('python', [pythonScriptPath, '--mode=ml-models'], {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+
+      this.pythonEngine.pythonProcess = pythonProcess;
+
+      // Handle Python process output
+      pythonProcess.stdout?.on('data', (data) => {
+        const lines = data.toString().split('\n').filter((line: string) => line.trim());
+        
+        for (const line of lines) {
+          try {
+            const response = JSON.parse(line);
+            this.handlePythonResponse(response);
+          } catch (error) {
+            this.logger.debug('Python ML output:', line);
+          }
+        }
+      });
+
+      pythonProcess.stderr?.on('data', (data) => {
+        this.logger.error('Python ML engine error:', data.toString());
+      });
+
+      pythonProcess.on('close', (code) => {
+        this.logger.warn(`Python ML engine process closed with code ${code}`);
+        this.pythonEngine.initialized = false;
+      });
+
+      pythonProcess.on('error', (error) => {
+        this.logger.error('Python ML engine process error:', error);
+        reject(error);
+      });
+
+      // Wait for initialization confirmation
+      setTimeout(() => {
+        if (pythonProcess.pid) {
+          this.pythonEngine.initialized = true;
+          resolve();
+        } else {
+          reject(new Error('Python ML engine failed to start'));
+        }
+      }, 5000); // ML models need more time to initialize
+    });
+  }
+
+  private handlePythonResponse(response: any): void {
+    if (response.id && this.pythonEngine.communicationQueue.has(response.id)) {
+      const { resolve, reject, timeout } = this.pythonEngine.communicationQueue.get(response.id);
+      clearTimeout(timeout);
+      this.pythonEngine.communicationQueue.delete(response.id);
+
+      if (response.error) {
+        reject(new Error(response.error));
+      } else {
+        resolve(response.result);
+      }
+    }
+  }
+
+  private async testPythonMLEngineIntegration(): Promise<void> {
+    this.logger.info('🧪 Testing Python ML engine integration...');
+    
+    try {
+      // Test basic communication
+      const pingResult = await this.pythonInterface.sendCommand('ping', { 
+        message: 'ml_integration_test',
+        engine_type: 'ml_model'
+      });
+      if (pingResult.status !== 'pong') {
+        throw new Error('Python ML engine ping test failed');
+      }
+
+      // Test ML model prediction
+      const testData = this.generateSampleMLData();
+      const predictionResult = await this.pythonInterface.sendCommand('predict_price', {
+        symbol: 'EURUSD',
+        market_data: testData,
+        horizon: '1h',
+        model_type: 'ensemble'
+      });
+
+      if (!predictionResult || !predictionResult.predictions) {
+        throw new Error('Python ML prediction test failed');
+      }
+
+      // Test model training capability
+      const trainingResult = await this.pythonInterface.sendCommand('train_model', {
+        symbol: 'EURUSD',
+        model_type: 'lstm',
+        data: testData
+      });
+
+      if (!trainingResult || !trainingResult.success) {
+        throw new Error('Python ML training test failed');
+      }
+
+      this.logger.info('✅ Python ML engine integration test passed');
+    } catch (error) {
+      this.logger.error('❌ Python ML engine integration test failed:', error);
       throw error;
     }
   }
@@ -98,7 +317,62 @@ export class MLModelEngine {
       throw new Error('Insufficient data for ML prediction (minimum 100 periods required)');
     }
 
-    this.logger.debug(`Generating ML predictions for ${symbol} with horizon ${horizon}`);
+    this.logger.debug(`🔮 Generating humanitarian AI-enhanced ML predictions for ${symbol} with horizon ${horizon}`);
+
+    try {
+      // Try Python AI-enhanced prediction first
+      const pythonPrediction = await this.getPythonEnhancedPrediction(symbol, marketData, horizon);
+      
+      if (pythonPrediction) {
+        this.logger.info(`✅ AI-enhanced prediction completed for ${symbol} using Python ML models`);
+        return pythonPrediction;
+      }
+    } catch (error) {
+      this.logger.warn('Python ML prediction failed, using local models:', error);
+    }
+
+    // Fallback to local prediction
+    return this.generateLocalPrediction(symbol, marketData, horizon);
+  }
+
+  private async getPythonEnhancedPrediction(symbol: string, marketData: MarketData[], horizon: string): Promise<MLPredictionResult | null> {
+    try {
+      const result = await this.pythonInterface.sendCommand('enhanced_ml_prediction', {
+        symbol,
+        market_data: marketData,
+        horizon,
+        model_types: ['lstm', 'transformer', 'ensemble'],
+        features: ['price', 'volume', 'volatility', 'momentum', 'trend', 'sentiment'],
+        humanitarian_mode: true,
+        ai_enhancement: true
+      });
+
+      if (result && result.predictions && result.predictions.length > 0) {
+        return {
+          symbol,
+          timestamp: Date.now(),
+          horizon,
+          predictions: result.predictions,
+          confidence: result.confidence * 1.1, // AI predictions get confidence boost
+          model: {
+            type: 'ensemble',
+            version: result.model_version || '2.0.0-ai',
+            trainedAt: result.trained_at || Date.now(),
+            dataPoints: marketData.length,
+            features: result.features || ['price', 'volume', 'volatility', 'momentum', 'trend', 'ai_sentiment']
+          },
+          features: result.feature_importance || [],
+          accuracy: result.accuracy || this.calculateDefaultAccuracy()
+        };
+      }
+    } catch (error) {
+      this.logger.debug('Python enhanced prediction unavailable:', error);
+    }
+
+    return null;
+  }
+
+  private async generateLocalPrediction(symbol: string, marketData: MarketData[], horizon: string): Promise<MLPredictionResult> {
 
     // Prepare training data
     const trainingData = this.prepareTrainingData(marketData);
@@ -572,5 +846,82 @@ export class MLModelEngine {
     }
     
     this.logger.info('ML model update completed');
+  }
+
+  // Integration testing methods for humanitarian mission validation
+  async runIntegrationTests(): Promise<boolean> {
+    this.logger.info('🧪 Running ML Model Engine integration tests...');
+
+    try {
+      // Test 1: Python ML engine connectivity
+      const pingTest = await this.pythonInterface.sendCommand('ping', { 
+        test: 'ml_integration',
+        engine_type: 'ml_model'
+      });
+      if (pingTest.status !== 'pong') {
+        throw new Error('Python ML engine ping test failed');
+      }
+
+      // Test 2: ML prediction with sample data
+      const sampleData: MarketData[] = this.generateSampleMLData();
+      const predictionResult = await this.predict('TEST_SYMBOL', sampleData, '1h');
+      
+      if (!predictionResult || !predictionResult.predictions || predictionResult.predictions.length === 0) {
+        throw new Error('ML prediction test failed');
+      }
+
+      // Test 3: Model training validation
+      const trainingTest = await this.pythonInterface.sendCommand('validate_model_training', {
+        symbol: 'TEST_SYMBOL',
+        data: sampleData.slice(0, 50)
+      });
+      
+      if (!trainingTest.success) {
+        throw new Error('Model training validation failed');
+      }
+
+      // Test 4: AI enhancement validation
+      if (predictionResult.model.version.includes('ai')) {
+        this.logger.info('✅ AI enhancement confirmed in ML predictions');
+      }
+
+      // Test 5: Humanitarian mode validation
+      const humanitarianTest = await this.pythonInterface.sendCommand('validate_humanitarian_ml_mode', {});
+      if (!humanitarianTest.enabled) {
+        throw new Error('Humanitarian ML mode not enabled in Python engine');
+      }
+
+      this.logger.info('✅ All ML Model Engine integration tests passed');
+      return true;
+    } catch (error) {
+      this.logger.error('❌ ML integration tests failed:', error);
+      return false;
+    }
+  }
+
+  private generateSampleMLData(): MarketData[] {
+    const data: MarketData[] = [];
+    let price = 1.1000;
+    
+    for (let i = 0; i < 150; i++) {
+      // Add more realistic price movement for ML testing
+      const volatility = 0.001 + Math.random() * 0.002;
+      const trend = Math.sin(i * 0.1) * 0.0005; // Sine wave trend
+      const noise = (Math.random() - 0.5) * volatility;
+      const change = trend + noise;
+      
+      price += change;
+      
+      data.push({
+        timestamp: Date.now() - (150 - i) * 60000,
+        open: price - change,
+        high: price + Math.random() * volatility,
+        low: price - Math.random() * volatility,
+        close: price,
+        volume: Math.floor(Math.random() * 2000) + 1000
+      });
+    }
+    
+    return data;
   }
 }

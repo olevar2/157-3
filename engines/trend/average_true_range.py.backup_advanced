@@ -1,0 +1,618 @@
+"""
+Average True Range (ATR) - Volatility Indicator
+Measures market volatility by calculating the average of true ranges over a specified period.
+Used for position sizing, stop-loss placement, and volatility analysis.
+"""
+
+from typing import List, Dict, Any, Optional
+import numpy as np
+import pandas as pd
+from dataclasses import dataclass
+from ..indicator_base import BaseIndicator, IndicatorResult, IndicatorSignal, SignalType, IndicatorType, MarketData
+
+# Platform3 Winston-style Logging Integration
+import sys
+import os
+
+# Platform3 Error Handling Integration
+from shared.error_handling.platform3_error_system import ServiceError, EventEmitter, CircuitBreaker, ErrorSeverity, ErrorCategory
+from shared.error_handling.base_service import BaseService
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+from logging.platform3_logger import Platform3Logger, log_performance, LogMetadata
+
+
+@dataclass
+class ATRConfig(BaseService):
+    """Configuration for Average True Range"""
+    period: int = 14
+    smoothing_method: str = 'rma'  # 'rma' (Wilder's), 'sma', 'ema'
+    volatility_threshold_high: float = 1.5  # Multiple of average ATR for high volatility
+    volatility_threshold_low: float = 0.5   # Multiple of average ATR for low volatility
+    breakout_multiplier: float = 2.0        # ATR multiple for breakout detection
+
+
+class AverageTrueRange(BaseIndicator):
+    """
+    Average True Range Implementation
+    
+    True Range (TR) = Max of:
+    1. High - Low
+    2. |High - Previous Close|
+    3. |Low - Previous Close|
+    
+    ATR = Average of TR over specified period
+    
+    The ATR indicates volatility levels and is commonly used for:
+    - Position sizing
+    - Stop-loss placement
+    - Breakout confirmation
+    - Market regime identification
+    """
+    
+    def __init__(self, config: Optional[ATRConfig] = None):
+        super().__init__(IndicatorType.VOLATILITY)
+        self.config = config or ATRConfig()
+        self.atr_values: List[float] = []
+        self.tr_values: List[float] = []
+        self.normalized_atr: List[float] = []
+        
+    def calculate(self, data: List[MarketData]) -> IndicatorResult:
+        try:
+        """Calculate Average True Range values"""
+        try:
+            if len(data) < self.config.period + 1:
+                return IndicatorResult(
+                    success=False,
+                    error=f"Insufficient data: need {self.config.period + 1}, got {len(data)}"
+                )
+            
+            # Calculate True Range values
+            tr_values = self._calculate_true_range(data)
+            
+            # Calculate ATR using specified smoothing method
+            if self.config.smoothing_method == 'rma':
+                atr_values = self._calculate_rma(tr_values, self.config.period)
+            elif self.config.smoothing_method == 'ema':
+                atr_values = self._calculate_ema(tr_values, self.config.period)
+            else:  # Default to SMA
+                atr_values = self._calculate_sma(tr_values, self.config.period)
+            
+            # Calculate normalized ATR (ATR as percentage of price)
+            normalized_atr = self._calculate_normalized_atr(atr_values, data)
+            
+            # Store values for signal generation
+            self.atr_values = atr_values
+            self.tr_values = tr_values
+            self.normalized_atr = normalized_atr
+            
+            # Generate signals
+            signals = self._generate_signals(data, atr_values, normalized_atr)
+            
+            # Calculate volatility statistics
+            volatility_stats = self._calculate_volatility_stats(atr_values, normalized_atr)
+            
+            return IndicatorResult(
+                success=True,
+                values={
+                    'atr': atr_values,
+                    'true_range': tr_values,
+                    'normalized_atr': normalized_atr,
+                    'atr_bands': self._calculate_atr_bands(data, atr_values)
+                },
+                signals=signals,
+                metadata={
+                    'period': self.config.period,
+                    'smoothing_method': self.config.smoothing_method,
+                    'current_atr': atr_values[-1] if atr_values else 0,
+                    'current_normalized_atr': normalized_atr[-1] if normalized_atr else 0,
+                    'volatility_regime': self._identify_volatility_regime(atr_values),
+                    'trend_strength': self._calculate_trend_strength(data, atr_values),
+                    **volatility_stats
+                }
+            )
+            
+        except Exception as e:
+            return IndicatorResult(
+                success=False,
+                error=f"ATR calculation failed: {str(e)}"
+            )
+    
+    def _calculate_true_range(self, data: List[MarketData]) -> List[float]:
+        try:
+        """Calculate True Range for each period"""
+        tr_values = []
+        
+        for i in range(len(data)):
+            if i == 0:
+                # First period: TR = High - Low
+                tr = data[i].high - data[i].low
+            else:
+                # Calculate all three true range components
+                hl = data[i].high - data[i].low
+                hc = abs(data[i].high - data[i-1].close)
+                lc = abs(data[i].low - data[i-1].close)
+                
+                # True Range is the maximum of the three
+                tr = max(hl, hc, lc)
+            
+            tr_values.append(tr)
+        
+        return tr_values
+    
+    def _calculate_rma(self, values: List[float], period: int) -> List[float]:
+        try:
+        """Calculate Running Moving Average (Wilder's smoothing)"""
+        if len(values) < period:
+            return []
+        
+        rma_values = []
+        
+        # First RMA is simple average
+        first_rma = sum(values[:period]) / period
+        rma_values.append(first_rma)
+        
+        # Subsequent RMA values using Wilder's formula
+        for i in range(period, len(values)):
+            rma = (rma_values[-1] * (period - 1) + values[i]) / period
+            rma_values.append(rma)
+        
+        return rma_values
+    
+    def _calculate_ema(self, values: List[float], period: int) -> List[float]:
+        try:
+        """Calculate Exponential Moving Average"""
+        if len(values) < period:
+            return []
+        
+        ema_values = []
+        multiplier = 2 / (period + 1)
+        
+        # First EMA is SMA
+        first_ema = sum(values[:period]) / period
+        ema_values.append(first_ema)
+        
+        # Calculate subsequent EMA values
+        for i in range(period, len(values)):
+            ema = (values[i] * multiplier) + (ema_values[-1] * (1 - multiplier))
+            ema_values.append(ema)
+        
+        return ema_values
+    
+    def _calculate_sma(self, values: List[float], period: int) -> List[float]:
+        try:
+        """Calculate Simple Moving Average"""
+        sma_values = []
+        for i in range(len(values)):
+            if i >= period - 1:
+                sma = sum(values[i - period + 1:i + 1]) / period
+                sma_values.append(sma)
+        return sma_values
+    
+    def _calculate_normalized_atr(self, atr_values: List[float], data: List[MarketData]) -> List[float]:
+        try:
+        """Calculate ATR as percentage of price"""
+        normalized_atr = []
+        
+        # Start from the same index as ATR values
+        start_index = len(data) - len(atr_values)
+        
+        for i, atr in enumerate(atr_values):
+            data_index = start_index + i
+            if data_index < len(data):
+                price = data[data_index].close
+                if price > 0:
+                    normalized = (atr / price) * 100
+                    normalized_atr.append(normalized)
+                else:
+                    normalized_atr.append(0.0)
+            else:
+                normalized_atr.append(0.0)
+        
+        return normalized_atr
+    
+    def _calculate_atr_bands(self, data: List[MarketData], atr_values: List[float]) -> Dict[str, List[float]]:
+        try:
+        """Calculate ATR-based support and resistance bands"""
+        upper_band = []
+        lower_band = []
+        
+        # Start from the same index as ATR values
+        start_index = len(data) - len(atr_values)
+        
+        for i, atr in enumerate(atr_values):
+            data_index = start_index + i
+            if data_index < len(data):
+                close = data[data_index].close
+                upper_band.append(close + (atr * self.config.breakout_multiplier))
+                lower_band.append(close - (atr * self.config.breakout_multiplier))
+            else:
+                upper_band.append(0.0)
+                lower_band.append(0.0)
+        
+        return {
+            'upper_band': upper_band,
+            'lower_band': lower_band
+        }
+    
+    def _calculate_volatility_stats(self, atr_values: List[float], normalized_atr: List[float]) -> Dict[str, float]:
+        try:
+        """Calculate volatility statistics"""
+        if not atr_values or not normalized_atr:
+            return {}
+        
+        # Recent volatility (last 20 periods)
+        recent_atr = atr_values[-20:] if len(atr_values) >= 20 else atr_values
+        recent_norm_atr = normalized_atr[-20:] if len(normalized_atr) >= 20 else normalized_atr
+        
+        return {
+            'avg_atr': np.mean(atr_values),
+            'current_vs_avg': atr_values[-1] / np.mean(atr_values) if atr_values else 1.0,
+            'volatility_percentile': self._calculate_percentile(atr_values[-1], atr_values),
+            'recent_volatility_trend': self._calculate_trend(recent_atr),
+            'normalized_volatility': np.mean(recent_norm_atr),
+            'volatility_expansion': len([x for x in recent_atr if x > np.mean(atr_values)]) / len(recent_atr)
+        }
+    
+    def _calculate_percentile(self, value: float, series: List[float]) -> float:
+        try:
+        """Calculate percentile rank of value in series"""
+        if not series:
+            return 50.0
+        
+        sorted_series = sorted(series)
+        position = sum(1 for x in sorted_series if x <= value)
+        return (position / len(sorted_series)) * 100
+    
+    def _calculate_trend(self, values: List[float]) -> str:
+        try:
+        """Calculate trend direction of values"""
+        if len(values) < 3:
+            return 'neutral'
+        
+        recent = values[-5:] if len(values) >= 5 else values
+        
+        if all(recent[i] >= recent[i-1] for i in range(1, len(recent))):
+            return 'increasing'
+        elif all(recent[i] <= recent[i-1] for i in range(1, len(recent))):
+            return 'decreasing'
+        elif recent[-1] > recent[0]:
+            return 'upward'
+        elif recent[-1] < recent[0]:
+            return 'downward'
+        else:
+            return 'neutral'
+    
+    def _identify_volatility_regime(self, atr_values: List[float]) -> str:
+        try:
+        """Identify current volatility regime"""
+        if not atr_values:
+            return 'unknown'
+        
+        current_atr = atr_values[-1]
+        avg_atr = np.mean(atr_values)
+        
+        ratio = current_atr / avg_atr
+        
+        if ratio >= self.config.volatility_threshold_high:
+            return 'high_volatility'
+        elif ratio <= self.config.volatility_threshold_low:
+            return 'low_volatility'
+        else:
+            return 'normal_volatility'
+    
+    def _calculate_trend_strength(self, data: List[MarketData], atr_values: List[float]) -> float:
+        try:
+        """Calculate trend strength relative to volatility"""
+        if len(data) < 10 or not atr_values:
+            return 0.0
+        
+        # Calculate price movement over recent periods
+        recent_data = data[-10:]
+        price_range = recent_data[-1].close - recent_data[0].close
+        
+        # Calculate average ATR over same period
+        recent_atr = atr_values[-10:] if len(atr_values) >= 10 else atr_values
+        avg_atr = np.mean(recent_atr)
+        
+        if avg_atr == 0:
+            return 0.0
+        
+        # Trend strength = price movement / average volatility
+        trend_strength = abs(price_range) / (avg_atr * len(recent_data))
+        return min(trend_strength, 2.0)  # Cap at 2.0
+    
+    def _generate_signals(self, data: List[MarketData], atr_values: List[float], 
+        try:
+                         normalized_atr: List[float]) -> List[IndicatorSignal]:
+        """Generate trading signals based on ATR analysis"""
+        signals = []
+        
+        if len(atr_values) < 3 or len(data) < 3:
+            return signals
+        
+        # Volatility regime change signals
+        self._detect_volatility_regime_change(atr_values, signals)
+        
+        # Breakout signals based on ATR
+        self._detect_atr_breakouts(data, atr_values, signals)
+        
+        # Volatility expansion/contraction signals
+        self._detect_volatility_expansion(atr_values, signals)
+        
+        # Support/resistance based on ATR bands
+        self._detect_atr_band_signals(data, atr_values, signals)
+        
+        return signals
+    
+    def _detect_volatility_regime_change(self, atr_values: List[float], signals: List[IndicatorSignal]):
+        try:
+        """Detect changes in volatility regime"""
+        if len(atr_values) < 10:
+            return
+        
+        current_atr = atr_values[-1]
+        avg_atr = np.mean(atr_values[:-1])  # Exclude current value
+        
+        current_ratio = current_atr / avg_atr
+        
+        # High volatility emergence
+        if current_ratio >= self.config.volatility_threshold_high:
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.NEUTRAL,
+                strength=0.6,
+                confidence=0.8,
+                metadata={
+                    'pattern': 'high_volatility_regime',
+                    'atr_ratio': current_ratio,
+                    'volatility_level': 'high',
+                    'trading_advice': 'reduce_position_size'
+                }
+            ))
+        
+        # Low volatility (potential breakout setup)
+        elif current_ratio <= self.config.volatility_threshold_low:
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.NEUTRAL,
+                strength=0.5,
+                confidence=0.7,
+                metadata={
+                    'pattern': 'low_volatility_regime',
+                    'atr_ratio': current_ratio,
+                    'volatility_level': 'low',
+                    'trading_advice': 'prepare_for_breakout'
+                }
+            ))
+    
+    def _detect_atr_breakouts(self, data: List[MarketData], atr_values: List[float], signals: List[IndicatorSignal]):
+        try:
+        """Detect breakouts using ATR-based thresholds"""
+        if len(data) < 2 or len(atr_values) < 1:
+            return
+        
+        # Align data with ATR values
+        start_index = len(data) - len(atr_values)
+        current_data = data[-1]
+        previous_data = data[-2]
+        current_atr = atr_values[-1]
+        
+        # Calculate price movement
+        price_change = abs(current_data.close - previous_data.close)
+        atr_threshold = current_atr * self.config.breakout_multiplier
+        
+        # Significant price movement relative to ATR
+        if price_change >= atr_threshold:
+            signal_type = SignalType.BUY if current_data.close > previous_data.close else SignalType.SELL
+            
+            signals.append(IndicatorSignal(
+                signal_type=signal_type,
+                strength=0.7,
+                confidence=0.75,
+                metadata={
+                    'pattern': 'atr_breakout',
+                    'price_change': price_change,
+                    'atr_threshold': atr_threshold,
+                    'breakout_strength': price_change / atr_threshold,
+                    'direction': 'bullish' if signal_type == SignalType.BUY else 'bearish'
+                }
+            ))
+    
+    def _detect_volatility_expansion(self, atr_values: List[float], signals: List[IndicatorSignal]):
+        try:
+        """Detect volatility expansion patterns"""
+        if len(atr_values) < 5:
+            return
+        
+        recent_atr = atr_values[-5:]
+        
+        # Check for consecutive increases in ATR
+        increasing_periods = 0
+        for i in range(1, len(recent_atr)):
+            if recent_atr[i] > recent_atr[i-1]:
+                increasing_periods += 1
+            else:
+                break
+        
+        # Volatility expansion signal
+        if increasing_periods >= 3:
+            expansion_rate = recent_atr[-1] / recent_atr[-4]  # 4-period expansion rate
+            
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.NEUTRAL,
+                strength=0.6,
+                confidence=0.7,
+                metadata={
+                    'pattern': 'volatility_expansion',
+                    'expansion_periods': increasing_periods,
+                    'expansion_rate': expansion_rate,
+                    'trading_advice': 'expect_increased_movement'
+                }
+            ))
+    
+    def _detect_atr_band_signals(self, data: List[MarketData], atr_values: List[float], signals: List[IndicatorSignal]):
+        try:
+        """Detect signals based on ATR bands"""
+        if len(data) < 2 or len(atr_values) < 1:
+            return
+        
+        current_data = data[-1]
+        current_atr = atr_values[-1]
+        
+        # Calculate ATR bands around current price
+        upper_band = current_data.close + (current_atr * self.config.breakout_multiplier)
+        lower_band = current_data.close - (current_atr * self.config.breakout_multiplier)
+        
+        # Check if price is testing the bands
+        high_price = current_data.high
+        low_price = current_data.low
+        
+        # Upper band test (potential resistance)
+        if high_price >= upper_band:
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.SELL,
+                strength=0.5,
+                confidence=0.6,
+                metadata={
+                    'pattern': 'atr_upper_band_test',
+                    'band_level': upper_band,
+                    'price_level': high_price,
+                    'resistance_strength': (high_price - upper_band) / current_atr
+                }
+            ))
+        
+        # Lower band test (potential support)
+        elif low_price <= lower_band:
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.BUY,
+                strength=0.5,
+                confidence=0.6,
+                metadata={
+                    'pattern': 'atr_lower_band_test',
+                    'band_level': lower_band,
+                    'price_level': low_price,
+                    'support_strength': (lower_band - low_price) / current_atr
+                }
+            ))
+
+
+
+    def handle_service_error(self, error: Exception, context: Dict[str, Any] = None) -> None:
+        """Handle service errors with proper event emission and logging"""
+        try:
+            service_error = ServiceError(
+                message=str(error),
+                code=f"{self.__class__.__name__.upper()}_ERROR",
+                metadata={
+                    "file_path": "engines/trend/average_true_range.py",
+                    "context": context or {},
+                    "timestamp": pd.Timestamp.now().isoformat(),
+                    "service_name": self.__class__.__name__
+                }
+            )
+            
+            # Emit error event for monitoring
+            self.emit('error', service_error)
+            
+            # Log error with correlation context
+            if hasattr(self, 'logger'):
+                self.logger.error(f"Service error in {self.__class__.__name__}: {str(error)}", extra={
+                        "error_code": service_error.code,
+                        "error_severity": service_error.severity.value,
+                        "error_category": service_error.category.value,
+                        "context": context
+                    })
+        except Exception as handling_error:
+            # Fallback error handling
+            print(f"Critical error in error handling: {handling_error}")
+    
+    def implement_circuit_breaker(self, service_name: str, failure_threshold: int = 5) -> CircuitBreaker:
+        """Implement circuit breaker for external service calls"""
+        return CircuitBreaker(
+            service_name=service_name,
+            failure_threshold=failure_threshold,
+            recovery_timeout=30,
+            on_failure=lambda error: self.emit('circuit_breaker_open', {'service': service_name, 'error': error})
+        )
+    
+    def graceful_degradation(self, primary_function, fallback_function, context: str = "operation"):
+        """Implement graceful degradation pattern"""
+        try:
+            return primary_function()
+        except Exception as error:
+            self.handle_service_error(error, {"context": context, "degradation": "fallback_used"})
+            
+            # Emit degradation event
+            self.emit('service_degradation', {
+                'context': context,
+                'primary_error': str(error),
+                'fallback_activated': True
+            })
+            
+            return fallback_function()
+
+def test_average_true_range():
+    """Test the Average True Range implementation"""
+    # Create test data with varying volatility
+    np.random.seed(42)
+    test_data = []
+    base_price = 100.0
+    
+    for i in range(50):
+        # Generate data with changing volatility patterns
+        if i < 20:
+            volatility = 0.5  # Low volatility
+        elif i < 35:
+            volatility = 2.0  # High volatility
+        else:
+            volatility = 1.0  # Normal volatility
+        
+        trend = 0.1 * np.sin(i * 0.2)
+        noise = np.random.normal(0, volatility)
+        
+        close_price = base_price + trend + noise
+        open_price = close_price + np.random.normal(0, volatility * 0.3)
+        high_price = max(open_price, close_price) + abs(np.random.normal(0, volatility * 0.5))
+        low_price = min(open_price, close_price) - abs(np.random.normal(0, volatility * 0.5))
+        volume = 1000 + np.random.randint(0, 500)
+        
+        test_data.append(MarketData(
+            timestamp=i,
+            open=open_price,
+            high=high_price,
+            low=low_price,
+            close=close_price,
+            volume=volume
+        ))
+        
+        base_price = close_price
+    
+    # Test ATR
+    atr = AverageTrueRange()
+    result = atr.calculate(test_data)
+    
+    print("=== AVERAGE TRUE RANGE TEST ===")
+    print(f"Success: {result.success}")
+    if result.success:
+        atr_values = result.values['atr']
+        tr_values = result.values['true_range']
+        normalized_atr = result.values['normalized_atr']
+        
+        print(f"ATR Values (last 5): {[round(v, 4) for v in atr_values[-5:]]}")
+        print(f"True Range (last 5): {[round(v, 4) for v in tr_values[-5:]]}")
+        print(f"Normalized ATR (last 5): {[round(v, 4) for v in normalized_atr[-5:]]}")
+        print(f"Current ATR: {round(atr_values[-1], 4)}")
+        print(f"Volatility Regime: {result.metadata['volatility_regime']}")
+        print(f"Trend Strength: {round(result.metadata['trend_strength'], 3)}")
+        print(f"Volatility Percentile: {round(result.metadata['volatility_percentile'], 1)}%")
+        print(f"Number of signals: {len(result.signals)}")
+        
+        for i, signal in enumerate(result.signals[-3:]):  # Show last 3 signals
+            print(f"Signal {i+1}: {signal.signal_type.value} - Strength: {signal.strength:.2f} - {signal.metadata.get('pattern', 'N/A')}")
+    else:
+        print(f"Error: {result.error}")
+    
+    return result.success
+
+
+if __name__ == "__main__":
+    test_average_true_range()

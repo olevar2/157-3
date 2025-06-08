@@ -1,6 +1,11 @@
 const axios = require('axios');
 const { createLogger } = require('./logger');
 
+const ServiceDiscoveryMiddleware = require('../../../shared/communication/service_discovery_middleware');
+const Platform3MessageQueue = require('../../../shared/communication/redis_message_queue');
+const HealthCheckEndpoint = require('../../../shared/communication/health_check_endpoint');
+const logger = require('../../../shared/logging/platform3_logger');
+
 class ServiceRegistration {
   constructor(options = {}) {
     this.serviceDiscoveryUrl = options.serviceDiscoveryUrl || process.env.SERVICE_DISCOVERY_URL || 'http://localhost:3010';
@@ -251,3 +256,42 @@ class ServiceRegistration {
 }
 
 module.exports = ServiceRegistration;
+
+
+// Platform3 Microservices Integration
+const serviceDiscovery = new ServiceDiscoveryMiddleware('services', PORT || 3000);
+const messageQueue = new Platform3MessageQueue();
+const healthCheck = new HealthCheckEndpoint('services', [
+    {
+        name: 'redis',
+        check: async () => {
+            return { healthy: true, responseTime: 0 };
+        }
+    }
+]);
+
+// Apply service discovery middleware
+app.use(serviceDiscovery.middleware());
+
+// Add health check endpoints
+app.use('/api', healthCheck.getRouter());
+
+// Register service with Consul on startup
+serviceDiscovery.registerService().catch(err => {
+    logger.error('Failed to register service', { error: err.message });
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+    logger.info('Shutting down service gracefully');
+    await serviceDiscovery.deregisterService();
+    await messageQueue.disconnect();
+    process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+    logger.info('Shutting down service gracefully');
+    await serviceDiscovery.deregisterService();
+    await messageQueue.disconnect();
+    process.exit(0);
+});

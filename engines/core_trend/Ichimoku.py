@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Ichimoku Cloud Indicator
 Comprehensive trend analysis system for forex trading
@@ -40,7 +41,7 @@ class CloudColor(Enum):
     """Ichimoku cloud color (trend direction)"""
     BULLISH = "bullish"    # Senkou A > Senkou B
     BEARISH = "bearish"    # Senkou A < Senkou B
-    NEUTRAL = "neutral"    # Senkou A ≈ Senkou B
+    NEUTRAL = "neutral"    # Senkou A ~= Senkou B
 
 class IchimokuSignalType(Enum):
     """Types of Ichimoku signals"""

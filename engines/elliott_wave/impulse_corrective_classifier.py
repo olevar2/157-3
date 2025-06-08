@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
 IMPULSE/CORRECTIVE WAVE CLASSIFIER - Elliott Wave Type Identification
 Platform3 Advanced Wave Analysis Engine
@@ -44,7 +54,7 @@ from dataclasses import dataclass
 from enum import Enum
 import logging
 from scipy import stats, signal
-from ..indicator_base import IndicatorBase
+from engines.indicator_base import IndicatorBase
 
 class WaveStructure(Enum):
     """Elliott Wave structure types"""

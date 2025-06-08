@@ -1,0 +1,18 @@
+{
+  "agent_id": "pattern_master",
+  "timestamp": "2025-06-04T21:25:00.759300",
+  "test_id": "20c4140e-46ad-488a-a642-8c42b375ff4d",
+  "random_value": 0.18145581597075677,
+  "connected_agents": [
+    "risk_genius",
+    "decision_master",
+    "pattern_master"
+  ],
+  "message_counts": {
+    "sent": 4482,
+    "received": 722,
+    "pending": 77
+  },
+  "connection_quality": 0.7911296625955411,
+  "last_heartbeat": "2025-06-04T21:25:00.759366"
+}

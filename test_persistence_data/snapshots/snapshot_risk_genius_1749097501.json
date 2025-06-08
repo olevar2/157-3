@@ -1,0 +1,43 @@
+{
+  "agent_id": "risk_genius",
+  "snapshot_id": "snapshot_risk_genius_1749097501",
+  "timestamp": "2025-06-04T21:25:01.123316",
+  "states": {
+    "CONFIGURATION": {
+      "agent_id": "risk_genius",
+      "timestamp": "2025-06-04T21:25:01.123178",
+      "test_id": "9a5b49df-3f05-48fa-8145-e17e9e07dc47",
+      "random_value": 0.23993625269769658,
+      "config_version": "test_1.0",
+      "parameters": {
+        "threshold": 0.7979115048367768,
+        "max_connections": 9,
+        "response_timeout_ms": 4149
+      },
+      "features_enabled": {
+        "advanced_risk": true,
+        "real_time_updates": true,
+        "pattern_recognition": false
+      }
+    },
+    "COMMUNICATION_STATE": {
+      "agent_id": "risk_genius",
+      "timestamp": "2025-06-04T21:25:01.123239",
+      "test_id": "ed4520b6-bc13-44cf-9d42-d8a9defa8b49",
+      "random_value": 0.4737895096251631,
+      "connected_agents": [
+        "ai_model_coordinator",
+        "pattern_master",
+        "risk_genius",
+        "execution_expert"
+      ],
+      "message_counts": {
+        "sent": 9068,
+        "received": 8834,
+        "pending": 56
+      },
+      "connection_quality": 0.668616295164735,
+      "last_heartbeat": "2025-06-04T21:25:01.123280"
+    }
+  }
+}

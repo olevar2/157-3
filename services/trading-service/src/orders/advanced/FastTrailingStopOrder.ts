@@ -15,10 +15,35 @@
 
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import { Logger } from 'winston'; // Assuming winston logger
-import {
-  OrderSide,
-  OrderType,
+import axios from 'axios';
+
+// Define common types since we're removing external dependencies
+export enum OrderSide {
+  BUY = 'BUY',
+  SELL = 'SELL'
+}
+
+export enum OrderType {
+  MARKET = 'MARKET',
+  LIMIT = 'LIMIT',
+  STOP = 'STOP',
+  STOP_LIMIT = 'STOP_LIMIT'
+}
+
+export enum OrderStatus {
+  PENDING = 'PENDING',
+  FILLED = 'FILLED',
+  PARTIALLY_FILLED = 'PARTIALLY_FILLED',
+  CANCELLED = 'CANCELLED',
+  REJECTED = 'REJECTED'
+}
+
+export enum TimeInForce {
+  GTC = 'GTC', // Good Till Cancelled
+  IOC = 'IOC', // Immediate Or Cancel
+  FOK = 'FOK', // Fill Or Kill
+  DAY = 'DAY'  // Day order
+}
   OrderStatus,
   TimeInForce,
   BaseOrderParams,

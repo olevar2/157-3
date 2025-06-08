@@ -11,6 +11,11 @@ This module provides:
 
 import numpy as np
 import pandas as pd
+
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'shared', 'communication'))
+from platform3_communication_framework import Platform3CommunicationFramework
 from typing import Dict, List, Tuple, Optional, Any, NamedTuple
 from dataclasses import dataclass
 from enum import Enum
@@ -24,6 +29,23 @@ import time
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+# Platform3 Communication Framework Integration
+communication_framework = Platform3CommunicationFramework(
+    service_name="services",
+    service_port=8000,  # Default port
+    redis_url="redis://localhost:6379",
+    consul_host="localhost",
+    consul_port=8500
+)
+
+# Initialize the framework
+try:
+    communication_framework.initialize()
+    print(f"Communication framework initialized for services")
+except Exception as e:
+    print(f"Failed to initialize communication framework: {e}")
 
 class TradingSession(Enum):
     """Trading session types"""

@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
 Doji Recognition Engine - Advanced Japanese Candlestick Pattern Detection
 Platform3 Enhanced Technical Analysis Engine
@@ -35,12 +45,13 @@ Mathematical Foundation:
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Optional, Union
-from dataclasses import dataclass
+from typing import Dict, List, Tuple, Optional, Union, Any
+from dataclasses import dataclass, field
 from enum import Enum
 import logging
+from datetime import datetime
 
-from ..indicator_base import IndicatorBase, IndicatorResult
+from engines.indicator_base import IndicatorBase, IndicatorResult, IndicatorType, TimeFrame, IndicatorSignal, SignalType
 
 class DojiType(Enum):
     """Types of Doji patterns"""
@@ -59,9 +70,11 @@ class DojiSignal(Enum):
     CONTINUATION = "continuation"
     NEUTRAL = "neutral"
 
+# Create a standalone dataclass instead of inheriting from IndicatorResult
 @dataclass
-class DojiRecognitionResult(IndicatorResult):
+class DojiRecognitionResult:
     """Doji Recognition calculation result"""
+    timestamp: datetime
     doji_type: DojiType
     doji_strength: float  # 0-100, higher means stronger pattern
     body_size: float
@@ -75,11 +88,12 @@ class DojiRecognitionResult(IndicatorResult):
     volume_confirmation: bool
     signal: DojiSignal
     signal_strength: float
+    metadata: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict:
         """Convert result to dictionary"""
-        result_dict = super().to_dict()
-        result_dict.update({
+        return {
+            'timestamp': self.timestamp.isoformat() if hasattr(self.timestamp, 'isoformat') else str(self.timestamp),
             'doji_type': self.doji_type.value,
             'doji_strength': self.doji_strength,
             'body_size': self.body_size,
@@ -92,9 +106,38 @@ class DojiRecognitionResult(IndicatorResult):
             'reversal_probability': self.reversal_probability,
             'volume_confirmation': self.volume_confirmation,
             'signal': self.signal.value,
-            'signal_strength': self.signal_strength
-        })
-        return result_dict
+            'signal_strength': self.signal_strength,
+            'metadata': self.metadata
+        }
+        
+    def to_indicator_result(self, indicator_name: str) -> IndicatorResult:
+        """Convert to standard IndicatorResult"""
+        return IndicatorResult(
+            timestamp=self.timestamp,
+            indicator_name=indicator_name,
+            indicator_type=IndicatorType.PATTERN,
+            timeframe=TimeFrame.D1,  # Default timeframe - should be updated
+            value=self.doji_strength,
+            signal=IndicatorSignal(
+                timestamp=self.timestamp,
+                indicator_name=indicator_name,
+                signal_type=self._map_signal_type(),
+                strength=self.signal_strength / 100,  # Scale to 0-1
+                confidence=self.reversal_probability / 100,  # Scale to 0-1
+                metadata={'doji_type': self.doji_type.value}
+            ) if self.signal != DojiSignal.NEUTRAL else None
+        )
+    
+    def _map_signal_type(self) -> SignalType:
+        """Map Doji signal to standard SignalType"""
+        if self.signal == DojiSignal.REVERSAL_BULLISH:
+            return SignalType.BUY
+        elif self.signal == DojiSignal.REVERSAL_BEARISH:
+            return SignalType.SELL
+        elif self.signal == DojiSignal.CONTINUATION:
+            return SignalType.HOLD
+        else:
+            return SignalType.NEUTRAL
 
 class DojiRecognitionEngine(IndicatorBase):
     """

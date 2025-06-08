@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+
+# Platform3 path management
+import sys
+from typing import Any, Dict, List, Optional, Tuple, Union # Added Any
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
 GANN FAN LINES - Angular Support and Resistance Analysis
 Platform3 Advanced Gann Analysis Engine
@@ -15,9 +26,9 @@ Features:
 - Price target projections along Gann angles
 
 Gann Angle Theory:
-- 1x1 Line (45°): Main trend line - most important
-- 1x2 Line (26.57°): Strong support/resistance 
-- 2x1 Line (63.43°): Fast trend acceleration
+- 1x1 Line (45degree): Main trend line - most important
+- 1x2 Line (26.57degree): Strong support/resistance 
+- 2x1 Line (63.43degree): Fast trend acceleration
 - 1x4 and 4x1: Secondary support/resistance levels
 - 1x8 and 8x1: Extreme angles for major reversals
 
@@ -37,7 +48,7 @@ from dataclasses import dataclass
 from enum import Enum
 import logging
 import math
-from ..indicator_base import IndicatorBase
+from engines.indicator_base import IndicatorBase
 
 class GannAngle(Enum):
     """Gann angle types with their geometric ratios"""
@@ -106,6 +117,7 @@ class GannFanLines(IndicatorBase):
     """
     
     def __init__(self, 
+                 config: Optional[Dict[str, Any]] = None, # Added config
                  pivot_sensitivity: float = 0.02,
                  min_touches: int = 2,
                  confluence_tolerance: float = 0.005,
@@ -114,25 +126,28 @@ class GannFanLines(IndicatorBase):
         Initialize Gann Fan Lines calculator
         
         Args:
+            config: Configuration parameters
             pivot_sensitivity: Minimum percentage move to identify pivot (2%)
             min_touches: Minimum touches for line validation
             confluence_tolerance: Price tolerance for confluence zones (0.5%)
             auto_scale: Automatically calculate price/time scaling
         """
-        from ..indicator_base import IndicatorType, TimeFrame
+        from engines.indicator_base import IndicatorType, TimeFrame
         
-        super().__init__(
-            name="GannFanLines",
-            indicator_type=IndicatorType.GANN,
-            timeframe=TimeFrame.H1,
-            lookback_periods=50,
-            parameters={
+        # Collect parameters into a config dictionary
+        config_params = {
+            'name': "GannFanLines",
+            'indicator_type': IndicatorType.GANN,
+            'timeframe': TimeFrame.H1,  # Assuming H1, adjust if dynamic
+            'lookback_periods': 50, # Default or make configurable
+            'parameters': {
                 'pivot_sensitivity': pivot_sensitivity,
                 'min_touches': min_touches,
                 'confluence_tolerance': confluence_tolerance,
                 'auto_scale': auto_scale
             }
-        )
+        }
+        super().__init__(config=config_params) # Added super call with config
         
         self.pivot_sensitivity = pivot_sensitivity
         self.min_touches = min_touches
@@ -683,7 +698,7 @@ class GannFanLines(IndicatorBase):
         signal_type = current_result['signal']
         strength = current_result.get('strength', 0.5)
         
-        from ..indicator_base import IndicatorSignal, SignalType
+        from engines.indicator_base import IndicatorSignal, SignalType
         
         # Map signal types
         signal_mapping = {

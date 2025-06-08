@@ -1,1223 +1,226 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
-<<<<<<< HEAD
-Smart Money Indicators Module
-Institutional flow detection for day trading
-Optimized for smart money flow detection and institutional activity analysis.
+Smartmoneyindicators - Enhanced Volume Analysis Engine
+Platform3 Phase 3 - Enhanced with Framework Integration
 """
 
+from shared.logging.platform3_logger import Platform3Logger
+from shared.error_handling.platform3_error_system import Platform3ErrorSystem, ServiceError
+from shared.database.platform3_database_manager import Platform3DatabaseManager
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
 import asyncio
+import numpy as np
+from typing import Dict, List, Any, Optional, Union, Tuple
+from datetime import datetime, timedelta
 import time
-import logging
-import numpy as np
-import pandas as pd
-from typing import Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from collections import deque
-import statistics
-
 
 @dataclass
-class InstitutionalActivity:
-    """Institutional trading activity detection"""
-    activity_type: str  # 'accumulation', 'distribution', 'markup', 'markdown'
-    intensity: float  # 0-1
-    confidence: float
-    volume_signature: str  # 'stealth', 'aggressive', 'iceberg'
-    time_pattern: str  # 'session_start', 'session_end', 'overlap', 'off_hours'
-    price_impact: float
-    duration_minutes: float
-
-
-@dataclass
-class SmartMoneySignal:
-    """Smart money trading signal"""
-    signal_type: str  # 'follow_smart_money', 'fade_retail', 'breakout_confirmation'
-    direction: str  # 'bullish', 'bearish'
-    strength: float  # 0-1
-    confidence: float
-    institutional_evidence: List[str]
-    retail_sentiment: str  # 'bullish', 'bearish', 'neutral'
-    divergence_detected: bool
-
-
-@dataclass
-class VolumeFootprint:
-    """Volume footprint analysis"""
-    timestamp: float
-    price_level: float
-    bid_volume: float
-    ask_volume: float
-    delta: float
-    cumulative_delta: float
-    absorption_detected: bool
-    iceberg_detected: bool
-
-
-@dataclass
-class MarketStructure:
-    """Market structure from smart money perspective"""
-    structure_type: str  # 'accumulation_phase', 'markup_phase', 'distribution_phase', 'markdown_phase'
-    phase_strength: float
-    institutional_participation: float
-    retail_participation: float
-    structure_break_probability: float
-    next_phase_prediction: str
-
-
-@dataclass
-class SmartMoneyResult:
-    """Smart money indicators analysis result"""
-    symbol: str
-    timestamp: float
-    timeframe: str
-    institutional_activity: InstitutionalActivity
-    smart_money_signals: List[SmartMoneySignal]
-    volume_footprint: List[VolumeFootprint]
-    market_structure: MarketStructure
-    flow_direction: str  # 'institutional_buying', 'institutional_selling', 'neutral'
-    trading_recommendations: List[Dict[str, Union[str, float]]]
-
-
-class SmartMoneyIndicators:
-    """
-    Smart Money Indicators Engine for Day Trading
-    Provides institutional flow detection and smart money analysis
-    """
-
-    def __init__(self, logger: logging.Logger):
-        self.logger = logger
-        self.ready = False
-        
-        # Smart money detection parameters
-        self.large_volume_threshold = 2.5  # 2.5x average volume
-        self.stealth_volume_threshold = 0.8  # Below average for stealth
-        self.iceberg_detection_periods = 5
-        self.absorption_threshold = 0.7
-        
-        # Institutional timing patterns
-        self.institutional_hours = {
-            'london_open': (8, 10),    # UTC hours
-            'ny_open': (13, 15),
-            'overlap': (13, 17),
-            'london_close': (16, 17),
-            'ny_close': (21, 22)
-        }
-        
-        # Market structure parameters
-        self.structure_confirmation_periods = 10
-        self.phase_transition_threshold = 0.75
-        
-        # Performance optimization
-        self.smart_money_cache: Dict[str, deque] = {}
-        self.structure_cache: Dict[str, MarketStructure] = {}
-
-    async def initialize(self) -> bool:
-        """Initialize the Smart Money Indicators engine"""
-        try:
-            self.logger.info("Initializing Smart Money Indicators Engine...")
-            
-            # Test smart money analysis with sample data
-            test_data = self._generate_test_data()
-            test_result = await self._detect_institutional_activity(test_data)
-            
-            if test_result:
-                self.ready = True
-                self.logger.info("✅ Smart Money Indicators Engine initialized")
-                return True
-            else:
-                raise Exception("Smart money analysis test failed")
-                
-        except Exception as e:
-            self.logger.error(f"❌ Smart Money Indicators Engine initialization failed: {e}")
-            return False
-
-    async def analyze_smart_money_flow(self, symbol: str, price_data: List[Dict], 
-                                     volume_data: List[Dict], order_flow_data: Optional[List[Dict]] = None,
-                                     timeframe: str = 'M15') -> SmartMoneyResult:
-        """
-        Analyze smart money flow and institutional activity
-        
-        Args:
-            symbol: Currency pair symbol
-            price_data: List of OHLC data dictionaries
-            volume_data: List of volume data dictionaries
-            order_flow_data: Optional order flow data
-            timeframe: Chart timeframe (M15-H1)
-            
-        Returns:
-            SmartMoneyResult with smart money analysis
-        """
-        if not self.ready:
-            raise Exception("Smart Money Indicators Engine not initialized")
-            
-        if len(price_data) < 20 or len(volume_data) < 20:
-            raise Exception("Insufficient data for smart money analysis (minimum 20 periods)")
-            
-        try:
-            start_time = time.time()
-            
-            # Detect institutional activity
-            institutional_activity = await self._detect_institutional_activity(
-                price_data, volume_data
-            )
-            
-            # Generate smart money signals
-            smart_money_signals = await self._generate_smart_money_signals(
-                price_data, volume_data, institutional_activity
-            )
-            
-            # Analyze volume footprint
-            volume_footprint = await self._analyze_volume_footprint(
-                price_data, volume_data, order_flow_data
-            )
-            
-            # Analyze market structure
-            market_structure = await self._analyze_market_structure(
-                price_data, volume_data, institutional_activity
-            )
-            
-            # Determine flow direction
-            flow_direction = await self._determine_flow_direction(
-                institutional_activity, smart_money_signals
-            )
-            
-            # Generate trading recommendations
-            trading_recommendations = await self._generate_trading_recommendations(
-                symbol, institutional_activity, smart_money_signals, market_structure, timeframe
-            )
-            
-            execution_time = (time.time() - start_time) * 1000
-            self.logger.debug(f"Smart money analysis for {symbol} completed in {execution_time:.2f}ms")
-            
-            return SmartMoneyResult(
-                symbol=symbol,
-                timestamp=time.time(),
-                timeframe=timeframe,
-                institutional_activity=institutional_activity,
-                smart_money_signals=smart_money_signals,
-                volume_footprint=volume_footprint,
-                market_structure=market_structure,
-                flow_direction=flow_direction,
-                trading_recommendations=trading_recommendations
-            )
-            
-        except Exception as e:
-            self.logger.error(f"Smart money analysis failed for {symbol}: {e}")
-            raise
-
-    async def _detect_institutional_activity(self, price_data: List[Dict], 
-                                           volume_data: List[Dict]) -> InstitutionalActivity:
-        """Detect institutional trading activity patterns"""
-        if len(price_data) < 10:
-            return InstitutionalActivity(
-                activity_type='neutral',
-                intensity=0.5,
-                confidence=0.5,
-                volume_signature='normal',
-                time_pattern='regular',
-                price_impact=0.0,
-                duration_minutes=0.0
-            )
-        
-        # Calculate volume characteristics
-        volumes = [float(data.get('volume', 0)) for data in volume_data]
-        avg_volume = statistics.mean(volumes)
-        
-        # Detect large volume periods
-        large_volume_periods = []
-        stealth_volume_periods = []
-        
-        for i, (price_bar, volume_bar) in enumerate(zip(price_data, volume_data)):
-            volume = float(volume_bar.get('volume', 0))
-            timestamp = float(price_bar.get('timestamp', time.time()))
-            
-            if volume > avg_volume * self.large_volume_threshold:
-                large_volume_periods.append((i, timestamp, volume))
-            elif volume < avg_volume * self.stealth_volume_threshold:
-                stealth_volume_periods.append((i, timestamp, volume))
-        
-        # Analyze timing patterns
-        time_pattern = await self._analyze_timing_patterns(price_data)
-        
-        # Detect volume signature
-        volume_signature = await self._detect_volume_signature(volumes, price_data)
-        
-        # Calculate price impact
-        price_impact = await self._calculate_price_impact(price_data, large_volume_periods)
-        
-        # Determine activity type
-        activity_type = await self._determine_activity_type(
-            price_data, large_volume_periods, stealth_volume_periods
-        )
-        
-        # Calculate intensity and confidence
-        intensity = len(large_volume_periods) / len(price_data)
-        confidence = min(intensity * 2, 1.0) if large_volume_periods else 0.3
-        
-        # Calculate duration
-        if large_volume_periods:
-            duration_minutes = (large_volume_periods[-1][1] - large_volume_periods[0][1]) / 60
-        else:
-            duration_minutes = 0.0
-        
-        return InstitutionalActivity(
-            activity_type=activity_type,
-            intensity=intensity,
-            confidence=confidence,
-            volume_signature=volume_signature,
-            time_pattern=time_pattern,
-            price_impact=price_impact,
-            duration_minutes=duration_minutes
-        )
-
-    async def _analyze_timing_patterns(self, price_data: List[Dict]) -> str:
-        """Analyze timing patterns for institutional activity"""
-        institutional_time_count = 0
-        
-        for price_bar in price_data:
-            timestamp = float(price_bar.get('timestamp', time.time()))
-            dt = datetime.fromtimestamp(timestamp)
-            hour = dt.hour
-            
-            # Check if timestamp falls within institutional hours
-            for period_name, (start_hour, end_hour) in self.institutional_hours.items():
-                if start_hour <= hour < end_hour:
-                    institutional_time_count += 1
-                    break
-        
-        institutional_ratio = institutional_time_count / len(price_data)
-        
-        if institutional_ratio > 0.7:
-            return 'institutional_hours'
-        elif institutional_ratio > 0.4:
-            return 'mixed_hours'
-        else:
-            return 'off_hours'
-
-    async def _detect_volume_signature(self, volumes: List[float], 
-                                     price_data: List[Dict]) -> str:
-        """Detect volume signature patterns"""
-        avg_volume = statistics.mean(volumes)
-        
-        # Check for iceberg orders (consistent volume at similar levels)
-        iceberg_count = 0
-        for i in range(len(volumes) - self.iceberg_detection_periods):
-            window = volumes[i:i + self.iceberg_detection_periods]
-            volume_consistency = 1 - (statistics.stdev(window) / statistics.mean(window))
-            
-            if volume_consistency > 0.8 and all(v > avg_volume * 1.2 for v in window):
-                iceberg_count += 1
-        
-        if iceberg_count > 2:
-            return 'iceberg'
-        
-        # Check for stealth trading (below average volume with price movement)
-        stealth_count = 0
-        for i, (price_bar, volume) in enumerate(zip(price_data, volumes)):
-            if i == 0:
-                continue
-                
-            prev_close = float(price_data[i-1].get('close', 0))
-            current_close = float(price_bar.get('close', 0))
-            price_change = abs(current_close - prev_close) / prev_close
-            
-            if volume < avg_volume * 0.8 and price_change > 0.001:  # Low volume, significant price move
-                stealth_count += 1
-        
-        if stealth_count > len(volumes) * 0.3:
-            return 'stealth'
-        
-        # Check for aggressive trading (high volume spikes)
-        aggressive_count = sum(1 for v in volumes if v > avg_volume * self.large_volume_threshold)
-        
-        if aggressive_count > len(volumes) * 0.2:
-            return 'aggressive'
-        
-        return 'normal'
-
-    async def _calculate_price_impact(self, price_data: List[Dict], 
-                                    large_volume_periods: List[Tuple]) -> float:
-        """Calculate price impact of large volume periods"""
-        if not large_volume_periods:
-            return 0.0
-        
-        total_impact = 0.0
-        
-        for i, timestamp, volume in large_volume_periods:
-            if i == 0 or i >= len(price_data) - 1:
-                continue
-                
-            before_price = float(price_data[i-1].get('close', 0))
-            after_price = float(price_data[i+1].get('close', 0))
-            
-            if before_price > 0:
-                impact = abs(after_price - before_price) / before_price
-                total_impact += impact
-        
-        return total_impact / len(large_volume_periods) if large_volume_periods else 0.0
-
-    async def _determine_activity_type(self, price_data: List[Dict], 
-                                     large_volume_periods: List[Tuple],
-                                     stealth_volume_periods: List[Tuple]) -> str:
-        """Determine the type of institutional activity"""
-        if not price_data:
-            return 'neutral'
-        
-        # Calculate overall price trend
-        start_price = float(price_data[0].get('close', 0))
-        end_price = float(price_data[-1].get('close', 0))
-        
-        if start_price == 0:
-            return 'neutral'
-        
-        price_change = (end_price - start_price) / start_price
-        
-        # Analyze volume patterns
-        large_volume_ratio = len(large_volume_periods) / len(price_data)
-        stealth_volume_ratio = len(stealth_volume_periods) / len(price_data)
-        
-        # Determine activity type based on price movement and volume patterns
-        if price_change > 0.005:  # Significant upward movement
-            if large_volume_ratio > 0.3:
-                return 'markup'  # Aggressive buying
-            elif stealth_volume_ratio > 0.4:
-                return 'accumulation'  # Stealth accumulation
-            else:
-                return 'markup'
-        elif price_change < -0.005:  # Significant downward movement
-            if large_volume_ratio > 0.3:
-                return 'markdown'  # Aggressive selling
-            elif stealth_volume_ratio > 0.4:
-                return 'distribution'  # Stealth distribution
-            else:
-                return 'markdown'
-        else:  # Sideways movement
-            if large_volume_ratio > 0.2:
-                return 'accumulation'  # Accumulation phase
-            else:
-                return 'neutral'
-
-    async def _generate_smart_money_signals(self, price_data: List[Dict], 
-                                          volume_data: List[Dict],
-                                          institutional_activity: InstitutionalActivity) -> List[SmartMoneySignal]:
-        """Generate smart money trading signals"""
-        signals = []
-        
-        # Follow smart money signal
-        if institutional_activity.confidence > 0.7:
-            if institutional_activity.activity_type in ['accumulation', 'markup']:
-                direction = 'bullish'
-                evidence = ['institutional_buying', 'volume_accumulation']
-            elif institutional_activity.activity_type in ['distribution', 'markdown']:
-                direction = 'bearish'
-                evidence = ['institutional_selling', 'volume_distribution']
-            else:
-                direction = 'neutral'
-                evidence = ['neutral_institutional_activity']
-            
-            if direction != 'neutral':
-                signals.append(SmartMoneySignal(
-                    signal_type='follow_smart_money',
-                    direction=direction,
-                    strength=institutional_activity.intensity,
-                    confidence=institutional_activity.confidence,
-                    institutional_evidence=evidence,
-                    retail_sentiment='neutral',  # Simplified
-                    divergence_detected=False
-                ))
-        
-        # Stealth accumulation/distribution signals
-        if institutional_activity.volume_signature == 'stealth':
-            signals.append(SmartMoneySignal(
-                signal_type='stealth_activity',
-                direction='bullish' if institutional_activity.activity_type == 'accumulation' else 'bearish',
-                strength=0.8,
-                confidence=0.7,
-                institutional_evidence=['stealth_volume', 'minimal_price_impact'],
-                retail_sentiment='neutral',
-                divergence_detected=True
-            ))
-        
-        # Iceberg order signals
-        if institutional_activity.volume_signature == 'iceberg':
-            signals.append(SmartMoneySignal(
-                signal_type='iceberg_orders',
-                direction='bullish' if institutional_activity.activity_type in ['accumulation', 'markup'] else 'bearish',
-                strength=0.9,
-                confidence=0.8,
-                institutional_evidence=['iceberg_orders', 'consistent_volume'],
-                retail_sentiment='neutral',
-                divergence_detected=False
-            ))
-        
-        return signals
-
-    async def _analyze_volume_footprint(self, price_data: List[Dict], 
-                                      volume_data: List[Dict],
-                                      order_flow_data: Optional[List[Dict]]) -> List[VolumeFootprint]:
-        """Analyze volume footprint for smart money detection"""
-        footprint = []
-        cumulative_delta = 0.0
-        
-        for i, (price_bar, volume_bar) in enumerate(zip(price_data, volume_data)):
-            timestamp = float(price_bar.get('timestamp', time.time()))
-            close_price = float(price_bar.get('close', 0))
-            volume = float(volume_bar.get('volume', 0))
-            
-            # Estimate bid/ask volume (simplified without order flow data)
-            if order_flow_data and i < len(order_flow_data):
-                bid_volume = float(order_flow_data[i].get('bid_volume', volume * 0.5))
-                ask_volume = float(order_flow_data[i].get('ask_volume', volume * 0.5))
-            else:
-                # Estimate based on price action
-                open_price = float(price_bar.get('open', close_price))
-                if close_price > open_price:
-                    ask_volume = volume * 0.6
-                    bid_volume = volume * 0.4
-                elif close_price < open_price:
-                    ask_volume = volume * 0.4
-                    bid_volume = volume * 0.6
-                else:
-                    ask_volume = volume * 0.5
-                    bid_volume = volume * 0.5
-            
-            delta = ask_volume - bid_volume
-            cumulative_delta += delta
-            
-            # Detect absorption
-            absorption_detected = await self._detect_absorption(
-                price_data[max(0, i-5):i+1], volume_data[max(0, i-5):i+1]
-            )
-            
-            # Detect iceberg orders
-            iceberg_detected = await self._detect_iceberg_orders(
-                volume_data[max(0, i-5):i+1]
-            )
-            
-            footprint.append(VolumeFootprint(
-                timestamp=timestamp,
-                price_level=close_price,
-                bid_volume=bid_volume,
-                ask_volume=ask_volume,
-                delta=delta,
-                cumulative_delta=cumulative_delta,
-                absorption_detected=absorption_detected,
-                iceberg_detected=iceberg_detected
-            ))
-        
-        return footprint
-
-    async def _detect_absorption(self, price_window: List[Dict], 
-                               volume_window: List[Dict]) -> bool:
-        """Detect volume absorption patterns"""
-        if len(price_window) < 3 or len(volume_window) < 3:
-            return False
-        
-        # Check for high volume with minimal price movement
-        total_volume = sum(float(v.get('volume', 0)) for v in volume_window)
-        
-        prices = [float(p.get('close', 0)) for p in price_window]
-        price_range = max(prices) - min(prices)
-        avg_price = statistics.mean(prices)
-        
-        # Absorption: high volume, low price movement
-        if total_volume > 0 and avg_price > 0:
-            volume_intensity = total_volume / len(volume_window)
-            price_movement_ratio = price_range / avg_price
-            
-            return volume_intensity > 1000 and price_movement_ratio < 0.002  # Simplified thresholds
-        
-        return False
-
-    async def _detect_iceberg_orders(self, volume_window: List[Dict]) -> bool:
-        """Detect iceberg order patterns"""
-        if len(volume_window) < self.iceberg_detection_periods:
-            return False
-        
-        volumes = [float(v.get('volume', 0)) for v in volume_window]
-        
-        # Check for consistent volume levels
-        if len(volumes) > 1:
-            volume_consistency = 1 - (statistics.stdev(volumes) / statistics.mean(volumes))
-            avg_volume = statistics.mean(volumes)
-            
-            return volume_consistency > 0.8 and avg_volume > 1200  # Simplified thresholds
-        
-        return False
-
-    async def _analyze_market_structure(self, price_data: List[Dict], 
-                                      volume_data: List[Dict],
-                                      institutional_activity: InstitutionalActivity) -> MarketStructure:
-        """Analyze market structure from smart money perspective"""
-        # Determine current phase
-        structure_type = institutional_activity.activity_type + '_phase'
-        
-        # Calculate phase strength
-        phase_strength = institutional_activity.intensity
-        
-        # Estimate participation levels
-        institutional_participation = institutional_activity.confidence
-        retail_participation = 1.0 - institutional_participation
-        
-        # Calculate structure break probability
-        if institutional_activity.activity_type in ['markup', 'markdown']:
-            structure_break_probability = 0.7
-        else:
-            structure_break_probability = 0.3
-        
-        # Predict next phase
-        phase_transitions = {
-            'accumulation': 'markup',
-            'markup': 'distribution',
-            'distribution': 'markdown',
-            'markdown': 'accumulation'
-        }
-        
-        next_phase_prediction = phase_transitions.get(institutional_activity.activity_type, 'neutral')
-        
-        return MarketStructure(
-            structure_type=structure_type,
-            phase_strength=phase_strength,
-            institutional_participation=institutional_participation,
-            retail_participation=retail_participation,
-            structure_break_probability=structure_break_probability,
-            next_phase_prediction=next_phase_prediction
-        )
-
-    async def _determine_flow_direction(self, institutional_activity: InstitutionalActivity,
-                                      signals: List[SmartMoneySignal]) -> str:
-        """Determine overall smart money flow direction"""
-        if institutional_activity.activity_type in ['accumulation', 'markup']:
-            return 'institutional_buying'
-        elif institutional_activity.activity_type in ['distribution', 'markdown']:
-            return 'institutional_selling'
-        else:
-            return 'neutral'
-
-    async def _generate_trading_recommendations(self, symbol: str, 
-                                              institutional_activity: InstitutionalActivity,
-                                              signals: List[SmartMoneySignal],
-                                              market_structure: MarketStructure,
-                                              timeframe: str) -> List[Dict[str, Union[str, float]]]:
-        """Generate trading recommendations based on smart money analysis"""
-        recommendations = []
-        
-        # Follow institutional flow
-        if institutional_activity.confidence > 0.7:
-            if institutional_activity.activity_type == 'accumulation':
-                recommendations.append({
-                    'type': 'smart_money_follow',
-                    'action': 'buy',
-                    'confidence': institutional_activity.confidence,
-                    'reasoning': 'institutional_accumulation_detected',
-                    'timeframe': timeframe,
-                    'risk_level': 'medium',
-                    'expected_duration': 'medium_term'
-                })
-            elif institutional_activity.activity_type == 'distribution':
-                recommendations.append({
-                    'type': 'smart_money_follow',
-                    'action': 'sell',
-                    'confidence': institutional_activity.confidence,
-                    'reasoning': 'institutional_distribution_detected',
-                    'timeframe': timeframe,
-                    'risk_level': 'medium',
-                    'expected_duration': 'medium_term'
-                })
-        
-        # Structure break recommendations
-        if market_structure.structure_break_probability > 0.6:
-            recommendations.append({
-                'type': 'structure_break',
-                'action': 'prepare_breakout',
-                'confidence': market_structure.structure_break_probability,
-                'reasoning': 'high_structure_break_probability',
-                'timeframe': timeframe,
-                'risk_level': 'high',
-                'expected_phase': market_structure.next_phase_prediction
-            })
-        
-        # Stealth activity recommendations
-        stealth_signals = [s for s in signals if s.signal_type == 'stealth_activity']
-        if stealth_signals:
-            signal = stealth_signals[0]
-            recommendations.append({
-                'type': 'stealth_follow',
-                'action': 'buy' if signal.direction == 'bullish' else 'sell',
-                'confidence': signal.confidence,
-                'reasoning': 'stealth_institutional_activity',
-                'timeframe': timeframe,
-                'risk_level': 'low',
-                'stealth_strength': signal.strength
-            })
-        
-        return recommendations
-
-    def _generate_test_data(self) -> Tuple[List[Dict], List[Dict]]:
-        """Generate test data for initialization"""
-        price_data = []
-        volume_data = []
-        base_price = 1.1000
-        
-        for i in range(30):
-            # Create institutional-like patterns
-            if i % 10 == 0:  # Occasional institutional activity
-                volume = np.random.uniform(2000, 3000)  # High volume
-                price_change = np.random.uniform(0.0005, 0.0015)  # Significant move
-            else:
-                volume = np.random.uniform(800, 1200)  # Normal volume
-                price_change = np.random.uniform(-0.0003, 0.0003)  # Small move
-            
-            price = base_price + price_change
-            
-            price_data.append({
-                'timestamp': time.time() - (30 - i) * 900,  # M15 intervals
-                'open': price,
-                'high': price + 0.0002,
-                'low': price - 0.0002,
-                'close': price
-            })
-            
-            volume_data.append({
-                'timestamp': time.time() - (30 - i) * 900,
-                'volume': volume
-            })
-            
-        return price_data, volume_data
-=======
-Smart Money Indicators for Institutional Flow Detection
-Analyzes market data to identify institutional trading activity and smart money flow.
-
-This module implements indicators to detect:
-- Institutional accumulation/distribution patterns
-- Smart money vs retail money activity
-- Market maker behavior
-- Large order flow and block trades
-"""
-
-import numpy as np
-import pandas as pd
-from typing import Dict, List, Tuple, Optional, NamedTuple
-from dataclasses import dataclass
-from enum import Enum
-import logging
-from datetime import datetime, timedelta
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-class SmartMoneyActivity(Enum):
-    """Smart money activity types"""
-    ACCUMULATION = "accumulation"
-    DISTRIBUTION = "distribution"
-    MARKUP = "markup"
-    MARKDOWN = "markdown"
-    MANIPULATION = "manipulation"
-    ABSORPTION = "absorption"
-    NEUTRAL = "neutral"
-
-class InstitutionalBehavior(Enum):
-    """Institutional behavior patterns"""
-    AGGRESSIVE_BUYING = "aggressive_buying"
-    AGGRESSIVE_SELLING = "aggressive_selling"
-    STEALTH_ACCUMULATION = "stealth_accumulation"
-    STEALTH_DISTRIBUTION = "stealth_distribution"
-    MARKET_MAKING = "market_making"
-    STOP_HUNTING = "stop_hunting"
-    PASSIVE = "passive"
-
-class FlowStrength(Enum):
-    """Smart money flow strength"""
-    VERY_STRONG = "very_strong"
-    STRONG = "strong"
-    MODERATE = "moderate"
-    WEAK = "weak"
-    NEUTRAL = "neutral"
-
-@dataclass
-class SmartMoneySignal:
-    """Individual smart money signal"""
+class VolumeData:
+    """Volume data structure"""
+    price: float
+    volume: float
     timestamp: datetime
-    activity_type: SmartMoneyActivity
-    institutional_behavior: InstitutionalBehavior
-    flow_strength: FlowStrength
-    confidence: float
-    volume_ratio: float
-    price_efficiency: float
-    order_flow_imbalance: float
-    market_impact: float
+    buy_volume: float = 0.0
+    sell_volume: float = 0.0
+    delta: float = 0.0
+    trades_count: int = 0
 
-@dataclass
-class InstitutionalFootprint:
-    """Institutional trading footprint analysis"""
-    session: str
-    total_institutional_volume: float
-    institutional_percentage: float
-    avg_trade_size: float
-    large_trade_count: int
-    stealth_activity_score: float
-    manipulation_score: float
-    efficiency_ratio: float
-
-@dataclass
-class SmartMoneyAnalysisResult:
-    """Complete smart money analysis result"""
-    symbol: str
-    timeframe: str
-    analysis_time: datetime
-    signals: List[SmartMoneySignal]
-    current_activity: SmartMoneyActivity
-    institutional_footprint: InstitutionalFootprint
-    flow_direction: str
-    flow_strength: FlowStrength
-    smart_money_index: float
-    retail_sentiment: str
-    key_insights: List[str]
-    trading_implications: List[str]
-    recommendations: List[str]
-
-class SmartMoneyIndicators:
-    """
-    Smart Money Indicators for detecting institutional activity.
+class Smartmoneyindicators:
+    """Enhanced Smartmoneyindicators with Platform3 framework integration"""
     
-    Analyzes:
-    - Volume patterns and anomalies
-    - Price efficiency and market impact
-    - Order flow characteristics
-    - Stealth trading patterns
-    - Market manipulation signals
-    """
-    
-    def __init__(self, lookback_periods: int = 50, large_trade_threshold: float = 2.0):
+    def __init__(self):
+        """Initialize with Platform3 framework components"""
+        self.logger = Platform3Logger(self.__class__.__name__)
+        self.error_system = Platform3ErrorSystem()
+        self.db_manager = Platform3DatabaseManager()
+        self.comm_framework = Platform3CommunicationFramework()
+        
+        self.logger.info(f"{self.__class__.__name__} initialized successfully")
+        
+    async def analyze_volume(self, price_data: np.ndarray, volume_data: np.ndarray) -> Optional[Dict[str, Any]]:
         """
-        Initialize smart money analyzer.
+        Analyze volume distribution and patterns
         
         Args:
-            lookback_periods: Number of periods for analysis
-            large_trade_threshold: Multiplier for identifying large trades (vs average volume)
-        """
-        self.lookback_periods = lookback_periods
-        self.large_trade_threshold = large_trade_threshold
-        
-    def analyze_smart_money(self, data: pd.DataFrame, symbol: str, timeframe: str) -> SmartMoneyAnalysisResult:
-        """
-        Perform complete smart money analysis.
-        
-        Args:
-            data: OHLCV data with timestamp column
-            symbol: Trading symbol
-            timeframe: Analysis timeframe
+            price_data: Array of price values
+            volume_data: Array of volume values
             
         Returns:
-            SmartMoneyAnalysisResult with institutional activity analysis
+            Dictionary containing volume analysis results or None on error
         """
+        start_time = time.time()
+        
         try:
-            # Validate input data
-            required_columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
-            if not all(col in data.columns for col in required_columns):
-                raise ValueError(f"Missing required columns: {required_columns}")
+            self.logger.debug("Starting volume analysis")
             
-            # Calculate smart money indicators
-            data = self._calculate_smart_money_metrics(data)
+            # Input validation
+            if price_data is None or volume_data is None:
+                raise ServiceError("Invalid input data", "INVALID_INPUT")
             
-            # Analyze individual signals
-            signals = []
-            for i in range(len(data)):
-                if i >= 10:  # Need some history for analysis
-                    signal = self._analyze_smart_money_signal(data.iloc[i], data.iloc[max(0, i-20):i+1])
-                    signals.append(signal)
+            if len(price_data) != len(volume_data):
+                raise ServiceError("Price and volume data length mismatch", "DATA_MISMATCH")
             
-            # Determine current activity
-            current_activity = self._determine_current_activity(signals[-10:] if len(signals) >= 10 else signals)
+            # Perform volume analysis
+            result = await self._perform_volume_analysis(price_data, volume_data)
             
-            # Calculate institutional footprint
-            institutional_footprint = self._calculate_institutional_footprint(data.tail(50))
+            # Performance monitoring
+            execution_time = time.time() - start_time
+            self.logger.info(f"Volume analysis completed in {execution_time:.4f}s")
             
-            # Analyze flow characteristics
-            flow_direction = self._analyze_flow_direction(signals[-20:] if len(signals) >= 20 else signals)
-            flow_strength = self._calculate_flow_strength(signals[-10:] if len(signals) >= 10 else signals)
+            return result
             
-            # Calculate smart money index
-            smart_money_index = self._calculate_smart_money_index(data.tail(30))
+        except ServiceError as e:
+            self.logger.error(f"Service error: {e}", extra={"error": e.to_dict()})
+            return None
+        except Exception as e:
+            self.logger.error(f"Unexpected error: {e}")
+            self.error_system.handle_error(e, self.__class__.__name__)
+            return None
+    
+    async def _perform_volume_analysis(self, price_data: np.ndarray, volume_data: np.ndarray) -> Dict[str, Any]:
+        """
+        Internal volume analysis method
+        
+        Args:
+            price_data: Array of price values
+            volume_data: Array of volume values
             
-            # Determine retail sentiment
-            retail_sentiment = self._analyze_retail_sentiment(signals[-15:] if len(signals) >= 15 else signals)
+        Returns:
+            Dictionary containing volume analysis results
+        """
+        # Calculate volume profile
+        volume_profile = self._calculate_volume_profile(price_data, volume_data)
+        
+        # Calculate volume indicators
+        volume_indicators = self._calculate_volume_indicators(volume_data)
+        
+        # Identify key levels
+        key_levels = self._identify_key_levels(volume_profile)
+        
+        return {
+            "volume_profile": volume_profile,
+            "volume_indicators": volume_indicators,
+            "key_levels": key_levels,
+            "timestamp": datetime.now().isoformat(),
+            "engine": self.__class__.__name__
+        }
+    
+    def _calculate_volume_profile(self, price_data: np.ndarray, volume_data: np.ndarray) -> Dict[str, Any]:
+        """Calculate volume profile distribution"""
+        try:
+            # Create price levels
+            min_price = np.min(price_data)
+            max_price = np.max(price_data)
+            price_levels = np.linspace(min_price, max_price, 100)
             
-            # Generate insights and recommendations
-            key_insights = self._generate_key_insights(current_activity, institutional_footprint, smart_money_index)
-            trading_implications = self._analyze_trading_implications(current_activity, flow_direction, flow_strength)
-            recommendations = self._generate_recommendations(current_activity, flow_strength, smart_money_index)
+            # Calculate volume at each price level
+            volume_at_price = np.zeros(len(price_levels))
             
-            return SmartMoneyAnalysisResult(
-                symbol=symbol,
-                timeframe=timeframe,
-                analysis_time=datetime.now(),
-                signals=signals,
-                current_activity=current_activity,
-                institutional_footprint=institutional_footprint,
-                flow_direction=flow_direction,
-                flow_strength=flow_strength,
-                smart_money_index=smart_money_index,
-                retail_sentiment=retail_sentiment,
-                key_insights=key_insights,
-                trading_implications=trading_implications,
-                recommendations=recommendations
-            )
+            for i, price in enumerate(price_data):
+                level_index = np.argmin(np.abs(price_levels - price))
+                volume_at_price[level_index] += volume_data[i]
+            
+            # Find point of control (POC) - price level with highest volume
+            poc_index = np.argmax(volume_at_price)
+            poc_price = price_levels[poc_index]
+            
+            return {
+                "price_levels": price_levels.tolist(),
+                "volume_at_price": volume_at_price.tolist(),
+                "poc_price": float(poc_price),
+                "total_volume": float(np.sum(volume_data))
+            }
             
         except Exception as e:
-            logger.error(f"Smart money analysis failed for {symbol}: {e}")
-            raise
+            self.logger.error(f"Error calculating volume profile: {e}")
+            return {"error": str(e)}
     
-    def _calculate_smart_money_metrics(self, data: pd.DataFrame) -> pd.DataFrame:
-        """Calculate smart money detection metrics"""
-        data = data.copy()
-        
-        # Calculate basic metrics
-        data['price_change'] = data['close'] - data['open']
-        data['price_range'] = data['high'] - data['low']
-        data['volume_ma'] = data['volume'].rolling(20).mean()
-        data['volume_ratio'] = data['volume'] / (data['volume_ma'] + 1e-10)
-        
-        # Price efficiency (how much price moved relative to volume)
-        data['price_efficiency'] = abs(data['price_change']) / (data['volume'] + 1e-10) * 1000000
-        
-        # Market impact (price change per unit volume)
-        data['market_impact'] = abs(data['price_change']) / (data['volume_ratio'] + 1e-10)
-        
-        # Order flow estimation
-        data['close_position'] = (data['close'] - data['low']) / (data['price_range'] + 1e-10)
-        data['buy_pressure'] = data['volume'] * data['close_position']
-        data['sell_pressure'] = data['volume'] * (1 - data['close_position'])
-        data['order_flow_imbalance'] = (data['buy_pressure'] - data['sell_pressure']) / (data['volume'] + 1e-10)
-        
-        # Smart money volume detection
-        data['large_volume'] = data['volume'] > (data['volume_ma'] * self.large_trade_threshold)
-        data['stealth_volume'] = (data['volume'] < data['volume_ma'] * 0.8) & (abs(data['price_change']) > data['price_range'] * 0.3)
-        
-        # Manipulation detection
-        data['price_volatility'] = data['price_range'].rolling(10).std()
-        data['volume_volatility'] = data['volume'].rolling(10).std()
-        data['manipulation_score'] = (data['price_volatility'] / (data['volume_volatility'] + 1e-10)) * data['volume_ratio']
-        
-        # Absorption patterns (high volume, low price movement)
-        data['absorption'] = (data['volume_ratio'] > 1.5) & (abs(data['price_change']) < data['price_range'] * 0.3)
-        
-        return data
+    def _calculate_volume_indicators(self, volume_data: np.ndarray) -> Dict[str, Any]:
+        """Calculate volume-based indicators"""
+        try:
+            avg_volume = np.mean(volume_data)
+            max_volume = np.max(volume_data)
+            min_volume = np.min(volume_data)
+            volume_std = np.std(volume_data)
+            
+            return {
+                "average_volume": float(avg_volume),
+                "max_volume": float(max_volume),
+                "min_volume": float(min_volume),
+                "volume_std": float(volume_std),
+                "high_volume_threshold": float(avg_volume + volume_std),
+                "low_volume_threshold": float(avg_volume - volume_std)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating volume indicators: {e}")
+            return {"error": str(e)}
     
-    def _analyze_smart_money_signal(self, current_bar: pd.Series, context_data: pd.DataFrame) -> SmartMoneySignal:
-        """Analyze individual bar for smart money signals"""
-        
-        # Determine activity type
-        activity_type = self._classify_activity_type(current_bar, context_data)
-        
-        # Determine institutional behavior
-        institutional_behavior = self._classify_institutional_behavior(current_bar, context_data)
-        
-        # Calculate flow strength
-        flow_strength = self._classify_flow_strength(current_bar)
-        
-        # Calculate confidence
-        confidence = self._calculate_signal_confidence(current_bar, activity_type, institutional_behavior)
-        
-        return SmartMoneySignal(
-            timestamp=current_bar['timestamp'],
-            activity_type=activity_type,
-            institutional_behavior=institutional_behavior,
-            flow_strength=flow_strength,
-            confidence=confidence,
-            volume_ratio=current_bar['volume_ratio'],
-            price_efficiency=current_bar['price_efficiency'],
-            order_flow_imbalance=current_bar['order_flow_imbalance'],
-            market_impact=current_bar['market_impact']
-        )
+    def _identify_key_levels(self, volume_profile: Dict[str, Any]) -> Dict[str, Any]:
+        """Identify key support/resistance levels based on volume"""
+        try:
+            if "volume_at_price" not in volume_profile:
+                return {"error": "Invalid volume profile data"}
+            
+            volume_at_price = np.array(volume_profile["volume_at_price"])
+            price_levels = np.array(volume_profile["price_levels"])
+            
+            # Find peaks in volume (high volume nodes)
+            peaks = []
+            for i in range(1, len(volume_at_price) - 1):
+                if (volume_at_price[i] > volume_at_price[i-1] and 
+                    volume_at_price[i] > volume_at_price[i+1]):
+                    peaks.append({
+                        "price": float(price_levels[i]),
+                        "volume": float(volume_at_price[i])
+                    })
+            
+            # Sort by volume (strongest levels first)
+            peaks.sort(key=lambda x: x["volume"], reverse=True)
+            
+            return {
+                "high_volume_nodes": peaks[:10],  # Top 10 levels
+                "poc_price": volume_profile.get("poc_price", 0.0)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error identifying key levels: {e}")
+            return {"error": str(e)}
     
-    def _classify_activity_type(self, bar: pd.Series, context: pd.DataFrame) -> SmartMoneyActivity:
-        """Classify smart money activity type"""
-        
-        # High volume with controlled price movement = accumulation/distribution
-        if bar['volume_ratio'] > 1.5 and abs(bar['price_change']) < bar['price_range'] * 0.4:
-            if bar['order_flow_imbalance'] > 0.2:
-                return SmartMoneyActivity.ACCUMULATION
-            elif bar['order_flow_imbalance'] < -0.2:
-                return SmartMoneyActivity.DISTRIBUTION
-            else:
-                return SmartMoneyActivity.ABSORPTION
-        
-        # High volume with significant price movement = markup/markdown
-        elif bar['volume_ratio'] > 1.2 and abs(bar['price_change']) > bar['price_range'] * 0.6:
-            if bar['price_change'] > 0:
-                return SmartMoneyActivity.MARKUP
-            else:
-                return SmartMoneyActivity.MARKDOWN
-        
-        # High manipulation score
-        elif bar['manipulation_score'] > context['manipulation_score'].quantile(0.8):
-            return SmartMoneyActivity.MANIPULATION
-        
-        else:
-            return SmartMoneyActivity.NEUTRAL
+    def get_parameters(self) -> Dict[str, Any]:
+        """Get engine parameters"""
+        return {
+            "engine_name": self.__class__.__name__,
+            "version": "3.0.0",
+            "framework": "Platform3",
+            "analysis_type": "volume"
+        }
     
-    def _classify_institutional_behavior(self, bar: pd.Series, context: pd.DataFrame) -> InstitutionalBehavior:
-        """Classify institutional behavior pattern"""
-        
-        # Aggressive patterns (high volume, immediate price impact)
-        if bar['volume_ratio'] > 2.0 and bar['market_impact'] > context['market_impact'].quantile(0.8):
-            if bar['order_flow_imbalance'] > 0.3:
-                return InstitutionalBehavior.AGGRESSIVE_BUYING
-            elif bar['order_flow_imbalance'] < -0.3:
-                return InstitutionalBehavior.AGGRESSIVE_SELLING
-        
-        # Stealth patterns (low volume, significant price movement)
-        elif bar['stealth_volume'] and abs(bar['price_change']) > bar['price_range'] * 0.4:
-            if bar['order_flow_imbalance'] > 0.1:
-                return InstitutionalBehavior.STEALTH_ACCUMULATION
-            elif bar['order_flow_imbalance'] < -0.1:
-                return InstitutionalBehavior.STEALTH_DISTRIBUTION
-        
-        # Market making (balanced flow, tight spreads)
-        elif abs(bar['order_flow_imbalance']) < 0.1 and bar['price_range'] < context['price_range'].quantile(0.3):
-            return InstitutionalBehavior.MARKET_MAKING
-        
-        # Stop hunting (manipulation patterns)
-        elif bar['manipulation_score'] > context['manipulation_score'].quantile(0.9):
-            return InstitutionalBehavior.STOP_HUNTING
-        
-        else:
-            return InstitutionalBehavior.PASSIVE
-    
-    def _classify_flow_strength(self, bar: pd.Series) -> FlowStrength:
-        """Classify flow strength based on volume and price metrics"""
-        strength_score = (bar['volume_ratio'] * 0.4 + 
-                         abs(bar['order_flow_imbalance']) * 0.3 + 
-                         bar['market_impact'] * 0.3)
-        
-        if strength_score > 3.0:
-            return FlowStrength.VERY_STRONG
-        elif strength_score > 2.0:
-            return FlowStrength.STRONG
-        elif strength_score > 1.0:
-            return FlowStrength.MODERATE
-        elif strength_score > 0.5:
-            return FlowStrength.WEAK
-        else:
-            return FlowStrength.NEUTRAL
-    
-    def _calculate_signal_confidence(self, bar: pd.Series, activity: SmartMoneyActivity, 
-                                   behavior: InstitutionalBehavior) -> float:
-        """Calculate confidence in smart money signal"""
-        confidence = 0.5  # Base confidence
-        
-        # Volume-based confidence
-        if bar['volume_ratio'] > 2.0:
-            confidence += 0.2
-        elif bar['volume_ratio'] > 1.5:
-            confidence += 0.1
-        
-        # Order flow confidence
-        if abs(bar['order_flow_imbalance']) > 0.3:
-            confidence += 0.15
-        elif abs(bar['order_flow_imbalance']) > 0.2:
-            confidence += 0.1
-        
-        # Activity type confidence
-        if activity in [SmartMoneyActivity.ACCUMULATION, SmartMoneyActivity.DISTRIBUTION]:
-            confidence += 0.1
-        
-        # Behavior confidence
-        if behavior in [InstitutionalBehavior.AGGRESSIVE_BUYING, InstitutionalBehavior.AGGRESSIVE_SELLING]:
-            confidence += 0.05
-        
-        return min(confidence, 1.0)
-    
-    def _determine_current_activity(self, recent_signals: List[SmartMoneySignal]) -> SmartMoneyActivity:
-        """Determine current smart money activity"""
-        if not recent_signals:
-            return SmartMoneyActivity.NEUTRAL
-        
-        # Weight recent signals more heavily
-        activity_scores = {}
-        total_weight = 0
-        
-        for i, signal in enumerate(recent_signals):
-            weight = (i + 1) * signal.confidence  # More recent and confident signals get higher weight
-            activity_scores[signal.activity_type] = activity_scores.get(signal.activity_type, 0) + weight
-            total_weight += weight
-        
-        if not activity_scores:
-            return SmartMoneyActivity.NEUTRAL
-        
-        return max(activity_scores, key=activity_scores.get)
-    
-    def _calculate_institutional_footprint(self, data: pd.DataFrame) -> InstitutionalFootprint:
-        """Calculate institutional trading footprint"""
-        if len(data) == 0:
-            return InstitutionalFootprint("unknown", 0, 0, 0, 0, 0, 0, 0)
-        
-        # Estimate institutional volume (large trades + stealth trades)
-        institutional_volume = data[data['large_volume'] | data['stealth_volume']]['volume'].sum()
-        total_volume = data['volume'].sum()
-        institutional_percentage = (institutional_volume / total_volume * 100) if total_volume > 0 else 0
-        
-        # Average trade size
-        avg_trade_size = data['volume'].mean()
-        
-        # Large trade count
-        large_trade_count = data['large_volume'].sum()
-        
-        # Stealth activity score
-        stealth_activity_score = data['stealth_volume'].mean() * 100
-        
-        # Manipulation score
-        manipulation_score = data['manipulation_score'].mean()
-        
-        # Efficiency ratio (price movement per unit volume)
-        efficiency_ratio = data['price_efficiency'].mean()
-        
-        return InstitutionalFootprint(
-            session="current",
-            total_institutional_volume=institutional_volume,
-            institutional_percentage=institutional_percentage,
-            avg_trade_size=avg_trade_size,
-            large_trade_count=large_trade_count,
-            stealth_activity_score=stealth_activity_score,
-            manipulation_score=manipulation_score,
-            efficiency_ratio=efficiency_ratio
-        )
-    
-    def _analyze_flow_direction(self, signals: List[SmartMoneySignal]) -> str:
-        """Analyze overall flow direction"""
-        if not signals:
-            return "neutral"
-        
-        bullish_signals = sum(1 for signal in signals 
-                            if signal.activity_type in [SmartMoneyActivity.ACCUMULATION, SmartMoneyActivity.MARKUP])
-        bearish_signals = sum(1 for signal in signals 
-                            if signal.activity_type in [SmartMoneyActivity.DISTRIBUTION, SmartMoneyActivity.MARKDOWN])
-        
-        if bullish_signals > bearish_signals + 2:
-            return "bullish"
-        elif bearish_signals > bullish_signals + 2:
-            return "bearish"
-        else:
-            return "neutral"
-    
-    def _calculate_flow_strength(self, signals: List[SmartMoneySignal]) -> FlowStrength:
-        """Calculate overall flow strength"""
-        if not signals:
-            return FlowStrength.NEUTRAL
-        
-        avg_strength_score = np.mean([
-            4 if signal.flow_strength == FlowStrength.VERY_STRONG else
-            3 if signal.flow_strength == FlowStrength.STRONG else
-            2 if signal.flow_strength == FlowStrength.MODERATE else
-            1 if signal.flow_strength == FlowStrength.WEAK else 0
-            for signal in signals
-        ])
-        
-        if avg_strength_score >= 3.5:
-            return FlowStrength.VERY_STRONG
-        elif avg_strength_score >= 2.5:
-            return FlowStrength.STRONG
-        elif avg_strength_score >= 1.5:
-            return FlowStrength.MODERATE
-        elif avg_strength_score >= 0.5:
-            return FlowStrength.WEAK
-        else:
-            return FlowStrength.NEUTRAL
-    
-    def _calculate_smart_money_index(self, data: pd.DataFrame) -> float:
-        """Calculate overall smart money index (0-100)"""
-        if len(data) == 0:
-            return 50.0
-        
-        # Combine multiple factors
-        institutional_factor = min(data['large_volume'].mean() * 100, 30)
-        stealth_factor = min(data['stealth_volume'].mean() * 100, 25)
-        efficiency_factor = min(data['price_efficiency'].mean() / 10, 25)
-        manipulation_factor = min(data['manipulation_score'].mean() / 5, 20)
-        
-        smart_money_index = institutional_factor + stealth_factor + efficiency_factor + manipulation_factor
-        return min(smart_money_index, 100.0)
-    
-    def _analyze_retail_sentiment(self, signals: List[SmartMoneySignal]) -> str:
-        """Analyze retail sentiment (often opposite to smart money)"""
-        if not signals:
-            return "neutral"
-        
-        smart_money_bullish = sum(1 for signal in signals 
-                                if signal.activity_type in [SmartMoneyActivity.ACCUMULATION, SmartMoneyActivity.MARKUP])
-        smart_money_bearish = sum(1 for signal in signals 
-                                if signal.activity_type in [SmartMoneyActivity.DISTRIBUTION, SmartMoneyActivity.MARKDOWN])
-        
-        # Retail often trades opposite to smart money
-        if smart_money_bullish > smart_money_bearish + 1:
-            return "bearish"  # Retail likely bearish when smart money is bullish
-        elif smart_money_bearish > smart_money_bullish + 1:
-            return "bullish"  # Retail likely bullish when smart money is bearish
-        else:
-            return "neutral"
-    
-    def _generate_key_insights(self, activity: SmartMoneyActivity, footprint: InstitutionalFootprint, 
-                             index: float) -> List[str]:
-        """Generate key insights from smart money analysis"""
-        insights = []
-        
-        insights.append(f"Smart Money Index: {index:.1f}/100")
-        insights.append(f"Current Activity: {activity.value}")
-        insights.append(f"Institutional Volume: {footprint.institutional_percentage:.1f}%")
-        
-        if footprint.stealth_activity_score > 20:
-            insights.append("High stealth activity detected - institutions trading quietly")
-        
-        if footprint.manipulation_score > 2:
-            insights.append("Potential market manipulation patterns identified")
-        
-        if footprint.large_trade_count > 5:
-            insights.append("Multiple large trades detected - institutional presence")
-        
-        return insights
-    
-    def _analyze_trading_implications(self, activity: SmartMoneyActivity, direction: str, 
-                                   strength: FlowStrength) -> List[str]:
-        """Analyze trading implications"""
-        implications = []
-        
-        if activity == SmartMoneyActivity.ACCUMULATION:
-            implications.append("Smart money accumulating - potential upward pressure")
-            implications.append("Look for breakout opportunities above resistance")
-        elif activity == SmartMoneyActivity.DISTRIBUTION:
-            implications.append("Smart money distributing - potential downward pressure")
-            implications.append("Look for breakdown opportunities below support")
-        elif activity == SmartMoneyActivity.MANIPULATION:
-            implications.append("Market manipulation detected - be cautious of false signals")
-            implications.append("Wait for confirmation before entering positions")
-        
-        if strength in [FlowStrength.STRONG, FlowStrength.VERY_STRONG]:
-            implications.append("Strong institutional flow - high probability moves")
-        
-        return implications
-    
-    def _generate_recommendations(self, activity: SmartMoneyActivity, strength: FlowStrength, 
-                                index: float) -> List[str]:
-        """Generate trading recommendations"""
-        recommendations = []
-        
-        if index > 70:
-            recommendations.append("High smart money activity - follow institutional flow")
-        elif index < 30:
-            recommendations.append("Low institutional activity - be cautious of retail-driven moves")
-        
-        if activity == SmartMoneyActivity.ACCUMULATION and strength != FlowStrength.WEAK:
-            recommendations.append("Consider long positions on pullbacks")
-        elif activity == SmartMoneyActivity.DISTRIBUTION and strength != FlowStrength.WEAK:
-            recommendations.append("Consider short positions on bounces")
-        elif activity == SmartMoneyActivity.MANIPULATION:
-            recommendations.append("Avoid trading until manipulation phase ends")
-        
-        if strength == FlowStrength.NEUTRAL:
-            recommendations.append("Weak signals - wait for stronger confirmation")
-        
-        return recommendations
->>>>>>> 5e659b3064c215382ffc9ef1f13510cbfdd547a7
+    async def validate_input(self, price_data: Any, volume_data: Any) -> bool:
+        """Validate input data"""
+        try:
+            if price_data is None or volume_data is None:
+                return False
+            if not isinstance(price_data, np.ndarray) or not isinstance(volume_data, np.ndarray):
+                return False
+            if len(price_data) == 0 or len(volume_data) == 0:
+                return False
+            if len(price_data) != len(volume_data):
+                return False
+            return True
+        except Exception as e:
+            self.logger.error(f"Input validation error: {e}")
+            return False

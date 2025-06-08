@@ -1,14 +1,59 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-Platform3 Indicator Base Classes and Interfaces
-Standardized foundation for all 67 indicators in the humanitarian trading system.
+Enhanced Indicator Base System with Signal Support
+Platform3 Trading Engine - Complete indicator infrastructure
 """
-from abc import ABC, abstractmethod
-from typing import Dict, List, Union, Tuple, Optional, Any
-from dataclasses import dataclass
-from enum import Enum
-import numpy as np
+
+import sys
+import os
+import asyncio
 import pandas as pd
+import numpy as np
+from typing import Dict, List, Any, Optional, Union, Generic, TypeVar
 from datetime import datetime
+from enum import Enum
+from dataclasses import dataclass
+from abc import ABC, abstractmethod
+
+# Platform3 imports with fallback handling
+try:
+    from shared.logging.platform3_logger import Platform3Logger
+    from shared.error_handling.platform3_error_system import Platform3ErrorSystem, ServiceError
+    from shared.database.platform3_database_manager import Platform3DatabaseManager
+    from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
+except ImportError:
+    # Fallback implementations for missing Platform3 components
+    import logging
+    
+    class Platform3Logger:
+        def __init__(self, name):
+            self.logger = logging.getLogger(name)
+            logging.basicConfig(level=logging.INFO)
+        def info(self, msg): print(f"[INFO] {msg}")
+        def error(self, msg): print(f"[ERROR] {msg}")
+        def warning(self, msg): print(f"[WARNING] {msg}")
+    
+    class ServiceError(Exception):
+        def __init__(self, message):
+            super().__init__(message)
+            self.message = message
+        def to_dict(self):
+            return {"error": self.message}
+    
+    class Platform3ErrorSystem:
+        def handle_error(self, error):
+            print(f"[ERROR SYSTEM] {error}")    
+    class Platform3DatabaseManager:
+        def __init__(self):
+            pass
+    
+    class Platform3CommunicationFramework:
+        def __init__(self):
+            pass
+
+# Generic type for indicator configuration
+ConfigType = TypeVar('ConfigType')
 
 class IndicatorType(Enum):
     """Classification of indicator types for organization and analysis."""
@@ -49,6 +94,31 @@ class TimeFrame(Enum):
     W1 = "1w"
     MN1 = "1M"
 
+class IndicatorStatus(Enum):
+    """Status tracking for indicator health monitoring."""
+    ACTIVE = "active"
+    ERROR = "error"
+    DISABLED = "disabled"
+    CALCULATING = "calculating"
+    NO_DATA = "no_data"
+
+class SignalStrength(Enum):
+    """Signal strength classification for trading decisions."""
+    WEAK = "weak"
+    MEDIUM = "medium"
+    STRONG = "strong"
+    VERY_STRONG = "very_strong"
+    NEUTRAL = "neutral"
+
+class MarketCondition(Enum):
+    """Market condition classification for context-aware trading."""
+    TRENDING = "trending"
+    RANGING = "ranging"
+    VOLATILE = "volatile"
+    BREAKOUT = "breakout"
+    CONSOLIDATION = "consolidation"
+    REVERSAL = "reversal"
+
 @dataclass
 class MarketData:
     """Standardized market data structure for all indicators."""
@@ -85,204 +155,275 @@ class IndicatorResult:
     raw_data: Optional[Dict[str, Any]] = None
     calculation_time_ms: Optional[float] = None
 
-class IndicatorStatus(Enum):
-    """Status tracking for indicator health monitoring."""
-    ACTIVE = "active"
-    ERROR = "error"
-    DISABLED = "disabled"
-    CALCULATING = "calculating"
-    NO_DATA = "no_data"
+@dataclass
+class IndicatorConfig:
+    """Configuration structure for all indicators."""
+    name: str
+    indicator_type: IndicatorType
+    timeframe: TimeFrame
+    lookback_periods: int = 20
+    parameters: Optional[Dict[str, Any]] = None
+    enabled: bool = True
 
-class BaseIndicator(ABC):
-    """
-    Abstract base class for all Platform3 indicators.
-    Ensures standardized interface and functionality across all 67 indicators.
-    """
+class TechnicalIndicator(ABC):
+    """Abstract base class for all technical indicators."""
     
-    def __init__(self, 
-                 name: str,
-                 indicator_type: IndicatorType,
-                 timeframe: TimeFrame,
-                 lookback_periods: int = 20,
-                 parameters: Optional[Dict[str, Any]] = None):
-        """
-        Initialize base indicator with standard parameters.
-        
-        Args:
-            name: Unique identifier for the indicator
-            indicator_type: Classification of indicator type
-            timeframe: Primary timeframe for analysis
-            lookback_periods: Number of historical periods needed
-            parameters: Indicator-specific configuration parameters
-        """
-        self.name = name
-        self.indicator_type = indicator_type
-        self.timeframe = timeframe
-        self.lookback_periods = lookback_periods
-        self.parameters = parameters or {}
+    def __init__(self, config: IndicatorConfig):
+        self.config = config
         self.status = IndicatorStatus.ACTIVE
-        self.last_calculation_time = None
-        self.error_count = 0
-        self.max_errors = 10
+        self.logger = Platform3Logger(f'TechnicalIndicator.{config.name}')
         
     @abstractmethod
     def calculate(self, data: List[MarketData]) -> IndicatorResult:
-        """
-        Calculate indicator value based on market data.
-        
-        Args:
-            data: List of MarketData objects (most recent last)
-            
-        Returns:
-            IndicatorResult with calculated values and signals
-            
-        Raises:
-            ValueError: If insufficient data provided
-            CalculationError: If calculation fails
-        """
+        """Calculate indicator values from market data."""
         pass
-    
+        
     @abstractmethod
-    def generate_signal(self, current_result: IndicatorResult, 
-                       historical_results: List[IndicatorResult]) -> Optional[IndicatorSignal]:
-        """
-        Generate trading signal based on indicator results.
-        
-        Args:
-            current_result: Latest indicator calculation result
-            historical_results: Previous indicator results for context
-            
-        Returns:
-            IndicatorSignal if signal conditions are met, None otherwise
-        """
+    def generate_signal(self, data: List[MarketData]) -> Optional[IndicatorSignal]:
+        """Generate trading signal from indicator values."""
         pass
+
+class IndicatorBase(Generic[ConfigType]):
+    """
+    Base class for all Platform3 indicators providing:
+    - Standardized interface
+    - Performance monitoring 
+    - Signal generation support
+    """
     
-    def validate_data(self, data: List[MarketData]) -> bool:
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        """Initialize IndicatorBase with Platform3 framework components"""
+        self.config = config or {}
+        
+        # Initialize Platform3 framework components
+        self.logger = Platform3Logger('IndicatorBase')
+        self.error_system = Platform3ErrorSystem()
+        self.db_manager = Platform3DatabaseManager()
+        self.comm_framework = Platform3CommunicationFramework()
+          # Performance monitoring
+        self.calculation_times = []
+        self.last_calculation = None
+        # Signal tracking
+        self.last_signal = None
+        self.signal_history = []
+        
+        self.logger.info("IndicatorBase initialized successfully")
+    
+    def _validate_data(self, data: Union[List[Dict[str, Any]], pd.DataFrame], *args) -> bool:
         """
-        Validate that provided market data is sufficient for calculation.
+        Internal method to validate data before calculation.
+        Subclass indicators use this method to ensure data is properly formatted.
         
         Args:
-            data: Market data to validate
+            data: List of market data dictionaries or pandas DataFrame
+            *args: Additional arguments for backward compatibility
             
         Returns:
-            True if data is valid, False otherwise
-        """
-        if not data:
-            return False
+            bool: True if data is valid, False otherwise
         
-        if len(data) < self.lookback_periods:
-            return False
-            
-        # Check for missing or invalid data
-        for candle in data:
-            if not all([candle.open, candle.high, candle.low, candle.close]):
-                return False
-            if candle.high < max(candle.open, candle.close):
-                return False
-            if candle.low > min(candle.open, candle.close):
+        Raises:
+            ServiceError: If data has critical formatting issues
+        """
+        import pandas as pd
+        
+        # Handle pandas DataFrame input
+        if isinstance(data, pd.DataFrame):
+            # Check for empty DataFrame
+            if data.empty:
+                self.logger.warning("Input DataFrame is empty.")
                 return False
                 
+            # Check required columns
+            required_fields = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+            missing_fields = [field for field in required_fields if field not in data.columns]
+            
+            if missing_fields:
+                self.logger.warning(f"DataFrame missing required columns: {missing_fields}")
+                return False
+                
+            return True
+            
+        # Handle list input
+        if isinstance(data, list):
+            # Check for empty list
+            if not data: # More Pythonic way to check for an empty list
+                self.logger.warning("Input data list is empty.")
+                return False
+        else: # Not a list or DataFrame
+            self.logger.warning(f"Input data must be a list or pandas DataFrame, got {type(data)}.")
+            return False
+            
+        # Verify each data point in the list has required fields
+        required_fields = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+        
+        # Allow validation to skip some items if there are many
+        validation_limit = min(len(data), 100)  # Validate at most 100 items for performance
+        
+        for i, item in enumerate(data):
+            if i >= validation_limit:
+                break
+                
+            if not isinstance(item, dict):
+                self.logger.warning(f"Item at index {i} is not a dictionary: {item}")
+                return False
+                
+            # Check required fields exist
+            missing_fields = [field for field in required_fields if field not in item]
+            if missing_fields:
+                self.logger.warning(f"Data item at index {i} missing required fields: {missing_fields}. Item: {item}")
+                return False
+                
+            # Verify numeric types where appropriate
+            numeric_fields = ['open', 'high', 'low', 'close', 'volume']
+            for field in numeric_fields:
+                if field in item and not isinstance(item[field], (int, float, np.number)): # Added np.number for numpy numeric types
+                    try:
+                        # Attempt to convert to float if not already numeric, to handle strings that are valid numbers
+                        item[field] = float(item[field])
+                    except (ValueError, TypeError):
+                        self.logger.warning(f"Field '{field}' in item at index {i} must be numeric or convertible to numeric, got {type(item[field])} with value {item[field]}. Item: {item}")
+                        return False
+        
         return True
     
-    def update_status(self, status: IndicatorStatus, error_msg: str = None):
-        """Update indicator status and handle error tracking."""
-        self.status = status
-        if status == IndicatorStatus.ERROR:
-            self.error_count += 1
-            if self.error_count >= self.max_errors:
-                self.status = IndicatorStatus.DISABLED
+    def calculate(self, data: Union[List[Dict[str, Any]], pd.DataFrame]) -> Dict[str, Any]:
+        """Calculate trading engine values with enhanced accuracy"""
+        start_time = datetime.now()
+        
+        try:
+            # Validate input data
+            if not data:
+                raise ServiceError("Input data cannot be empty")
                 
-    def reset_errors(self):
-        """Reset error count and reactivate indicator."""
-        self.error_count = 0
-        if self.status == IndicatorStatus.DISABLED:
-            self.status = IndicatorStatus.ACTIVE
-
-class TrendIndicator(BaseIndicator):
-    """Base class for trend-following indicators."""
+            if not isinstance(data, list):
+                raise ServiceError("Input data must be a list")
+            
+            # Call internal validate method that subclasses inherit
+            if not self._validate_data(data):
+                raise ServiceError("Input data validation failed")
+                  # Perform calculation (to be implemented by subclasses)
+            result = self._perform_calculation(data)
+            
+            # Track performance
+            calculation_time = (datetime.now() - start_time).total_seconds()
+            self.calculation_times.append(calculation_time)
+            self.last_calculation = datetime.now()
+            
+            self.logger.info(f"Calculation completed in {calculation_time:.4f}s")
+            
+            return {
+                'success': True,
+                'data': result,
+                'timestamp': self.last_calculation.isoformat(),
+                'calculation_time': calculation_time
+            }
+            
+        except ServiceError as e:
+            self.logger.error(f"Service error: {e}")
+            self.error_system.handle_error(e)
+            raise
+        except ValueError as e:
+            # Centralized handling for insufficient data errors
+            if "Insufficient data" in str(e) or "need at least" in str(e):
+                self.logger.warning(f"{self.__class__.__name__}: {e}")
+                return {
+                    'success': False,
+                    'data': None,
+                    'timestamp': datetime.now().isoformat(),
+                    'error': 'insufficient_data',
+                    'message': str(e)
+                }
+            # Re-raise other ValueError exceptions
+            error = ServiceError(f"Calculation failed: {str(e)}")
+            self.logger.error(f"Value error: {e}")
+            self.error_system.handle_error(error)
+            raise error
+        except Exception as e:
+            error = ServiceError(f"Calculation failed: {str(e)}")
+            self.logger.error(f"Unexpected error: {e}")
+            self.error_system.handle_error(error)
+            raise error
     
-    def __init__(self, name: str, timeframe: TimeFrame, **kwargs):
-        super().__init__(name, IndicatorType.TREND, timeframe, **kwargs)
-
-class MomentumIndicator(BaseIndicator):
-    """Base class for momentum oscillators."""
+    def _perform_calculation(self, data: List[Dict[str, Any]]) -> Any:
+        """Perform the actual indicator calculation - override in subclasses"""
+        raise NotImplementedError("Subclasses must implement _perform_calculation")
     
-    def __init__(self, name: str, timeframe: TimeFrame, **kwargs):
-        super().__init__(name, IndicatorType.MOMENTUM, timeframe, **kwargs)
-
-class VolumeIndicator(BaseIndicator):
-    """Base class for volume-based indicators."""
+    def generate_signal(self, data: List[Dict[str, Any]]) -> Optional[IndicatorSignal]:
+        """Generate trading signal based on indicator values"""
+        # Default implementation - to be overridden by subclasses
+        return None
     
-    def __init__(self, name: str, timeframe: TimeFrame, **kwargs):
-        super().__init__(name, IndicatorType.VOLUME, timeframe, **kwargs)
-
-class VolatilityIndicator(BaseIndicator):
-    """Base class for volatility measurements."""
+    async def calculate_async(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Asynchronous version of calculate for high-frequency trading"""
+        return await asyncio.get_event_loop().run_in_executor(
+            None, self.calculate, data
+        )
     
-    def __init__(self, name: str, timeframe: TimeFrame, **kwargs):
-        super().__init__(name, IndicatorType.VOLATILITY, timeframe, **kwargs)
-
-class PatternIndicator(BaseIndicator):
-    """Base class for pattern recognition indicators."""
+    def get_performance_metrics(self) -> Dict[str, Any]:
+        """Get performance metrics for the indicator"""
+        if not self.calculation_times:
+            return {"status": "no_calculations"}
+            
+        return {
+            "total_calculations": len(self.calculation_times),
+            "average_time": np.mean(self.calculation_times),
+            "min_time": np.min(self.calculation_times),
+            "max_time": np.max(self.calculation_times),
+            "last_calculation": self.last_calculation.isoformat() if self.last_calculation else None,
+            "signal_count": len(self.signal_history)
+        }
     
-    def __init__(self, name: str, timeframe: TimeFrame, **kwargs):
-        super().__init__(name, IndicatorType.PATTERN, timeframe, **kwargs)
-
-class CalculationError(Exception):
-    """Custom exception for indicator calculation errors."""
-    pass
-
-class DataValidationError(Exception):
-    """Custom exception for data validation errors."""
-    pass
-
-# Utility functions for common calculations
-def sma(data: List[float], period: int) -> float:
-    """Calculate Simple Moving Average."""
-    if len(data) < period:
-        raise ValueError(f"Insufficient data: need {period}, got {len(data)}")
-    return sum(data[-period:]) / period
-
-def ema(data: List[float], period: int, smoothing: float = 2.0) -> float:
-    """Calculate Exponential Moving Average."""
-    if len(data) < period:
-        raise ValueError(f"Insufficient data: need {period}, got {len(data)}")
+    def reset_performance_metrics(self):
+        """Reset performance tracking metrics"""
+        self.calculation_times = []
+        self.last_calculation = None
+        self.signal_history = []
+        self.last_signal = None
+        self.logger.info("Performance metrics reset")
     
-    multiplier = smoothing / (period + 1)
-    ema_value = data[0]  # Start with first value
+    def validate_data(self, data: List[Dict[str, Any]]) -> bool:
+        """Validate input data format and content"""
+        if not data or not isinstance(data, list):
+            return False
+            
+        # Check for required fields in each data point
+        required_fields = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+        
+        for item in data:
+            if not isinstance(item, dict):
+                return False
+                
+            for field in required_fields:
+                if field not in item:
+                    return False
+                    
+        return True
     
-    for price in data[1:]:
-        ema_value = (price * multiplier) + (ema_value * (1 - multiplier))
+    def get_signal_history(self, limit: Optional[int] = None) -> List[IndicatorSignal]:
+        """Get signal history"""
+        if limit:
+            return self.signal_history[-limit:]
+        return self.signal_history.copy()
     
-    return ema_value
+    def reset(self):
+        """Reset indicator internal state"""
+        self.calculation_times = []
+        self.last_calculation = None
+        self.signal_history = []
+        self.last_signal = None
+        self.logger.info(f"{self.__class__.__name__} reset successfully")
+    
+    def __str__(self) -> str:
+        """String representation of the indicator"""
+        return f"IndicatorBase(calculations={len(self.calculation_times)}, signals={len(self.signal_history)})"
+    
+    def __repr__(self) -> str:
+        """Detailed string representation of the indicator"""
+        return f"IndicatorBase(config={self.config}, calculations={len(self.calculation_times)}, signals={len(self.signal_history)})"
 
-def true_range(high: float, low: float, prev_close: float) -> float:
-    """Calculate True Range for ATR and related indicators."""
-    return max(
-        high - low,
-        abs(high - prev_close),
-        abs(low - prev_close)
-    )
-
-def highest_high(data: List[MarketData], period: int) -> float:
-    """Find highest high over specified period."""
-    if len(data) < period:
-        raise ValueError(f"Insufficient data: need {period}, got {len(data)}")
-    return max(candle.high for candle in data[-period:])
-
-def lowest_low(data: List[MarketData], period: int) -> float:
-    """Find lowest low over specified period."""
-    if len(data) < period:
-        raise ValueError(f"Insufficient data: need {period}, got {len(data)}")
-    return min(candle.low for candle in data[-period:])
-
-def typical_price(candle: MarketData) -> float:
-    """Calculate typical price (HLC/3)."""
-    return (candle.high + candle.low + candle.close) / 3
-
-def weighted_close(candle: MarketData) -> float:
-    """Calculate weighted close (HLCC/4)."""
-    return (candle.high + candle.low + candle.close + candle.close) / 4
-
-# Backwards compatibility alias
-IndicatorBase = BaseIndicator
+# Export for use by other modules
+__all__ = [
+    'IndicatorBase', 'TechnicalIndicator', 'IndicatorConfig', 'IndicatorResult',
+    'IndicatorSignal', 'MarketData', 'SignalType', 'IndicatorType', 
+    'TimeFrame', 'IndicatorStatus'
+]

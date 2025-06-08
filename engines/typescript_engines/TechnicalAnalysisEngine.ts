@@ -1,9 +1,27 @@
 // Technical Analysis Engine - RSI, MACD, Bollinger Bands, Moving Averages
 // Provides comprehensive technical indicator calculations and trend analysis
+// Bridge to Python AI engines for humanitarian forex trading platform
 
 import { Logger } from 'winston';
+import { spawn, ChildProcess } from 'child_process';
+import * as path from 'path';
+import { EventEmitter } from 'events';
 import * as TI from 'technicalindicators';
 import { mean, standardDeviation } from 'simple-statistics';
+
+// Communication interfaces for Python engine integration
+export interface PythonEngineInterface {
+  sendCommand(command: string, data: any): Promise<any>;
+  isConnected(): boolean;
+  disconnect(): Promise<void>;
+}
+
+export interface Platform3EngineConnection {
+  initialized: boolean;
+  pythonProcess?: ChildProcess;
+  communicationQueue: Map<string, any>;
+  eventEmitter: EventEmitter;
+}
 
 export interface MarketData {
   timestamp: number;
@@ -104,22 +122,191 @@ export interface SentimentAnalysis {
 export class TechnicalAnalysisEngine {
   private logger: Logger;
   private ready: boolean = false;
+  private pythonEngine: Platform3EngineConnection;
+  private pythonInterface: PythonEngineInterface;
 
   constructor(logger: Logger) {
     this.logger = logger;
+    this.pythonEngine = {
+      initialized: false,
+      communicationQueue: new Map(),
+      eventEmitter: new EventEmitter()
+    };
+    this.pythonInterface = this.createPythonInterface();
+  }
+
+  private createPythonInterface(): PythonEngineInterface {
+    return {
+      sendCommand: async (command: string, data: any) => {
+        return this.sendToPythonEngine(command, data);
+      },
+      isConnected: () => {
+        return this.pythonEngine.initialized && this.pythonEngine.pythonProcess !== undefined;
+      },
+      disconnect: async () => {
+        await this.disconnectPythonEngine();
+      }
+    };
+  }
+
+  private async sendToPythonEngine(command: string, data: any): Promise<any> {
+    if (!this.pythonEngine.initialized) {
+      throw new Error('Python engine not initialized');
+    }
+
+    return new Promise((resolve, reject) => {
+      const requestId = Math.random().toString(36).substr(2, 9);
+      const message = JSON.stringify({
+        id: requestId,
+        command,
+        data,
+        timestamp: Date.now()
+      });
+
+      // Set up response handler
+      const timeout = setTimeout(() => {
+        this.pythonEngine.communicationQueue.delete(requestId);
+        reject(new Error(`Python engine timeout for command: ${command}`));
+      }, 30000); // 30 second timeout
+
+      this.pythonEngine.communicationQueue.set(requestId, {
+        resolve,
+        reject,
+        timeout
+      });
+
+      // Send to Python process
+      if (this.pythonEngine.pythonProcess && this.pythonEngine.pythonProcess.stdin) {
+        this.pythonEngine.pythonProcess.stdin.write(message + '\n');
+      } else {
+        clearTimeout(timeout);
+        this.pythonEngine.communicationQueue.delete(requestId);
+        reject(new Error('Python process not available'));
+      }
+    });
+  }
+
+  private async disconnectPythonEngine(): Promise<void> {
+    if (this.pythonEngine.pythonProcess) {
+      this.pythonEngine.pythonProcess.kill();
+      this.pythonEngine.pythonProcess = undefined;
+    }
+    this.pythonEngine.initialized = false;
+    this.pythonEngine.communicationQueue.clear();
   }
 
   async initialize(): Promise<void> {
-    this.logger.info('Initializing Technical Analysis Engine...');
+    this.logger.info('🚀 Initializing Technical Analysis Engine for humanitarian trading...');
     
-    // Validate technical indicators library
     try {
+      // Initialize Python engine connection
+      await this.initializePythonEngine();
+      
+      // Validate technical indicators library
       const testData = [1, 2, 3, 4, 5];
       TI.SMA.calculate({ period: 3, values: testData });
+      
+      // Test Python engine communication
+      await this.testPythonEngineIntegration();
+      
       this.ready = true;
-      this.logger.info('✅ Technical Analysis Engine initialized');
+      this.logger.info('✅ Technical Analysis Engine initialized and Python bridge established');
     } catch (error) {
       this.logger.error('❌ Technical Analysis Engine initialization failed:', error);
+      throw error;
+    }
+  }
+
+  private async initializePythonEngine(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const pythonScriptPath = path.join(__dirname, '../../ai-platform/coordination/engine/platform3_engine.py');
+      
+      this.logger.info(`Starting Python engine: ${pythonScriptPath}`);
+      
+      const pythonProcess = spawn('python', [pythonScriptPath, '--mode=technical-analysis'], {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+
+      this.pythonEngine.pythonProcess = pythonProcess;
+
+      // Handle Python process output
+      pythonProcess.stdout?.on('data', (data) => {
+        const lines = data.toString().split('\n').filter((line: string) => line.trim());
+        
+        for (const line of lines) {
+          try {
+            const response = JSON.parse(line);
+            this.handlePythonResponse(response);
+          } catch (error) {
+            this.logger.debug('Python output:', line);
+          }
+        }
+      });
+
+      pythonProcess.stderr?.on('data', (data) => {
+        this.logger.error('Python engine error:', data.toString());
+      });
+
+      pythonProcess.on('close', (code) => {
+        this.logger.warn(`Python engine process closed with code ${code}`);
+        this.pythonEngine.initialized = false;
+      });
+
+      pythonProcess.on('error', (error) => {
+        this.logger.error('Python engine process error:', error);
+        reject(error);
+      });
+
+      // Wait for initialization confirmation
+      setTimeout(() => {
+        if (pythonProcess.pid) {
+          this.pythonEngine.initialized = true;
+          resolve();
+        } else {
+          reject(new Error('Python engine failed to start'));
+        }
+      }, 3000);
+    });
+  }
+
+  private handlePythonResponse(response: any): void {
+    if (response.id && this.pythonEngine.communicationQueue.has(response.id)) {
+      const { resolve, reject, timeout } = this.pythonEngine.communicationQueue.get(response.id);
+      clearTimeout(timeout);
+      this.pythonEngine.communicationQueue.delete(response.id);
+
+      if (response.error) {
+        reject(new Error(response.error));
+      } else {
+        resolve(response.result);
+      }
+    }
+  }
+
+  private async testPythonEngineIntegration(): Promise<void> {
+    this.logger.info('🧪 Testing Python engine integration...');
+    
+    try {
+      // Test basic communication
+      const pingResult = await this.pythonInterface.sendCommand('ping', { message: 'integration_test' });
+      if (pingResult.status !== 'pong') {
+        throw new Error('Python engine ping test failed');
+      }
+
+      // Test indicator calculation
+      const testData = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+      const rsiResult = await this.pythonInterface.sendCommand('calculate_rsi', {
+        data: testData,
+        period: 5
+      });
+
+      if (!rsiResult || !Array.isArray(rsiResult.values)) {
+        throw new Error('Python RSI calculation test failed');
+      }
+
+      this.logger.info('✅ Python engine integration test passed');
+    } catch (error) {
+      this.logger.error('❌ Python engine integration test failed:', error);
       throw error;
     }
   }
@@ -137,50 +324,85 @@ export class TechnicalAnalysisEngine {
       throw new Error('Insufficient data for technical analysis (minimum 50 periods required)');
     }
 
-    this.logger.debug(`Performing technical analysis for ${symbol} with ${marketData.length} data points`);
+    this.logger.debug(`🔍 Performing humanitarian trading analysis for ${symbol} with ${marketData.length} data points`);
 
     const closes = marketData.map(d => d.close);
     const highs = marketData.map(d => d.high);
     const lows = marketData.map(d => d.low);
     const volumes = marketData.map(d => d.volume || 0);
 
-    // Calculate all indicators
-    const rsi = this.calculateRSI(closes);
-    const macd = this.calculateMACD(closes);
-    const bollingerBands = this.calculateBollingerBands(closes);
-    const movingAverages = this.calculateMovingAverages(closes);
-    const stochastic = this.calculateStochastic(highs, lows, closes);
-    const atr = this.calculateATR(marketData);
-
-    // Analyze support and resistance
-    const supportResistance = this.findSupportResistance(highs, lows);
-
-    // Generate trading signals
-    const signals = this.generateTradingSignals(rsi, macd, bollingerBands, movingAverages, stochastic);
-
-    // Analyze trend
-    const trend = this.analyzeTrend(closes, movingAverages);
-
-    // Calculate sentiment
-    const sentiment = this.calculateSentiment(rsi, macd, trend, signals);
-
-    return {
-      symbol,
-      timestamp: Date.now(),
-      indicators: {
+    try {
+      // Enhanced analysis using both TypeScript and Python engines
+      const [
         rsi,
         macd,
         bollingerBands,
         movingAverages,
         stochastic,
-        atr
-      },
-      signals,
-      trend,
-      support: supportResistance.support,
-      resistance: supportResistance.resistance,
-      sentiment
-    };
+        atr,
+        pythonEnhancedAnalysis
+      ] = await Promise.all([
+        this.calculateRSI(closes),
+        this.calculateMACD(closes),
+        this.calculateBollingerBands(closes),
+        this.calculateMovingAverages(closes),
+        this.calculateStochastic(highs, lows, closes),
+        this.calculateATR(marketData),
+        this.getPythonEnhancedAnalysis(symbol, marketData)
+      ]);
+
+      // Analyze support and resistance with Python enhancement
+      const supportResistance = await this.findSupportResistanceEnhanced(highs, lows);
+
+      // Generate trading signals with AI enhancement
+      const signals = await this.generateEnhancedTradingSignals(
+        rsi, macd, bollingerBands, movingAverages, stochastic, pythonEnhancedAnalysis
+      );
+
+      // Analyze trend with AI validation
+      const trend = await this.analyzeTrendEnhanced(closes, movingAverages);
+
+      // Calculate sentiment with Python AI model
+      const sentiment = await this.calculateEnhancedSentiment(rsi, macd, trend, signals);
+
+      this.logger.info(`✅ Analysis completed for ${symbol} - Generated ${signals.length} signals for humanitarian trading`);
+
+      return {
+        symbol,
+        timestamp: Date.now(),
+        indicators: {
+          rsi,
+          macd,
+          bollingerBands,
+          movingAverages,
+          stochastic,
+          atr
+        },
+        signals,
+        trend,
+        support: supportResistance.support,
+        resistance: supportResistance.resistance,
+        sentiment
+      };
+    } catch (error) {
+      this.logger.error(`❌ Analysis failed for ${symbol}:`, error);
+      throw error;
+    }
+  }
+
+  private async getPythonEnhancedAnalysis(symbol: string, marketData: MarketData[]): Promise<any> {
+    try {
+      return await this.pythonInterface.sendCommand('enhanced_technical_analysis', {
+        symbol,
+        market_data: marketData,
+        indicators: ['rsi', 'macd', 'bollinger_bands', 'sma', 'ema', 'stochastic', 'atr'],
+        ai_enhancement: true,
+        humanitarian_mode: true
+      });
+    } catch (error) {
+      this.logger.warn('Python enhanced analysis unavailable, using local calculations:', error);
+      return null;
+    }
   }
 
   private calculateRSI(closes: number[]): RSIAnalysis {
@@ -206,10 +428,12 @@ export class TechnicalAnalysisEngine {
 
   private calculateMACD(closes: number[]): MACDAnalysis {
     const macdData = TI.MACD.calculate({
+      values: closes,
       fastPeriod: 12,
       slowPeriod: 26,
       signalPeriod: 9,
-      values: closes
+      SimpleMAOscillator: false,
+      SimpleMASignal: false
     });
 
     const latest = macdData[macdData.length - 1];
@@ -408,6 +632,158 @@ export class TechnicalAnalysisEngine {
     if (previous.k >= previous.d && current.k < current.d) return 'bearish';
 
     return null;
+  }
+
+  // Enhanced methods with Python AI integration
+  private async findSupportResistanceEnhanced(highs: number[], lows: number[]): Promise<{ support: number[], resistance: number[] }> {
+    try {
+      const pythonResult = await this.pythonInterface.sendCommand('calculate_support_resistance', {
+        highs,
+        lows,
+        method: 'ai_enhanced'
+      });
+
+      if (pythonResult && pythonResult.support && pythonResult.resistance) {
+        return pythonResult;
+      }
+    } catch (error) {
+      this.logger.warn('Using local support/resistance calculation:', error);
+    }
+
+    // Fallback to local calculation
+    return this.findSupportResistance(highs, lows);
+  }
+
+  private async generateEnhancedTradingSignals(
+    rsi: RSIAnalysis,
+    macd: MACDAnalysis,
+    bb: BollingerBandsAnalysis,
+    ma: MovingAveragesAnalysis,
+    stoch: StochasticAnalysis,
+    pythonAnalysis: any
+  ): Promise<TradingSignal[]> {
+    const localSignals = this.generateTradingSignals(rsi, macd, bb, ma, stoch);
+
+    try {
+      if (pythonAnalysis && pythonAnalysis.ai_signals) {
+        // Merge local and AI-enhanced signals
+        const aiSignals: TradingSignal[] = pythonAnalysis.ai_signals.map((signal: any) => ({
+          type: signal.type,
+          strength: signal.strength,
+          source: `AI-${signal.source}`,
+          description: signal.description,
+          confidence: signal.confidence * 1.1 // AI signals get confidence boost
+        }));
+
+        return [...localSignals, ...aiSignals];
+      }
+    } catch (error) {
+      this.logger.warn('AI signal generation failed, using local signals:', error);
+    }
+
+    return localSignals;
+  }
+
+  private async analyzeTrendEnhanced(closes: number[], ma: MovingAveragesAnalysis): Promise<TrendAnalysis> {
+    try {
+      const pythonTrend = await this.pythonInterface.sendCommand('analyze_trend_ai', {
+        closes,
+        moving_averages: ma,
+        humanitarian_mode: true
+      });
+
+      if (pythonTrend && pythonTrend.direction) {
+        return pythonTrend;
+      }
+    } catch (error) {
+      this.logger.warn('Using local trend analysis:', error);
+    }
+
+    return this.analyzeTrend(closes, ma);
+  }
+
+  private async calculateEnhancedSentiment(
+    rsi: RSIAnalysis,
+    macd: MACDAnalysis,
+    trend: TrendAnalysis,
+    signals: TradingSignal[]
+  ): Promise<SentimentAnalysis> {
+    try {
+      const pythonSentiment = await this.pythonInterface.sendCommand('calculate_ai_sentiment', {
+        rsi,
+        macd,
+        trend,
+        signals,
+        humanitarian_focus: true
+      });
+
+      if (pythonSentiment && typeof pythonSentiment.score === 'number') {
+        return pythonSentiment;
+      }
+    } catch (error) {
+      this.logger.warn('Using local sentiment analysis:', error);
+    }
+
+    return this.calculateSentiment(rsi, macd, trend, signals);
+  }
+
+  // Integration testing methods for humanitarian mission validation
+  async runIntegrationTests(): Promise<boolean> {
+    this.logger.info('🧪 Running Technical Analysis Engine integration tests...');
+
+    try {
+      // Test 1: Python engine connectivity
+      const pingTest = await this.pythonInterface.sendCommand('ping', { test: 'integration' });
+      if (pingTest.status !== 'pong') {
+        throw new Error('Python engine ping test failed');
+      }
+
+      // Test 2: Technical analysis with sample data
+      const sampleData: MarketData[] = this.generateSampleMarketData();
+      const analysisResult = await this.analyze('TEST_SYMBOL', sampleData);
+      
+      if (!analysisResult || !analysisResult.indicators || !analysisResult.signals) {
+        throw new Error('Technical analysis test failed');
+      }
+
+      // Test 3: AI enhancement validation
+      if (analysisResult.signals.some(s => s.source.includes('AI-'))) {
+        this.logger.info('✅ AI enhancement confirmed');
+      }
+
+      // Test 4: Humanitarian mode validation
+      const humanitarianTest = await this.pythonInterface.sendCommand('validate_humanitarian_mode', {});
+      if (!humanitarianTest.enabled) {
+        throw new Error('Humanitarian mode not enabled in Python engine');
+      }
+
+      this.logger.info('✅ All Technical Analysis Engine integration tests passed');
+      return true;
+    } catch (error) {
+      this.logger.error('❌ Integration tests failed:', error);
+      return false;
+    }
+  }
+
+  private generateSampleMarketData(): MarketData[] {
+    const data: MarketData[] = [];
+    let price = 1.1000;
+    
+    for (let i = 0; i < 100; i++) {
+      const change = (Math.random() - 0.5) * 0.002;
+      price += change;
+      
+      data.push({
+        timestamp: Date.now() - (100 - i) * 60000,
+        open: price - change,
+        high: price + Math.random() * 0.001,
+        low: price - Math.random() * 0.001,
+        close: price,
+        volume: Math.floor(Math.random() * 1000) + 500
+      });
+    }
+    
+    return data;
   }
 
   private findSupportResistance(highs: number[], lows: number[]): { support: number[], resistance: number[] } {

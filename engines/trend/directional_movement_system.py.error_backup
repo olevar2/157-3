@@ -1,0 +1,574 @@
+"""
+Directional Movement System (DMS) - Trend Direction and Strength Indicator
+Developed by J. Welles Wilder Jr., this system consists of:
+- Plus Directional Indicator (+DI)
+- Minus Directional Indicator (-DI)  
+- Average Directional Index (ADX) - trend strength
+- Directional Movement Index (DX)
+"""
+
+from typing import List, Dict, Any, Optional, Tuple
+import numpy as np
+import pandas as pd
+from dataclasses import dataclass
+from ..indicator_base import BaseIndicator, IndicatorResult, IndicatorSignal, SignalType, IndicatorType, MarketData
+
+# Platform3 Winston-style Logging Integration
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+from logging.platform3_logger import Platform3Logger, log_performance, LogMetadata
+
+
+@dataclass
+class DMSConfig:
+    """Configuration for Directional Movement System"""
+    period: int = 14
+    adx_threshold_strong: float = 25.0    # ADX above this = strong trend
+    adx_threshold_weak: float = 20.0      # ADX below this = weak trend
+    di_crossover_threshold: float = 5.0   # Minimum +DI/-DI difference for signals
+    smoothing_method: str = 'wilder'      # 'wilder', 'ema', 'sma'
+
+
+class DirectionalMovementSystem(BaseIndicator):
+    """
+    Directional Movement System Implementation
+    
+    Components:
+    1. +DM = Current High - Previous High (if positive and > |Current Low - Previous Low|)
+    2. -DM = Previous Low - Current Low (if positive and > Current High - Previous High)
+    3. +DI = (+DM smoothed / ATR smoothed) * 100
+    4. -DI = (-DM smoothed / ATR smoothed) * 100
+    5. DX = |(+DI - -DI)| / (+DI + -DI) * 100
+    6. ADX = Smoothed DX
+    
+    Signals:
+    - +DI crossing above -DI = Bullish trend
+    - -DI crossing above +DI = Bearish trend
+    - ADX rising = Strengthening trend
+    - ADX falling = Weakening trend
+    """
+    
+    def __init__(self, config: Optional[DMSConfig] = None):
+        super().__init__(IndicatorType.TREND)
+        self.config = config or DMSConfig()
+        self.plus_di: List[float] = []
+        self.minus_di: List[float] = []
+        self.adx: List[float] = []
+        self.dx: List[float] = []
+        self.plus_dm: List[float] = []
+        self.minus_dm: List[float] = []
+        self.atr: List[float] = []
+        
+    def calculate(self, data: List[MarketData]) -> IndicatorResult:
+        """Calculate Directional Movement System values"""
+        try:
+            if len(data) < self.config.period * 2:
+                return IndicatorResult(
+                    success=False,
+                    error=f"Insufficient data: need {self.config.period * 2}, got {len(data)}"
+                )
+            
+            # Calculate True Range and Directional Movements
+            tr_values, plus_dm, minus_dm = self._calculate_directional_movements(data)
+            
+            # Smooth TR, +DM, -DM using specified method
+            smoothed_tr = self._smooth_values(tr_values, self.config.period)
+            smoothed_plus_dm = self._smooth_values(plus_dm, self.config.period)
+            smoothed_minus_dm = self._smooth_values(minus_dm, self.config.period)
+            
+            # Calculate +DI and -DI
+            plus_di = []
+            minus_di = []
+            for i in range(len(smoothed_tr)):
+                if smoothed_tr[i] != 0:
+                    plus_di.append((smoothed_plus_dm[i] / smoothed_tr[i]) * 100)
+                    minus_di.append((smoothed_minus_dm[i] / smoothed_tr[i]) * 100)
+                else:
+                    plus_di.append(0.0)
+                    minus_di.append(0.0)
+            
+            # Calculate DX (Directional Movement Index)
+            dx_values = []
+            for i in range(len(plus_di)):
+                di_sum = plus_di[i] + minus_di[i]
+                if di_sum != 0:
+                    dx = abs(plus_di[i] - minus_di[i]) / di_sum * 100
+                    dx_values.append(dx)
+                else:
+                    dx_values.append(0.0)
+            
+            # Calculate ADX (smoothed DX)
+            adx_values = self._smooth_values(dx_values, self.config.period)
+            
+            # Store values for signal generation
+            self.plus_di = plus_di
+            self.minus_di = minus_di
+            self.adx = adx_values
+            self.dx = dx_values
+            self.plus_dm = smoothed_plus_dm
+            self.minus_dm = smoothed_minus_dm
+            self.atr = smoothed_tr
+            
+            # Generate signals
+            signals = self._generate_signals(data, plus_di, minus_di, adx_values)
+            
+            # Calculate trend analysis
+            trend_analysis = self._analyze_trend(plus_di, minus_di, adx_values)
+            
+            return IndicatorResult(
+                success=True,
+                values={
+                    'plus_di': plus_di,
+                    'minus_di': minus_di,
+                    'adx': adx_values,
+                    'dx': dx_values,
+                    'plus_dm': smoothed_plus_dm,
+                    'minus_dm': smoothed_minus_dm,
+                    'atr': smoothed_tr
+                },
+                signals=signals,
+                metadata={
+                    'period': self.config.period,
+                    'current_plus_di': plus_di[-1] if plus_di else 0,
+                    'current_minus_di': minus_di[-1] if minus_di else 0,
+                    'current_adx': adx_values[-1] if adx_values else 0,
+                    'trend_strength': self._classify_trend_strength(adx_values[-1] if adx_values else 0),
+                    'trend_direction': self._get_trend_direction(plus_di, minus_di),
+                    **trend_analysis
+                }
+            )
+            
+        except Exception as e:
+            return IndicatorResult(
+                success=False,
+                error=f"DMS calculation failed: {str(e)}"
+            )
+    
+    def _calculate_directional_movements(self, data: List[MarketData]) -> Tuple[List[float], List[float], List[float]]:
+        """Calculate True Range, +DM, and -DM"""
+        tr_values = []
+        plus_dm = []
+        minus_dm = []
+        
+        for i in range(len(data)):
+            if i == 0:
+                # First period
+                tr_values.append(data[i].high - data[i].low)
+                plus_dm.append(0.0)
+                minus_dm.append(0.0)
+            else:
+                # True Range
+                high_low = data[i].high - data[i].low
+                high_close_prev = abs(data[i].high - data[i-1].close)
+                low_close_prev = abs(data[i].low - data[i-1].close)
+                tr = max(high_low, high_close_prev, low_close_prev)
+                tr_values.append(tr)
+                
+                # Directional Movements
+                high_diff = data[i].high - data[i-1].high
+                low_diff = data[i-1].low - data[i].low
+                
+                # +DM calculation
+                if high_diff > low_diff and high_diff > 0:
+                    plus_dm.append(high_diff)
+                else:
+                    plus_dm.append(0.0)
+                
+                # -DM calculation
+                if low_diff > high_diff and low_diff > 0:
+                    minus_dm.append(low_diff)
+                else:
+                    minus_dm.append(0.0)
+        
+        return tr_values, plus_dm, minus_dm
+    
+    def _smooth_values(self, values: List[float], period: int) -> List[float]:
+        """Smooth values using specified method"""
+        if len(values) < period:
+            return []
+        
+        if self.config.smoothing_method == 'wilder':
+            return self._wilder_smoothing(values, period)
+        elif self.config.smoothing_method == 'ema':
+            return self._ema_smoothing(values, period)
+        else:  # Default to SMA
+            return self._sma_smoothing(values, period)
+    
+    def _wilder_smoothing(self, values: List[float], period: int) -> List[float]:
+        """Wilder's smoothing (similar to EMA but with different multiplier)"""
+        smoothed = []
+        
+        # First value is SMA
+        first_value = sum(values[:period]) / period
+        smoothed.append(first_value)
+        
+        # Subsequent values using Wilder's formula
+        for i in range(period, len(values)):
+            smoothed_value = (smoothed[-1] * (period - 1) + values[i]) / period
+            smoothed.append(smoothed_value)
+        
+        return smoothed
+    
+    def _ema_smoothing(self, values: List[float], period: int) -> List[float]:
+        """Exponential Moving Average smoothing"""
+        ema_values = []
+        multiplier = 2 / (period + 1)
+        
+        # First EMA is SMA
+        first_ema = sum(values[:period]) / period
+        ema_values.append(first_ema)
+        
+        # Calculate subsequent EMA values
+        for i in range(period, len(values)):
+            ema = (values[i] * multiplier) + (ema_values[-1] * (1 - multiplier))
+            ema_values.append(ema)
+        
+        return ema_values
+    
+    def _sma_smoothing(self, values: List[float], period: int) -> List[float]:
+        """Simple Moving Average smoothing"""
+        sma_values = []
+        for i in range(len(values)):
+            if i >= period - 1:
+                sma = sum(values[i - period + 1:i + 1]) / period
+                sma_values.append(sma)
+        return sma_values
+    
+    def _classify_trend_strength(self, adx_value: float) -> str:
+        """Classify trend strength based on ADX value"""
+        if adx_value >= self.config.adx_threshold_strong:
+            return 'strong'
+        elif adx_value >= self.config.adx_threshold_weak:
+            return 'moderate'
+        else:
+            return 'weak'
+    
+    def _get_trend_direction(self, plus_di: List[float], minus_di: List[float]) -> str:
+        """Determine trend direction based on DI values"""
+        if not plus_di or not minus_di:
+            return 'neutral'
+        
+        current_plus = plus_di[-1]
+        current_minus = minus_di[-1]
+        
+        if current_plus > current_minus:
+            return 'bullish'
+        elif current_minus > current_plus:
+            return 'bearish'
+        else:
+            return 'neutral'
+    
+    def _analyze_trend(self, plus_di: List[float], minus_di: List[float], adx: List[float]) -> Dict[str, Any]:
+        """Analyze trend characteristics"""
+        if not adx or len(adx) < 3:
+            return {}
+        
+        # ADX trend (rising/falling)
+        adx_trend = 'neutral'
+        if len(adx) >= 3:
+            recent_adx = adx[-3:]
+            if all(recent_adx[i] >= recent_adx[i-1] for i in range(1, len(recent_adx))):
+                adx_trend = 'rising'
+            elif all(recent_adx[i] <= recent_adx[i-1] for i in range(1, len(recent_adx))):
+                adx_trend = 'falling'
+        
+        # DI spread
+        di_spread = abs(plus_di[-1] - minus_di[-1]) if plus_di and minus_di else 0
+        
+        # Trend consistency
+        consistency_score = self._calculate_trend_consistency(plus_di, minus_di, adx)
+        
+        return {
+            'adx_trend': adx_trend,
+            'di_spread': di_spread,
+            'trend_consistency': consistency_score,
+            'signal_strength': min(di_spread / 20.0, 1.0),  # Normalize to 0-1
+            'trend_momentum': adx[-1] if adx else 0
+        }
+    
+    def _calculate_trend_consistency(self, plus_di: List[float], minus_di: List[float], adx: List[float]) -> float:
+        """Calculate trend consistency score"""
+        if len(plus_di) < 10 or len(minus_di) < 10:
+            return 0.0
+        
+        # Check how often the stronger DI remains stronger over recent periods
+        recent_periods = 10
+        recent_plus = plus_di[-recent_periods:]
+        recent_minus = minus_di[-recent_periods:]
+        
+        consistent_periods = 0
+        for i in range(len(recent_plus)):
+            if recent_plus[i] > recent_minus[i]:
+                if plus_di[-1] > minus_di[-1]:  # Current trend is bullish
+                    consistent_periods += 1
+            else:
+                if minus_di[-1] > plus_di[-1]:  # Current trend is bearish
+                    consistent_periods += 1
+        
+        return consistent_periods / recent_periods
+    
+    def _generate_signals(self, data: List[MarketData], plus_di: List[float], 
+                         minus_di: List[float], adx: List[float]) -> List[IndicatorSignal]:
+        """Generate trading signals based on DMS analysis"""
+        signals = []
+        
+        if len(plus_di) < 3 or len(minus_di) < 3 or len(adx) < 3:
+            return signals
+        
+        # DI Crossover signals
+        self._detect_di_crossover(plus_di, minus_di, adx, signals)
+        
+        # ADX trend strength signals
+        self._detect_adx_strength_signals(adx, plus_di, minus_di, signals)
+        
+        # Trend exhaustion signals
+        self._detect_trend_exhaustion(plus_di, minus_di, adx, signals)
+        
+        # Trend acceleration signals
+        self._detect_trend_acceleration(plus_di, minus_di, adx, signals)
+        
+        return signals
+    
+    def _detect_di_crossover(self, plus_di: List[float], minus_di: List[float], 
+                           adx: List[float], signals: List[IndicatorSignal]):
+        """Detect +DI and -DI crossover signals"""
+        if len(plus_di) < 2 or len(minus_di) < 2:
+            return
+        
+        current_plus = plus_di[-1]
+        previous_plus = plus_di[-2]
+        current_minus = minus_di[-1]
+        previous_minus = minus_di[-2]
+        current_adx = adx[-1] if adx else 0
+        
+        di_difference = abs(current_plus - current_minus)
+        
+        # Bullish crossover (+DI crosses above -DI)
+        if (previous_plus <= previous_minus and current_plus > current_minus and 
+            di_difference >= self.config.di_crossover_threshold):
+            
+            # Signal strength based on ADX and DI spread
+            strength = min((current_adx / 50.0) + (di_difference / 40.0), 1.0)
+            confidence = 0.7 if current_adx >= self.config.adx_threshold_weak else 0.5
+            
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.BUY,
+                strength=strength,
+                confidence=confidence,
+                metadata={
+                    'pattern': 'di_crossover_bullish',
+                    'plus_di': current_plus,
+                    'minus_di': current_minus,
+                    'adx': current_adx,
+                    'di_spread': di_difference,
+                    'trend_strength': self._classify_trend_strength(current_adx)
+                }
+            ))
+        
+        # Bearish crossover (-DI crosses above +DI)
+        elif (previous_minus <= previous_plus and current_minus > current_plus and 
+              di_difference >= self.config.di_crossover_threshold):
+            
+            # Signal strength based on ADX and DI spread
+            strength = min((current_adx / 50.0) + (di_difference / 40.0), 1.0)
+            confidence = 0.7 if current_adx >= self.config.adx_threshold_weak else 0.5
+            
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.SELL,
+                strength=strength,
+                confidence=confidence,
+                metadata={
+                    'pattern': 'di_crossover_bearish',
+                    'plus_di': current_plus,
+                    'minus_di': current_minus,
+                    'adx': current_adx,
+                    'di_spread': di_difference,
+                    'trend_strength': self._classify_trend_strength(current_adx)
+                }
+            ))
+    
+    def _detect_adx_strength_signals(self, adx: List[float], plus_di: List[float], 
+                                   minus_di: List[float], signals: List[IndicatorSignal]):
+        """Detect ADX strength change signals"""
+        if len(adx) < 3:
+            return
+        
+        current_adx = adx[-1]
+        previous_adx = adx[-2]
+        current_plus = plus_di[-1] if plus_di else 0
+        current_minus = minus_di[-1] if minus_di else 0
+        
+        # Strong trend emergence
+        if (previous_adx < self.config.adx_threshold_strong and 
+            current_adx >= self.config.adx_threshold_strong):
+            
+            signal_type = SignalType.BUY if current_plus > current_minus else SignalType.SELL
+            
+            signals.append(IndicatorSignal(
+                signal_type=signal_type,
+                strength=0.8,
+                confidence=0.75,
+                metadata={
+                    'pattern': 'strong_trend_emergence',
+                    'adx': current_adx,
+                    'trend_direction': 'bullish' if signal_type == SignalType.BUY else 'bearish',
+                    'strength_level': 'strong'
+                }
+            ))
+        
+        # Trend weakening
+        elif (previous_adx >= self.config.adx_threshold_weak and 
+              current_adx < self.config.adx_threshold_weak):
+            
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.NEUTRAL,
+                strength=0.6,
+                confidence=0.7,
+                metadata={
+                    'pattern': 'trend_weakening',
+                    'adx': current_adx,
+                    'strength_level': 'weak',
+                    'trading_advice': 'reduce_positions'
+                }
+            ))
+    
+    def _detect_trend_exhaustion(self, plus_di: List[float], minus_di: List[float], 
+                               adx: List[float], signals: List[IndicatorSignal]):
+        """Detect trend exhaustion patterns"""
+        if len(adx) < 5:
+            return
+        
+        recent_adx = adx[-5:]
+        current_plus = plus_di[-1] if plus_di else 0
+        current_minus = minus_di[-1] if minus_di else 0
+        
+        # Look for ADX peak and decline
+        adx_peak_index = recent_adx.index(max(recent_adx))
+        
+        # ADX peaked and is declining while still high
+        if (adx_peak_index < len(recent_adx) - 1 and 
+            recent_adx[adx_peak_index] >= self.config.adx_threshold_strong and
+            recent_adx[-1] < recent_adx[adx_peak_index]):
+            
+            # Determine current trend direction for exhaustion signal
+            if current_plus > current_minus:
+                signal_type = SignalType.SELL  # Bullish trend exhaustion
+                trend_dir = 'bullish'
+            else:
+                signal_type = SignalType.BUY   # Bearish trend exhaustion
+                trend_dir = 'bearish'
+            
+            exhaustion_strength = (recent_adx[adx_peak_index] - recent_adx[-1]) / recent_adx[adx_peak_index]
+            
+            signals.append(IndicatorSignal(
+                signal_type=signal_type,
+                strength=0.6,
+                confidence=0.65,
+                metadata={
+                    'pattern': 'trend_exhaustion',
+                    'trend_direction': trend_dir,
+                    'adx_peak': recent_adx[adx_peak_index],
+                    'current_adx': recent_adx[-1],
+                    'exhaustion_strength': exhaustion_strength
+                }
+            ))
+    
+    def _detect_trend_acceleration(self, plus_di: List[float], minus_di: List[float], 
+                                 adx: List[float], signals: List[IndicatorSignal]):
+        """Detect trend acceleration patterns"""
+        if len(adx) < 4:
+            return
+        
+        recent_adx = adx[-4:]
+        current_plus = plus_di[-1] if plus_di else 0
+        current_minus = minus_di[-1] if minus_di else 0
+        
+        # Check for consistently rising ADX
+        if all(recent_adx[i] > recent_adx[i-1] for i in range(1, len(recent_adx))):
+            acceleration_rate = (recent_adx[-1] - recent_adx[0]) / len(recent_adx)
+            
+            if acceleration_rate > 2.0:  # Significant acceleration
+                signal_type = SignalType.BUY if current_plus > current_minus else SignalType.SELL
+                
+                signals.append(IndicatorSignal(
+                    signal_type=signal_type,
+                    strength=0.7,
+                    confidence=0.7,
+                    metadata={
+                        'pattern': 'trend_acceleration',
+                        'acceleration_rate': acceleration_rate,
+                        'trend_direction': 'bullish' if signal_type == SignalType.BUY else 'bearish',
+                        'current_adx': recent_adx[-1]
+                    }
+                ))
+
+
+def test_directional_movement_system():
+    """Test the Directional Movement System implementation"""
+    # Create test data with clear trend patterns
+    np.random.seed(42)
+    test_data = []
+    base_price = 100.0
+    
+    for i in range(80):
+        # Generate data with different trend phases
+        if i < 30:
+            trend = 0.3  # Strong uptrend
+        elif i < 50:
+            trend = -0.2  # Downtrend
+        elif i < 65:
+            trend = 0.0  # Sideways
+        else:
+            trend = 0.4  # Strong uptrend again
+        
+        noise = np.random.normal(0, 0.5)
+        close_price = base_price + trend + noise
+        open_price = close_price + np.random.normal(0, 0.3)
+        high_price = max(open_price, close_price) + abs(np.random.normal(0, 0.4))
+        low_price = min(open_price, close_price) - abs(np.random.normal(0, 0.4))
+        volume = 1000 + np.random.randint(0, 500)
+        
+        test_data.append(MarketData(
+            timestamp=i,
+            open=open_price,
+            high=high_price,
+            low=low_price,
+            close=close_price,
+            volume=volume
+        ))
+        
+        base_price = close_price
+    
+    # Test DMS
+    dms = DirectionalMovementSystem()
+    result = dms.calculate(test_data)
+    
+    print("=== DIRECTIONAL MOVEMENT SYSTEM TEST ===")
+    print(f"Success: {result.success}")
+    if result.success:
+        plus_di = result.values['plus_di']
+        minus_di = result.values['minus_di']
+        adx = result.values['adx']
+        
+        print(f"+DI Values (last 5): {[round(v, 2) for v in plus_di[-5:]]}")
+        print(f"-DI Values (last 5): {[round(v, 2) for v in minus_di[-5:]]}")
+        print(f"ADX Values (last 5): {[round(v, 2) for v in adx[-5:]]}")
+        print(f"Current +DI: {round(plus_di[-1], 2)}")
+        print(f"Current -DI: {round(minus_di[-1], 2)}")
+        print(f"Current ADX: {round(adx[-1], 2)}")
+        print(f"Trend Direction: {result.metadata['trend_direction']}")
+        print(f"Trend Strength: {result.metadata['trend_strength']}")
+        print(f"DI Spread: {round(result.metadata['di_spread'], 2)}")
+        print(f"Number of signals: {len(result.signals)}")
+        
+        for i, signal in enumerate(result.signals[-3:]):  # Show last 3 signals
+            print(f"Signal {i+1}: {signal.signal_type.value} - Strength: {signal.strength:.2f} - {signal.metadata.get('pattern', 'N/A')}")
+    else:
+        print(f"Error: {result.error}")
+    
+    return result.success
+
+
+if __name__ == "__main__":
+    test_directional_movement_system()

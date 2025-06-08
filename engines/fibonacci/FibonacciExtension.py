@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Fibonacci Extension
 Extension levels for price target identification and projection analysis.
@@ -20,7 +21,7 @@ import time
 import logging
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -354,3 +355,138 @@ class FibonacciExtension:
             'average_calculation_time': self.total_calculation_time / self.calculation_count,
             'total_calculation_time': self.total_calculation_time
         }
+
+    def calculate(self, data: Union[Dict, List[Dict], pd.DataFrame]) -> Dict[str, Any]:
+        """
+        Standard calculate method for BaseIndicator compatibility
+        
+        Args:
+            data: Market data in dict format with high, low, close arrays
+                 or list of OHLC dictionaries, or pandas DataFrame
+        
+        Returns:
+            Dict containing Fibonacci extension levels and price targets
+        """
+        start_time = time.time()
+        
+        try:
+            # Convert data to standard format
+            if isinstance(data, pd.DataFrame):
+                high_values = data['high'].tolist()
+                low_values = data['low'].tolist()
+                close_values = data['close'].tolist()
+            elif isinstance(data, dict):
+                high_values = data.get('high', [])
+                low_values = data.get('low', [])
+                close_values = data.get('close', [])
+            else:
+                # Assume list of dicts
+                high_values = [d.get('high', 0) for d in data]
+                low_values = [d.get('low', 0) for d in data]
+                close_values = [d.get('close', 0) for d in data]
+            
+            if len(high_values) < 3 or len(low_values) < 3:
+                return {"error": "Insufficient data for Fibonacci extension calculation (need at least 3 points)"}
+            
+            # Find ABC pattern (simplified approach)
+            # A = initial swing point
+            # B = retracement point  
+            # C = current extension point
+            
+            # Find significant highs and lows for ABC pattern
+            recent_high = max(high_values[-10:]) if len(high_values) >= 10 else max(high_values)
+            recent_low = min(low_values[-10:]) if len(low_values) >= 10 else min(low_values)
+            current_price = close_values[-1] if close_values else recent_high
+            
+            # Determine trend and ABC points
+            if current_price > recent_low:
+                # Bullish extension: A=low, B=high, C=current
+                point_a = recent_low
+                point_b = recent_high
+                point_c = current_price
+                trend_direction = "bullish"
+            else:
+                # Bearish extension: A=high, B=low, C=current
+                point_a = recent_high
+                point_b = recent_low
+                point_c = current_price
+                trend_direction = "bearish"
+            
+            # Calculate base range (A to B)
+            base_range = abs(point_b - point_a)
+            
+            if base_range == 0:
+                return {"error": "No base range available for Fibonacci extension calculation"}
+            
+            # Calculate extension levels
+            extension_levels = {}
+            price_targets = {}
+            
+            for level in self.extension_levels:
+                if trend_direction == "bullish":
+                    # Extensions above point C
+                    extension_price = point_c + (base_range * (level - 1.0))
+                else:
+                    # Extensions below point C
+                    extension_price = point_c - (base_range * (level - 1.0))
+                
+                level_name = f"{level * 100:.1f}%"
+                extension_levels[level_name] = round(extension_price, 5)
+                
+                # Calculate distance and probability
+                distance = abs(extension_price - current_price)
+                # Simple probability model based on distance
+                probability = max(0.1, 1.0 - (distance / base_range))
+                
+                price_targets[level_name] = {
+                    "price": round(extension_price, 5),
+                    "distance": round(distance, 5),
+                    "probability": round(probability, 3)
+                }
+            
+            # Find next target (closest extension above current price for bullish, below for bearish)
+            next_target = None
+            min_distance = float('inf')
+            
+            for level_name, target_info in price_targets.items():
+                target_price = target_info["price"]
+                if trend_direction == "bullish" and target_price > current_price:
+                    distance = target_price - current_price
+                    if distance < min_distance:
+                        min_distance = distance
+                        next_target = {"level": level_name, "price": target_price, "distance": distance}
+                elif trend_direction == "bearish" and target_price < current_price:
+                    distance = current_price - target_price
+                    if distance < min_distance:
+                        min_distance = distance
+                        next_target = {"level": level_name, "price": target_price, "distance": distance}
+            
+            # Performance tracking
+            calculation_time = time.time() - start_time
+            self.calculation_count += 1
+            self.total_calculation_time += calculation_time
+            
+            result = {
+                "symbol": "UNKNOWN",
+                "timestamp": datetime.now().isoformat(),
+                "abc_points": {
+                    "point_a": point_a,
+                    "point_b": point_b,
+                    "point_c": point_c
+                },
+                "current_price": current_price,
+                "base_range": base_range,
+                "trend_direction": trend_direction,
+                "extension_levels": extension_levels,
+                "price_targets": price_targets,
+                "next_target": next_target,
+                "calculation_time_ms": round(calculation_time * 1000, 2),
+                "total_calculations": self.calculation_count
+            }
+            
+            self.logger.info(f"Fibonacci extension calculated successfully in {calculation_time:.3f}s")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating Fibonacci extension: {e}")
+            return {"error": str(e)}

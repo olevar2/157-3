@@ -1,0 +1,7 @@
+Metric Name,Value,Unit,Benchmark,Passes Benchmark,Status
+Average Latency,278.3973398865438,ms,50.0,False,FAIL
+System Availability,99.25,%,99.9,False,FAIL
+Peak Memory Usage,5268.7734375,MB,2048.0,False,FAIL
+Peak CPU Usage,96.9,%,80.0,False,FAIL
+Operations Throughput,468.89980982595966,ops/sec,100.0,True,PASS
+Error Rate,0.75,%,0.1,False,FAIL

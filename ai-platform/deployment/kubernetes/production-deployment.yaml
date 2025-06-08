@@ -1,0 +1,584 @@
+# Kubernetes Production Deployment Manifest for Humanitarian AI Trading Platform
+# Mission: Generate $300K+ monthly for medical aid, children's surgeries, and poverty relief
+# 
+# This deployment configuration is optimized for maximum uptime and humanitarian impact
+# Every second of downtime potentially affects life-saving medical funding
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: humanitarian-ai-platform
+  labels:
+    mission: "medical-aid-funding"
+    priority: "lives-at-stake"
+    charity-impact: "high"
+---
+# ConfigMap for Humanitarian Impact Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: humanitarian-config
+  namespace: humanitarian-ai-platform
+data:
+  HUMANITARIAN_MISSION: "medical_aid_and_children_surgeries"
+  MONTHLY_CHARITY_TARGET: "300000"
+  LIVES_AT_STAKE_THRESHOLD: "high"
+  EMERGENCY_CONTACT: "humanitarian-emergency@platform3.charity"
+  CHARITY_FUND_PROTECTION: "enabled"
+  MAX_RISK_TOLERANCE: "15"
+  MEDICAL_AID_PRIORITY: "maximum"
+---
+# Secret for Production Credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: platform-secrets
+  namespace: humanitarian-ai-platform
+type: Opaque
+data:
+  # Base64 encoded secrets (replace with actual values)
+  DATABASE_URL: cG9zdGdyZXNxbDovL3VzZXI6cGFzc0BkYi9wbGF0Zm9ybTM=
+  BROKER_API_KEY: YnJva2VyX2FwaV9rZXlfaGVyZQ==
+  REDIS_PASSWORD: cmVkaXNfcGFzc3dvcmRfaGVyZQ==
+  JWT_SECRET: and0X3NlY3JldF9mb3JfYXV0aA==
+  ENCRYPTION_KEY: ZW5jcnlwdGlvbl9rZXlfZm9yX2RhdGE=
+---
+# AI Models Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-models-service
+  namespace: humanitarian-ai-platform
+  labels:
+    app: ai-models
+    tier: core
+    humanitarian-priority: "critical"
+spec:
+  replicas: 3  # High availability for lives-at-stake mission
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0  # Zero downtime for humanitarian operations
+  selector:
+    matchLabels:
+      app: ai-models
+  template:
+    metadata:
+      labels:
+        app: ai-models
+        tier: core
+        humanitarian-priority: "critical"
+    spec:
+      containers:
+      - name: ai-models
+        image: platform3/ai-models:latest
+        ports:
+        - containerPort: 8000
+          name: http
+        - containerPort: 8001
+          name: metrics
+        env:
+        - name: HUMANITARIAN_MODE
+          value: "enabled"
+        - name: LIVES_AT_STAKE
+          value: "high"
+        - name: CHARITY_TARGET
+          valueFrom:
+            configMapKeyRef:
+              name: humanitarian-config
+              key: MONTHLY_CHARITY_TARGET
+        envFrom:
+        - secretRef:
+            name: platform-secrets
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health/humanitarian-impact
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 2  # Quick failure detection for lives-at-stake
+        readinessProbe:
+          httpGet:
+            path: /ready/charity-funding
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 5
+        volumeMounts:
+        - name: model-storage
+          mountPath: /app/models
+        - name: humanitarian-logs
+          mountPath: /app/logs/humanitarian
+      volumes:
+      - name: model-storage
+        persistentVolumeClaim:
+          claimName: ai-models-storage
+      - name: humanitarian-logs
+        persistentVolumeClaim:
+          claimName: humanitarian-logs-storage
+---
+# Trading Engine Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trading-engine
+  namespace: humanitarian-ai-platform
+  labels:
+    app: trading-engine
+    tier: core
+    humanitarian-priority: "maximum"
+spec:
+  replicas: 5  # Maximum redundancy for charity funding operations
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: trading-engine
+  template:
+    metadata:
+      labels:
+        app: trading-engine
+        tier: core
+        humanitarian-priority: "maximum"
+    spec:
+      containers:
+      - name: trading-engine
+        image: platform3/trading-engine:latest
+        ports:
+        - containerPort: 8002
+          name: http
+        - containerPort: 8003
+          name: websocket
+        env:
+        - name: HUMANITARIAN_TRADING_MODE
+          value: "charity_optimized"
+        - name: MEDICAL_AID_PRIORITY
+          value: "maximum"
+        - name: EMERGENCY_STOP_ENABLED
+          value: "true"
+        - name: CHARITY_FUND_PROTECTION
+          value: "enabled"
+        envFrom:
+        - configMapRef:
+            name: humanitarian-config
+        - secretRef:
+            name: platform-secrets
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "2000m"
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+        livenessProbe:
+          httpGet:
+            path: /health/trading-status
+            port: 8002
+          initialDelaySeconds: 20
+          periodSeconds: 5
+          failureThreshold: 2
+        readinessProbe:
+          httpGet:
+            path: /ready/charity-trades
+            port: 8002
+          initialDelaySeconds: 10
+          periodSeconds: 3
+---
+# MLOps Pipeline Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlops-pipeline
+  namespace: humanitarian-ai-platform
+  labels:
+    app: mlops
+    tier: infrastructure
+    humanitarian-priority: "high"
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: mlops
+  template:
+    metadata:
+      labels:
+        app: mlops
+        tier: infrastructure
+        humanitarian-priority: "high"
+    spec:
+      containers:
+      - name: mlops-pipeline
+        image: platform3/mlops:latest
+        ports:
+        - containerPort: 8004
+          name: http
+        env:
+        - name: HUMANITARIAN_MONITORING
+          value: "enabled"
+        - name: LIVES_IMPACT_TRACKING
+          value: "enabled"
+        envFrom:
+        - configMapRef:
+            name: humanitarian-config
+        - secretRef:
+            name: platform-secrets
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health/pipeline-status
+            port: 8004
+          initialDelaySeconds: 30
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /ready/humanitarian-monitoring
+            port: 8004
+          initialDelaySeconds: 20
+          periodSeconds: 10
+---
+# Monitoring Dashboard Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-dashboard
+  namespace: humanitarian-ai-platform
+  labels:
+    app: monitoring
+    tier: observability
+    humanitarian-priority: "high"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: monitoring
+  template:
+    metadata:
+      labels:
+        app: monitoring
+        tier: observability
+        humanitarian-priority: "high"
+    spec:
+      containers:
+      - name: monitoring-dashboard
+        image: platform3/monitoring-dashboard:latest
+        ports:
+        - containerPort: 8050
+          name: dashboard
+        env:
+        - name: HUMANITARIAN_DASHBOARD_MODE
+          value: "lives_impact_tracking"
+        - name: CHARITY_METRICS_ENABLED
+          value: "true"
+        envFrom:
+        - configMapRef:
+            name: humanitarian-config
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+---
+# Services for Load Balancing
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-models-service
+  namespace: humanitarian-ai-platform
+  labels:
+    humanitarian-mission: "medical-aid"
+spec:
+  selector:
+    app: ai-models
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+  - name: metrics
+    port: 8001
+    targetPort: 8001
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trading-engine-service
+  namespace: humanitarian-ai-platform
+  labels:
+    humanitarian-mission: "charity-funding"
+spec:
+  selector:
+    app: trading-engine
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8002
+  - name: websocket
+    port: 8003
+    targetPort: 8003
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlops-service
+  namespace: humanitarian-ai-platform
+spec:
+  selector:
+    app: mlops
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8004
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-dashboard-service
+  namespace: humanitarian-ai-platform
+spec:
+  selector:
+    app: monitoring
+  ports:
+  - name: dashboard
+    port: 80
+    targetPort: 8050
+  type: LoadBalancer  # External access for humanitarian impact monitoring
+---
+# Ingress for External Access
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: humanitarian-platform-ingress
+  namespace: humanitarian-ai-platform
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "1000"  # High rate limit for humanitarian operations
+spec:
+  tls:
+  - hosts:
+    - api.humanitarian-platform.org
+    - dashboard.humanitarian-platform.org
+    secretName: humanitarian-platform-tls
+  rules:
+  - host: api.humanitarian-platform.org
+    http:
+      paths:
+      - path: /ai
+        pathType: Prefix
+        backend:
+          service:
+            name: ai-models-service
+            port:
+              number: 80
+      - path: /trading
+        pathType: Prefix
+        backend:
+          service:
+            name: trading-engine-service
+            port:
+              number: 80
+      - path: /mlops
+        pathType: Prefix
+        backend:
+          service:
+            name: mlops-service
+            port:
+              number: 80
+  - host: dashboard.humanitarian-platform.org
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: monitoring-dashboard-service
+            port:
+              number: 80
+---
+# Persistent Volume Claims for Data Storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ai-models-storage
+  namespace: humanitarian-ai-platform
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: fast-ssd
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: humanitarian-logs-storage
+  namespace: humanitarian-ai-platform
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard
+---
+# Horizontal Pod Autoscaler for AI Models
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ai-models-hpa
+  namespace: humanitarian-ai-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ai-models-service
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      selectPolicy: Max
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Conservative scale-down for humanitarian stability
+      selectPolicy: Min
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+---
+# Horizontal Pod Autoscaler for Trading Engine
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: trading-engine-hpa
+  namespace: humanitarian-ai-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: trading-engine
+  minReplicas: 5
+  maxReplicas: 20  # High scaling for maximum charity fund generation
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30  # Fast scale-up for trading opportunities
+      selectPolicy: Max
+      policies:
+      - type: Percent
+        value: 200
+        periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 600  # Very conservative scale-down for trading stability
+---
+# Pod Disruption Budget for High Availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ai-models-pdb
+  namespace: humanitarian-ai-platform
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: ai-models
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: trading-engine-pdb
+  namespace: humanitarian-ai-platform
+spec:
+  minAvailable: 3  # Always maintain 3 trading pods minimum for charity operations
+  selector:
+    matchLabels:
+      app: trading-engine
+---
+# Network Policy for Security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: humanitarian-platform-network-policy
+  namespace: humanitarian-ai-platform
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: humanitarian-ai-platform
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: humanitarian-ai-platform
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS
+    - protocol: TCP
+      port: 80   # HTTP
+    - protocol: UDP
+      port: 53   # DNS

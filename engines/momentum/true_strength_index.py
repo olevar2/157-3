@@ -1,742 +1,251 @@
 """
-True Strength Index (TSI) Implementation
-Advanced dual-smoothed momentum oscillator with reduced noise
+True Strength Index (TSI)
+=========================
+
+TSI is a momentum oscillator that uses price changes smoothed by two 
+exponential moving averages to filter out noise and provide clearer signals.
+
+Author: Platform3 AI System
+Created: June 3, 2025
 """
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass
-from ..indicator_base import TechnicalIndicator, IndicatorConfig, IndicatorSignal, ValidationResult
+from typing import Dict, Optional
 
-@dataclass
-class TSIConfig(IndicatorConfig):
-    """Configuration for True Strength Index"""
-    long_period: int = 25
-    short_period: int = 13
-    signal_period: int = 7
-    overbought_level: float = 25
-    oversold_level: float = -25
-    extreme_overbought: float = 40
-    extreme_oversold: float = -40
-    enable_divergence: bool = True
-    enable_pattern_recognition: bool = True
-    enable_signal_line: bool = True
-    volatility_adjustment: bool = True
+# Fix import - use absolute import with fallback
+try:
+    from engines.indicator_base import IndicatorBase
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from indicator_base import IndicatorBase
 
-class TrueStrengthIndex(TechnicalIndicator):
+
+class TrueStrengthIndex(IndicatorBase):
     """
-    True Strength Index (TSI)
+    True Strength Index (TSI) indicator.
     
-    Double-smoothed momentum oscillator that filters out price noise
-    while maintaining sensitivity to trend changes. Uses two EMAs of
-    price momentum to create a refined momentum indicator.
-    
-    Features:
-    - Double-smoothed momentum calculation
-    - Signal line crossover analysis
-    - Zero-line crossover detection
-    - Divergence analysis
-    - Pattern recognition
-    - Volatility-adjusted signals
+    TSI is a momentum oscillator that double-smooths price changes to reduce 
+    noise and provide more reliable signals than traditional momentum indicators.
     """
     
-    def __init__(self, config: TSIConfig):
-        super().__init__(config)
-        self.config = config
-        self.tsi_values = []
-        self.signal_values = []
-        self.close_values = []
+    def __init__(self, 
+                 first_smoothing: int = 25,
+                 second_smoothing: int = 13,
+                 signal_smoothing: int = 7):
+        """
+        Initialize TSI indicator.
         
-        # Momentum calculation components
-        self.momentum_values = []
-        self.abs_momentum_values = []
+        Args:
+            first_smoothing: First smoothing period
+            second_smoothing: Second smoothing period  
+            signal_smoothing: Signal line smoothing period
+        """
+        super().__init__()
         
-        # Double smoothing components
-        self.momentum_ema1 = []
-        self.momentum_ema2 = []
-        self.abs_momentum_ema1 = []
-        self.abs_momentum_ema2 = []
+        self.first_smoothing = first_smoothing
+        self.second_smoothing = second_smoothing
+        self.signal_smoothing = signal_smoothing
         
-        # Pattern tracking
-        self.crossover_history = []
-        self.divergence_points = []
+        # Validation
+        if first_smoothing <= 0 or second_smoothing <= 0 or signal_smoothing <= 0:
+            raise ValueError("All smoothing periods must be positive")
+    
+    def calculate(self, data: pd.DataFrame) -> Dict:
+        """
+        Calculate TSI values.
         
-        # EMA multipliers
-        self.long_multiplier = 2 / (self.config.long_period + 1)
-        self.short_multiplier = 2 / (self.config.short_period + 1)
-        self.signal_multiplier = 2 / (self.config.signal_period + 1)
-        
-    def calculate(self, high: float, low: float, close: float, 
-                 volume: Optional[float] = None, timestamp: Optional[Any] = None) -> IndicatorSignal:
-        """Calculate TSI with comprehensive analysis"""
-        
-        # Store close price
-        self.close_values.append(close)
-        
-        if len(self.close_values) < 2:
-            return self._create_signal(0, 0, "INSUFFICIENT_DATA", {
-                'values_needed': 2 - len(self.close_values)
-            })
-        
-        # Calculate price momentum
-        momentum = close - self.close_values[-2]
-        abs_momentum = abs(momentum)
-        
-        self.momentum_values.append(momentum)
-        self.abs_momentum_values.append(abs_momentum)
-        
-        # First smoothing (long period EMA)
-        if len(self.momentum_ema1) == 0:
-            self.momentum_ema1.append(momentum)
-            self.abs_momentum_ema1.append(abs_momentum)
-        else:
-            momentum_ema1 = (momentum * self.long_multiplier + 
-                           self.momentum_ema1[-1] * (1 - self.long_multiplier))
-            abs_momentum_ema1 = (abs_momentum * self.long_multiplier + 
-                               self.abs_momentum_ema1[-1] * (1 - self.long_multiplier))
+        Args:
+            data: DataFrame with 'close' column
             
-            self.momentum_ema1.append(momentum_ema1)
-            self.abs_momentum_ema1.append(abs_momentum_ema1)
-        
-        # Second smoothing (short period EMA)
-        if len(self.momentum_ema2) == 0:
-            self.momentum_ema2.append(self.momentum_ema1[-1])
-            self.abs_momentum_ema2.append(self.abs_momentum_ema1[-1])
-        else:
-            momentum_ema2 = (self.momentum_ema1[-1] * self.short_multiplier + 
-                           self.momentum_ema2[-1] * (1 - self.short_multiplier))
-            abs_momentum_ema2 = (self.abs_momentum_ema1[-1] * self.short_multiplier + 
-                               self.abs_momentum_ema2[-1] * (1 - self.short_multiplier))
+        Returns:
+            Dictionary containing TSI values and signals
+        """
+        try:
+            # Validate input data
+            required_columns = ['close']
+            if isinstance(data, pd.DataFrame):
+                if data.empty:
+                    raise ValueError("Empty DataFrame provided")
+                
+                # Check required columns
+                missing = [col for col in required_columns if col not in data.columns]
+                if missing:
+                    raise ValueError(f"Missing required columns: {missing}")
+            else:
+                validation_result = super()._validate_data(data)
+                if not validation_result:
+                    raise ValueError("Invalid input data format")
             
-            self.momentum_ema2.append(momentum_ema2)
-            self.abs_momentum_ema2.append(abs_momentum_ema2)
+            min_periods = self.first_smoothing + self.second_smoothing + 1
+            if len(data) < min_periods:
+                raise ValueError(f"Insufficient data: need at least {min_periods} periods")
+            
+            close = data['close'].values
+            
+            # Calculate TSI
+            tsi, signal_line = self._calculate_tsi(close)
+            
+            # Calculate histogram
+            histogram = tsi - signal_line
+            
+            # Generate signals
+            signals = self._generate_signals(tsi, signal_line, histogram)
+            
+            # Calculate additional metrics
+            metrics = self._calculate_metrics(tsi, signal_line, histogram)
+            
+            return {
+                'tsi': tsi,
+                'signal_line': signal_line,
+                'histogram': histogram,
+                'signals': signals,
+                'metrics': metrics,
+                'interpretation': self._interpret_signals(tsi[-1], signal_line[-1], signals[-1])
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating TSI: {e}")
+            raise
+    
+    def _calculate_tsi(self, close: np.ndarray) -> tuple:
+        """Calculate TSI and signal line."""
+        # Calculate price changes
+        price_changes = np.diff(close)
+        abs_price_changes = np.abs(price_changes)
+        
+        # First smoothing
+        first_smooth_pc = self._ema(price_changes, self.first_smoothing)
+        first_smooth_abs_pc = self._ema(abs_price_changes, self.first_smoothing)
+        
+        # Second smoothing
+        second_smooth_pc = self._ema(first_smooth_pc, self.second_smoothing)
+        second_smooth_abs_pc = self._ema(first_smooth_abs_pc, self.second_smoothing)
         
         # Calculate TSI
-        if self.abs_momentum_ema2[-1] == 0:
-            tsi = 0
-        else:
-            tsi = 100 * (self.momentum_ema2[-1] / self.abs_momentum_ema2[-1])
+        tsi = np.full(len(close), np.nan)
+        tsi[1:] = np.where(second_smooth_abs_pc != 0, 
+                          100 * (second_smooth_pc / second_smooth_abs_pc), 
+                          0)
         
-        self.tsi_values.append(tsi)
+        # Calculate signal line
+        signal_line = self._ema(tsi[~np.isnan(tsi)], self.signal_smoothing)
         
-        # Calculate signal line (EMA of TSI)
-        if self.config.enable_signal_line:
-            if len(self.signal_values) == 0:
-                self.signal_values.append(tsi)
-            else:
-                signal = (tsi * self.signal_multiplier + 
-                         self.signal_values[-1] * (1 - self.signal_multiplier))
-                self.signal_values.append(signal)
+        # Align signal line with TSI
+        signal_aligned = np.full(len(close), np.nan)
+        valid_indices = ~np.isnan(tsi)
+        signal_aligned[valid_indices] = signal_line
         
-        # Keep history manageable
-        if len(self.tsi_values) > 200:
-            self.tsi_values = self.tsi_values[-200:]
-            self.signal_values = self.signal_values[-200:]
-            self.close_values = self.close_values[-200:]
-            self.momentum_ema1 = self.momentum_ema1[-200:]
-            self.momentum_ema2 = self.momentum_ema2[-200:]
-            self.abs_momentum_ema1 = self.abs_momentum_ema1[-200:]
-            self.abs_momentum_ema2 = self.abs_momentum_ema2[-200:]
-        
-        # Generate comprehensive signal
-        return self._generate_comprehensive_signal(tsi, high, low, close, volume, timestamp)
+        return tsi, signal_aligned
     
-    def _generate_comprehensive_signal(self, tsi: float, high: float, low: float, 
-                                     close: float, volume: Optional[float], 
-                                     timestamp: Optional[Any]) -> IndicatorSignal:
-        """Generate comprehensive TSI signal with multiple analysis layers"""
+    def _ema(self, data: np.ndarray, period: int) -> np.ndarray:
+        """Calculate Exponential Moving Average."""
+        alpha = 2 / (period + 1)
+        ema = np.full(len(data), np.nan)
         
-        signal_strength = 0
-        confidence = 0.5
-        signals = []
-        metadata = {
-            'tsi': tsi,
-            'signal_line': self.signal_values[-1] if self.signal_values else 0,
-            'momentum_smoothed': self.momentum_ema2[-1] if self.momentum_ema2 else 0,
-            'abs_momentum_smoothed': self.abs_momentum_ema2[-1] if self.abs_momentum_ema2 else 0
-        }
+        # Initialize with first valid value
+        for i, val in enumerate(data):
+            if not np.isnan(val):
+                ema[i] = val
+                break
         
-        # 1. Level-based signals
-        level_analysis = self._analyze_levels(tsi)
-        signal_strength += level_analysis['strength']
-        confidence += level_analysis['confidence']
-        signals.extend(level_analysis['signals'])
-        metadata.update(level_analysis['metadata'])
+        # Calculate EMA
+        for i in range(1, len(data)):
+            if not np.isnan(data[i]) and not np.isnan(ema[i-1]):
+                ema[i] = alpha * data[i] + (1 - alpha) * ema[i-1]
         
-        # 2. Zero-line analysis
-        if len(self.tsi_values) >= 2:
-            zero_analysis = self._analyze_zero_line_cross(tsi)
-            signal_strength += zero_analysis['strength']
-            confidence += zero_analysis['confidence']
-            signals.extend(zero_analysis['signals'])
-            metadata.update(zero_analysis['metadata'])
-        
-        # 3. Signal line crossover
-        if self.config.enable_signal_line and len(self.signal_values) >= 2:
-            signal_analysis = self._analyze_signal_line_cross(tsi)
-            signal_strength += signal_analysis['strength']
-            confidence += signal_analysis['confidence']
-            signals.extend(signal_analysis['signals'])
-            metadata.update(signal_analysis['metadata'])
-        
-        # 4. Momentum analysis
-        if len(self.tsi_values) >= 5:
-            momentum_analysis = self._analyze_momentum_patterns(tsi)
-            signal_strength += momentum_analysis['strength']
-            confidence += momentum_analysis['confidence']
-            signals.extend(momentum_analysis['signals'])
-            metadata.update(momentum_analysis['metadata'])
-        
-        # 5. Divergence analysis
-        if self.config.enable_divergence and len(self.tsi_values) >= 10:
-            div_analysis = self._analyze_divergence(close)
-            signal_strength += div_analysis['strength']
-            confidence += div_analysis['confidence']
-            signals.extend(div_analysis['signals'])
-            metadata.update(div_analysis['metadata'])
-        
-        # 6. Pattern recognition
-        if self.config.enable_pattern_recognition and len(self.tsi_values) >= 15:
-            pattern_analysis = self._analyze_patterns()
-            signal_strength += pattern_analysis['strength']
-            confidence += pattern_analysis['confidence']
-            signals.extend(pattern_analysis['signals'])
-            metadata.update(pattern_analysis['metadata'])
-        
-        # 7. Volatility adjustment
-        if self.config.volatility_adjustment:
-            vol_analysis = self._analyze_volatility_context(tsi, volume)
-            signal_strength *= vol_analysis['multiplier']
-            confidence += vol_analysis['confidence_adj']
-            signals.extend(vol_analysis['signals'])
-            metadata.update(vol_analysis['metadata'])
-        
-        # Normalize values
-        signal_strength = max(-1, min(1, signal_strength))
-        confidence = max(0, min(1, confidence / 6))  # Normalize multi-component confidence
-        
-        # Determine overall signal
-        if abs(signal_strength) < 0.2:
-            overall_signal = "NEUTRAL"
-        elif signal_strength > 0:
-            overall_signal = "BULLISH"
-        else:
-            overall_signal = "BEARISH"
-        
-        metadata['component_signals'] = signals
-        metadata['analysis_components'] = len([x for x in [level_analysis, zero_analysis, signal_analysis] if x['signals']])
-        
-        return self._create_signal(signal_strength, confidence, overall_signal, metadata)
+        return ema
     
-    def _analyze_levels(self, tsi: float) -> Dict:
-        """Analyze TSI level-based signals"""
-        strength = 0
-        confidence = 0
-        signals = []
-        metadata = {}
+    def _generate_signals(self, tsi: np.ndarray, signal_line: np.ndarray, histogram: np.ndarray) -> np.ndarray:
+        """Generate trading signals based on TSI."""
+        signals = np.zeros(len(tsi))
         
-        # Extreme levels
-        if tsi > self.config.extreme_overbought:
-            strength = -0.7
-            confidence = 0.8
-            signals.append("EXTREME_OVERBOUGHT")
-            metadata['level'] = 'extreme_overbought'
-        elif tsi > self.config.overbought_level:
-            strength = -0.3
-            confidence = 0.6
-            signals.append("OVERBOUGHT")
-            metadata['level'] = 'overbought'
-        elif tsi < self.config.extreme_oversold:
-            strength = 0.7
-            confidence = 0.8
-            signals.append("EXTREME_OVERSOLD")
-            metadata['level'] = 'extreme_oversold'
-        elif tsi < self.config.oversold_level:
-            strength = 0.3
-            confidence = 0.6
-            signals.append("OVERSOLD")
-            metadata['level'] = 'oversold'
-        else:
-            metadata['level'] = 'normal'
-        
-        # Level persistence
-        if len(self.tsi_values) >= 3:
-            recent_values = self.tsi_values[-3:]
-            if all(v > self.config.overbought_level for v in recent_values):
-                confidence += 0.2
-                signals.append("PERSISTENT_OVERBOUGHT")
-            elif all(v < self.config.oversold_level for v in recent_values):
-                confidence += 0.2
-                signals.append("PERSISTENT_OVERSOLD")
-        
-        return {
-            'strength': strength,
-            'confidence': confidence,
-            'signals': signals,
-            'metadata': metadata
-        }
-    
-    def _analyze_zero_line_cross(self, tsi: float) -> Dict:
-        """Analyze zero-line crossover signals"""
-        strength = 0
-        confidence = 0
-        signals = []
-        metadata = {}
-        
-        prev_tsi = self.tsi_values[-2]
-        
-        # Zero-line crossovers
-        if prev_tsi <= 0 and tsi > 0:
-            strength = 0.4
-            confidence = 0.7
-            signals.append("ZERO_LINE_CROSS_UP")
-            metadata['crossover'] = 'bullish'
-            self.crossover_history.append(('bullish', len(self.tsi_values)))
-        elif prev_tsi >= 0 and tsi < 0:
-            strength = -0.4
-            confidence = 0.7
-            signals.append("ZERO_LINE_CROSS_DOWN")
-            metadata['crossover'] = 'bearish'
-            self.crossover_history.append(('bearish', len(self.tsi_values)))
-        
-        # Momentum around zero line
-        if abs(tsi) < 5:  # Near zero line
-            if len(self.tsi_values) >= 3:
-                momentum = tsi - self.tsi_values[-3]
-                if momentum > 2:
-                    signals.append("BUILDING_BULLISH_MOMENTUM")
-                    strength += 0.2
-                elif momentum < -2:
-                    signals.append("BUILDING_BEARISH_MOMENTUM")
-                    strength -= 0.2
-        
-        metadata['zero_line_distance'] = abs(tsi)
-        
-        return {
-            'strength': strength,
-            'confidence': confidence,
-            'signals': signals,
-            'metadata': metadata
-        }
-    
-    def _analyze_signal_line_cross(self, tsi: float) -> Dict:
-        """Analyze TSI-Signal line crossover signals"""
-        strength = 0
-        confidence = 0
-        signals = []
-        metadata = {}
-        
-        if not self.signal_values or len(self.signal_values) < 2:
-            return {'strength': 0, 'confidence': 0, 'signals': [], 'metadata': {}}
-        
-        signal_line = self.signal_values[-1]
-        prev_signal = self.signal_values[-2]
-        prev_tsi = self.tsi_values[-2]
-        
-        # Signal line crossovers
-        if prev_tsi <= prev_signal and tsi > signal_line:
-            strength = 0.3
-            confidence = 0.6
-            signals.append("SIGNAL_LINE_CROSS_UP")
-            metadata['signal_crossover'] = 'bullish'
-        elif prev_tsi >= prev_signal and tsi < signal_line:
-            strength = -0.3
-            confidence = 0.6
-            signals.append("SIGNAL_LINE_CROSS_DOWN")
-            metadata['signal_crossover'] = 'bearish'
-        
-        # Signal line momentum
-        signal_momentum = signal_line - prev_signal
-        if signal_momentum > 1:
-            signals.append("SIGNAL_LINE_RISING")
-            strength += 0.1
-        elif signal_momentum < -1:
-            signals.append("SIGNAL_LINE_FALLING")
-            strength -= 0.1
-        
-        # Convergence/Divergence with signal line
-        tsi_signal_diff = tsi - signal_line
-        prev_diff = prev_tsi - prev_signal
-        
-        if abs(tsi_signal_diff) < abs(prev_diff):
-            signals.append("CONVERGING_TO_SIGNAL")
-        elif abs(tsi_signal_diff) > abs(prev_diff):
-            signals.append("DIVERGING_FROM_SIGNAL")
-        
-        metadata['tsi_signal_spread'] = tsi_signal_diff
-        metadata['signal_line_momentum'] = signal_momentum
-        
-        return {
-            'strength': strength,
-            'confidence': confidence,
-            'signals': signals,
-            'metadata': metadata
-        }
-    
-    def _analyze_momentum_patterns(self, tsi: float) -> Dict:
-        """Analyze TSI momentum patterns"""
-        strength = 0
-        confidence = 0
-        signals = []
-        metadata = {}
-        
-        if len(self.tsi_values) < 5:
-            return {'strength': 0, 'confidence': 0, 'signals': [], 'metadata': {}}
-        
-        recent_tsi = self.tsi_values[-5:]
-        
-        # Momentum acceleration/deceleration
-        short_momentum = tsi - self.tsi_values[-3]
-        medium_momentum = self.tsi_values[-3] - self.tsi_values[-5]
-        
-        if short_momentum > medium_momentum and short_momentum > 2:
-            signals.append("MOMENTUM_ACCELERATING")
-            strength += 0.2
-            confidence += 0.2
-        elif short_momentum < medium_momentum and short_momentum < -2:
-            signals.append("MOMENTUM_DECELERATING")
-            strength -= 0.2
-            confidence += 0.2
-        
-        # Trend consistency
-        positive_count = sum(1 for x in recent_tsi if x > 0)
-        negative_count = sum(1 for x in recent_tsi if x < 0)
-        
-        if positive_count >= 4:
-            signals.append("CONSISTENT_BULLISH_TREND")
-            strength += 0.2
-        elif negative_count >= 4:
-            signals.append("CONSISTENT_BEARISH_TREND")
-            strength -= 0.2
-        
-        # Volatility analysis
-        tsi_volatility = np.std(recent_tsi)
-        if tsi_volatility < 5:
-            signals.append("LOW_VOLATILITY_TSI")
-            metadata['volatility_state'] = 'low'
-        elif tsi_volatility > 15:
-            signals.append("HIGH_VOLATILITY_TSI")
-            metadata['volatility_state'] = 'high'
-        else:
-            metadata['volatility_state'] = 'normal'
-        
-        metadata['momentum_acceleration'] = short_momentum - medium_momentum
-        metadata['tsi_volatility'] = tsi_volatility
-        
-        return {
-            'strength': strength,
-            'confidence': confidence,
-            'signals': signals,
-            'metadata': metadata
-        }
-    
-    def _analyze_divergence(self, close: float) -> Dict:
-        """Analyze price-TSI divergence patterns"""
-        strength = 0
-        confidence = 0
-        signals = []
-        metadata = {}
-        
-        if len(self.tsi_values) < 10 or len(self.close_values) < 10:
-            return {'strength': 0, 'confidence': 0, 'signals': [], 'metadata': {}}
-        
-        # Find recent peaks and troughs
-        tsi_recent = self.tsi_values[-10:]
-        price_recent = self.close_values[-10:]
-        
-        # Simple peak/trough detection
-        tsi_peaks = []
-        tsi_troughs = []
-        price_peaks = []
-        price_troughs = []
-        
-        for i in range(1, len(tsi_recent) - 1):
-            if tsi_recent[i] > tsi_recent[i-1] and tsi_recent[i] > tsi_recent[i+1]:
-                tsi_peaks.append(tsi_recent[i])
-                price_peaks.append(price_recent[i])
-            elif tsi_recent[i] < tsi_recent[i-1] and tsi_recent[i] < tsi_recent[i+1]:
-                tsi_troughs.append(tsi_recent[i])
-                price_troughs.append(price_recent[i])
-        
-        # Bullish divergence
-        if len(tsi_troughs) >= 2 and len(price_troughs) >= 2:
-            if (price_troughs[-1] < price_troughs[-2] and 
-                tsi_troughs[-1] > tsi_troughs[-2]):
-                strength = 0.4
-                confidence = 0.6
-                signals.append("BULLISH_DIVERGENCE")
-                metadata['divergence_type'] = 'bullish'
-        
-        # Bearish divergence
-        if len(tsi_peaks) >= 2 and len(price_peaks) >= 2:
-            if (price_peaks[-1] > price_peaks[-2] and 
-                tsi_peaks[-1] < tsi_peaks[-2]):
-                strength = -0.4
-                confidence = 0.6
-                signals.append("BEARISH_DIVERGENCE")
-                metadata['divergence_type'] = 'bearish'
-        
-        # Hidden divergence
-        if len(tsi_troughs) >= 2 and len(price_troughs) >= 2:
-            if (price_troughs[-1] > price_troughs[-2] and 
-                tsi_troughs[-1] < tsi_troughs[-2]):
-                signals.append("HIDDEN_BULLISH_DIVERGENCE")
-                strength += 0.2
-        
-        metadata['tsi_peaks_count'] = len(tsi_peaks)
-        metadata['tsi_troughs_count'] = len(tsi_troughs)
-        
-        return {
-            'strength': strength,
-            'confidence': confidence,
-            'signals': signals,
-            'metadata': metadata
-        }
-    
-    def _analyze_patterns(self) -> Dict:
-        """Analyze TSI chart patterns"""
-        strength = 0
-        confidence = 0
-        signals = []
-        metadata = {}
-        
-        if len(self.tsi_values) < 15:
-            return {'strength': 0, 'confidence': 0, 'signals': [], 'metadata': {}}
-        
-        recent_tsi = self.tsi_values[-15:]
-        
-        # Double top/bottom detection
-        peaks = []
-        troughs = []
-        
-        for i in range(1, len(recent_tsi) - 1):
-            if recent_tsi[i] > recent_tsi[i-1] and recent_tsi[i] > recent_tsi[i+1]:
-                peaks.append((i, recent_tsi[i]))
-            elif recent_tsi[i] < recent_tsi[i-1] and recent_tsi[i] < recent_tsi[i+1]:
-                troughs.append((i, recent_tsi[i]))
-        
-        # Double top pattern
-        if len(peaks) >= 2:
-            last_peaks = peaks[-2:]
-            if (abs(last_peaks[0][1] - last_peaks[1][1]) < 5 and  # Similar heights
-                last_peaks[0][1] > self.config.overbought_level):
-                strength = -0.3
-                confidence = 0.5
-                signals.append("DOUBLE_TOP_PATTERN")
-                metadata['pattern'] = 'double_top'
-        
-        # Double bottom pattern
-        if len(troughs) >= 2:
-            last_troughs = troughs[-2:]
-            if (abs(last_troughs[0][1] - last_troughs[1][1]) < 5 and  # Similar depths
-                last_troughs[0][1] < self.config.oversold_level):
-                strength = 0.3
-                confidence = 0.5
-                signals.append("DOUBLE_BOTTOM_PATTERN")
-                metadata['pattern'] = 'double_bottom'
-        
-        # Channel analysis
-        max_tsi = max(recent_tsi)
-        min_tsi = min(recent_tsi)
-        range_tsi = max_tsi - min_tsi
-        
-        if range_tsi < 20:  # Narrow range/consolidation
-            signals.append("CONSOLIDATION_PATTERN")
-            metadata['range_type'] = 'narrow'
-        elif range_tsi > 60:  # Wide range/volatile
-            signals.append("VOLATILE_PATTERN")
-            metadata['range_type'] = 'wide'
-        
-        # Trend channel analysis
-        if len(self.tsi_values) >= 10:
-            trend_slope = (self.tsi_values[-1] - self.tsi_values[-10]) / 10
-            if abs(trend_slope) > 2:
-                if trend_slope > 0:
-                    signals.append("STRONG_UPTREND_CHANNEL")
-                else:
-                    signals.append("STRONG_DOWNTREND_CHANNEL")
-                strength += 0.2 * (1 if trend_slope > 0 else -1)
-        
-        metadata['pattern_peaks'] = len(peaks)
-        metadata['pattern_troughs'] = len(troughs)
-        metadata['tsi_range'] = range_tsi
-        
-        return {
-            'strength': strength,
-            'confidence': confidence,
-            'signals': signals,
-            'metadata': metadata
-        }
-    
-    def _analyze_volatility_context(self, tsi: float, volume: Optional[float]) -> Dict:
-        """Analyze TSI in volatility context"""
-        multiplier = 1.0
-        confidence_adj = 0
-        signals = []
-        metadata = {}
-        
-        # TSI volatility analysis
-        if len(self.tsi_values) >= 20:
-            recent_volatility = np.std(self.tsi_values[-10:])
-            historical_volatility = np.std(self.tsi_values[-20:])
+        for i in range(1, len(tsi)):
+            if (np.isnan(tsi[i]) or np.isnan(signal_line[i]) or 
+                np.isnan(tsi[i-1]) or np.isnan(signal_line[i-1])):
+                continue
             
-            volatility_ratio = recent_volatility / historical_volatility if historical_volatility > 0 else 1
+            # TSI crosses above signal line
+            if tsi[i-1] <= signal_line[i-1] and tsi[i] > signal_line[i]:
+                signals[i] = 1
             
-            if volatility_ratio > 1.5:
-                signals.append("HIGH_TSI_VOLATILITY")
-                multiplier *= 0.9
-                metadata['volatility_regime'] = 'high'
-            elif volatility_ratio < 0.7:
-                signals.append("LOW_TSI_VOLATILITY")
-                multiplier *= 1.1
-                metadata['volatility_regime'] = 'low'
-            else:
-                metadata['volatility_regime'] = 'normal'
+            # TSI crosses below signal line
+            elif tsi[i-1] >= signal_line[i-1] and tsi[i] < signal_line[i]:
+                signals[i] = -1
             
-            metadata['volatility_ratio'] = volatility_ratio
+            # Zero line crossovers
+            elif tsi[i-1] <= 0 and tsi[i] > 0:
+                signals[i] = 0.5  # Weak buy
+            elif tsi[i-1] >= 0 and tsi[i] < 0:
+                signals[i] = -0.5  # Weak sell
         
-        # Volume confirmation
-        if volume is not None and volume > 0:
-            if abs(tsi) > 30:  # Strong TSI readings
-                if volume > 1.5:  # High volume
-                    multiplier *= 1.1
-                    confidence_adj = 0.1
-                    signals.append("VOLUME_CONFIRMED_TSI")
-                else:
-                    signals.append("LOW_VOLUME_TSI_EXTREME")
+        return signals
+    
+    def _calculate_metrics(self, tsi: np.ndarray, signal_line: np.ndarray, histogram: np.ndarray) -> Dict:
+        """Calculate additional TSI metrics."""
+        valid_tsi = tsi[~np.isnan(tsi)]
+        valid_histogram = histogram[~np.isnan(histogram)]
         
-        # Smoothing effectiveness
-        if len(self.momentum_ema2) >= 2:
-            raw_momentum_change = abs(self.momentum_values[-1] - self.momentum_values[-2]) if len(self.momentum_values) >= 2 else 0
-            smoothed_change = abs(self.momentum_ema2[-1] - self.momentum_ema2[-2])
-            
-            if raw_momentum_change > 0:
-                smoothing_ratio = smoothed_change / raw_momentum_change
-                if smoothing_ratio < 0.5:
-                    signals.append("EFFECTIVE_NOISE_FILTERING")
-                    confidence_adj += 0.05
-                    
-        metadata['volatility_multiplier'] = multiplier
+        if len(valid_tsi) == 0:
+            return {}
+        
+        # Momentum analysis
+        positive_momentum = np.sum(valid_tsi > 0) / len(valid_tsi) * 100
+        negative_momentum = np.sum(valid_tsi < 0) / len(valid_tsi) * 100
+        
+        # Signal line relationship
+        above_signal = np.sum(tsi > signal_line) / len(valid_tsi) * 100
+        
+        # Histogram analysis
+        if len(valid_histogram) > 0:
+            histogram_trend = np.mean(np.diff(valid_histogram[-min(5, len(valid_histogram)):]))
+        else:
+            histogram_trend = 0
         
         return {
-            'multiplier': multiplier,
-            'confidence_adj': confidence_adj,
-            'signals': signals,
-            'metadata': metadata
+            'current_tsi': tsi[-1] if not np.isnan(tsi[-1]) else None,
+            'current_signal': signal_line[-1] if not np.isnan(signal_line[-1]) else None,
+            'current_histogram': histogram[-1] if not np.isnan(histogram[-1]) else None,
+            'positive_momentum_pct': positive_momentum,
+            'negative_momentum_pct': negative_momentum,
+            'above_signal_pct': above_signal,
+            'histogram_trend': histogram_trend,
+            'tsi_volatility': np.std(valid_tsi),
+            'mean_tsi': np.mean(valid_tsi)
         }
     
-    def get_current_value(self) -> float:
-        """Get the current TSI value"""
-        return self.tsi_values[-1] if self.tsi_values else 0
-    
-    def get_signal_line_value(self) -> float:
-        """Get the current signal line value"""
-        return self.signal_values[-1] if self.signal_values else 0
-    
-    def get_signal_strength(self) -> float:
-        """Get current signal strength"""
-        if not self.tsi_values:
-            return 0
+    def _interpret_signals(self, current_tsi: float, current_signal: float, signal: float) -> str:
+        """Provide human-readable interpretation."""
+        if np.isnan(current_tsi):
+            return "Insufficient data for TSI calculation"
         
-        tsi = self.tsi_values[-1]
-        
-        # Normalize TSI to -1 to 1 range
-        if tsi > self.config.extreme_overbought:
-            return -1
-        elif tsi > self.config.overbought_level:
-            return -0.5
-        elif tsi < self.config.extreme_oversold:
-            return 1
-        elif tsi < self.config.oversold_level:
-            return 0.5
+        if current_tsi > current_signal:
+            momentum = "BULLISH"
         else:
-            return tsi / 50  # Normalize around zero
-    
-    def validate_data(self, high: float, low: float, close: float, 
-                     volume: Optional[float] = None) -> ValidationResult:
-        """Validate input data for TSI calculation"""
-        if high < 0 or low < 0 or close < 0:
-            return ValidationResult(False, "Price values cannot be negative")
+            momentum = "BEARISH"
         
-        if high < low:
-            return ValidationResult(False, "High price cannot be less than low price")
+        if current_tsi > 25:
+            strength = "STRONG POSITIVE"
+        elif current_tsi > 0:
+            strength = "POSITIVE"
+        elif current_tsi < -25:
+            strength = "STRONG NEGATIVE"
+        else:
+            strength = "NEGATIVE"
         
-        if close < low or close > high:
-            return ValidationResult(False, "Close price must be between low and high")
+        signal_desc = {
+            1: "BUY signal (TSI crosses above signal)",
+            0.5: "Weak BUY (zero line cross)",
+            -0.5: "Weak SELL (zero line cross)",
+            -1: "SELL signal (TSI crosses below signal)",
+            0: "No signal"
+        }.get(signal, "No signal")
         
-        if volume is not None and volume < 0:
-            return ValidationResult(False, "Volume cannot be negative")
-        
-        return ValidationResult(True, "Data validation passed")
+        return f"TSI: {current_tsi:.2f} ({strength}, {momentum}) - {signal_desc}"
 
-def test_tsi():
-    """Test TSI implementation with sample data"""
-    config = TSIConfig(
-        long_period=25, 
-        short_period=13, 
-        signal_period=7,
-        enable_divergence=True, 
-        enable_pattern_recognition=True,
-        enable_signal_line=True
-    )
-    tsi = TrueStrengthIndex(config)
-    
-    # Test with sample EURUSD data
-    test_data = [
-        # (High, Low, Close, Volume)
-        (1.1050, 1.1000, 1.1025, 1000),
-        (1.1075, 1.1020, 1.1060, 1200),
-        (1.1080, 1.1030, 1.1070, 1100),
-        (1.1090, 1.1040, 1.1085, 1300),
-        (1.1100, 1.1050, 1.1095, 1400),
-        (1.1120, 1.1070, 1.1110, 1500),
-        (1.1140, 1.1090, 1.1130, 1600),
-        (1.1160, 1.1110, 1.1150, 1700),
-        (1.1180, 1.1130, 1.1170, 1800),
-        (1.1200, 1.1150, 1.1190, 1900),
-        (1.1220, 1.1170, 1.1210, 2000),
-        (1.1240, 1.1190, 1.1230, 2100),
-        (1.1260, 1.1210, 1.1250, 2200),
-        (1.1280, 1.1230, 1.1270, 2300),
-        (1.1300, 1.1250, 1.1290, 2400),
-        (1.1320, 1.1270, 1.1310, 2500),
-        (1.1340, 1.1290, 1.1330, 2600),
-        (1.1360, 1.1310, 1.1350, 2700),
-        (1.1380, 1.1330, 1.1370, 2800),
-        (1.1400, 1.1350, 1.1390, 2900),
-        # Some retracement
-        (1.1380, 1.1320, 1.1340, 3000),
-        (1.1360, 1.1300, 1.1320, 3100),
-        (1.1340, 1.1280, 1.1300, 3200),
-        (1.1320, 1.1260, 1.1280, 3300),
-        (1.1300, 1.1240, 1.1260, 3400),
-        # Recovery
-        (1.1310, 1.1250, 1.1280, 3500),
-        (1.1320, 1.1270, 1.1300, 3600),
-        (1.1340, 1.1290, 1.1320, 3700),
-        (1.1360, 1.1310, 1.1350, 3800),
-        (1.1380, 1.1330, 1.1370, 3900),
-    ]
-    
-    print("Testing True Strength Index (TSI)")
-    print("=" * 60)
-    
-    for i, (high, low, close, volume) in enumerate(test_data):
-        signal = tsi.calculate(high, low, close, volume, f"2024-01-{i+1:02d}")
-        
-        print(f"Day {i+1:2d}: TSI={tsi.get_current_value():7.2f} | "
-              f"Signal={tsi.get_signal_line_value():7.2f} | "
-              f"Signal={signal.signal:8s} | Strength={signal.strength:6.2f} | "
-              f"Confidence={signal.confidence:5.2f}")
-        
-        if signal.metadata.get('component_signals'):
-            signals_display = ', '.join(signal.metadata['component_signals'][:2])
-            print(f"         Signals: {signals_display}")
-    
-    print(f"\nFinal TSI Value: {tsi.get_current_value():.2f}")
-    print(f"Final Signal Line: {tsi.get_signal_line_value():.2f}")
-    print(f"Signal Strength: {tsi.get_signal_strength():.2f}")
 
-if __name__ == "__main__":
-    test_tsi()
+def create_tsi(first_smoothing: int = 25, **kwargs) -> TrueStrengthIndex:
+    """Factory function to create TSI indicator."""
+    return TrueStrengthIndex(first_smoothing=first_smoothing, **kwargs)

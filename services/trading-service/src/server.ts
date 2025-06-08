@@ -11,6 +11,33 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import Decimal from 'decimal.js';
 import axios from 'axios';
+import { PythonEngineClient } from '../../../shared/PythonEngineClient';
+// Python Engine Communication Interface
+interface PythonEngineResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+
+interface TradingSignal {
+  symbol: string;
+  action: 'buy' | 'sell' | 'hold';
+  confidence: number;
+  price: number;
+  stopLoss?: number;
+  takeProfit?: number;
+  riskLevel: 'low' | 'medium' | 'high';
+  indicators: any[];
+}
+
+// Initialize Python Engine Client
+const pythonEngine = new PythonEngineClient({
+  baseURL: process.env.PYTHON_ENGINE_URL || 'http://localhost:8000',
+  timeout: 5000,
+  maxRetries: 3,
+  enableHealthChecks: true,
+  websocketURL: process.env.PYTHON_WS_URL || 'ws://localhost:8000/ws'
+});
 
 dotenv.config();
 
@@ -413,7 +440,7 @@ app.get('/api/v1/market/:symbol', async (req: Request, res: Response): Promise<v
   }
 });
 
-// Create order
+// Create order with AI assistance
 app.post('/api/v1/orders', authenticateToken, tradingLimiter, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (!req.user) {
@@ -457,6 +484,53 @@ app.post('/api/v1/orders', authenticateToken, tradingLimiter, async (req: AuthRe
     }
 
     const pair = pairResult.rows[0];
+
+    // Get AI trading signal for validation
+    try {
+      const aiSignal = await pythonEngine.getTradingSignals({
+        symbol: pair.symbol,
+        timeframe: '1h',
+        current_price: price || 0,
+        risk_level: 'medium'
+      });
+      
+      if (aiSignal && aiSignal.action !== 'hold') {
+        logger.info(`AI Signal received: ${aiSignal.action} ${pair.symbol} (confidence: ${aiSignal.confidence})`);
+        
+        // If AI signal conflicts with user order, warn but don't block
+        if (aiSignal.action !== side) {
+          logger.warn(`User order conflicts with AI signal: User wants ${side}, AI suggests ${aiSignal.action}`);
+        }
+      }
+    } catch (error) {
+      logger.warn('Failed to get AI signal:', error.message);
+    }
+
+    // Validate risk with Python engine
+    try {
+      const riskAssessment = await pythonEngine.getRiskAssessment({
+        symbol: pair.symbol,
+        position_size: size,
+        account_balance: parseFloat(account.balance),
+        existing_positions: [],
+        market_conditions: {}
+      });
+      
+      if (riskAssessment.risk_level === 'extreme') {
+        res.status(400).json({ 
+          error: 'Trade rejected by risk management system',
+          risk_level: riskAssessment.risk_level,
+          warnings: riskAssessment.warnings
+        });
+        return;
+      }
+    } catch (error) {
+      logger.warn('Risk assessment failed, proceeding with caution:', error.message);
+    }
+        aiSignal: aiSignal ? { action: aiSignal.action, confidence: aiSignal.confidence } : null
+      });
+      return;
+    }
 
     // Get current market price
     const marketData = await getMarketData(pair.symbol);
@@ -528,19 +602,22 @@ app.post('/api/v1/orders', authenticateToken, tradingLimiter, async (req: AuthRe
       [req.user.id, 'order_created', 'order', orderId, JSON.stringify(newOrder), req.ip, req.get('User-Agent')]
     );
 
-    logger.info('Order created', { 
+    logger.info('Order created with AI validation', { 
       userId: req.user.id, 
       orderId, 
       symbol: pair.symbol,
       type,
       side,
       size,
+      aiSignal: aiSignal ? { action: aiSignal.action, confidence: aiSignal.confidence } : null,
+      riskApproved,
       ip: req.ip 
     });
 
     res.status(201).json({
       success: true,
       data: newOrder,
+      aiSignal: aiSignal ? { action: aiSignal.action, confidence: aiSignal.confidence, riskLevel: aiSignal.riskLevel } : null,
       message: 'Order created successfully'
     });
 
@@ -777,6 +854,71 @@ app.put('/api/v1/positions/:positionId', authenticateToken, async (req: AuthRequ
 
   } catch (error) {
     logger.error('Modify position error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get AI trading signals
+app.get('/api/v1/signals/:symbol', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    const { symbol } = req.params;
+    
+    // Get user's default trading account
+    const accountResult = await pool.query(
+      'SELECT id FROM trading_accounts WHERE user_id = $1 AND account_type = $2',
+      [req.user.id, 'demo']
+    );
+
+    if (accountResult.rows.length === 0) {
+      res.status(404).json({ error: 'Trading account not found' });
+      return;
+    }
+
+    const account = accountResult.rows[0];
+
+    // Get AI trading signal
+    try {
+      const aiSignal = await pythonEngine.getTradingSignals({
+        symbol,
+        timeframe: '1h',
+        current_price: 0, // Would be populated from market data
+        risk_level: 'medium'
+      });
+      
+      if (!aiSignal) {
+        res.status(503).json({ error: 'AI signal unavailable' });
+        return;
+      }
+
+      // Get additional AI analysis
+      const aiAnalysis = await pythonEngine.getMarketAnalysis({
+        symbol,
+        timeframe: '1h',
+        indicators: ['rsi', 'macd', 'bollinger', 'sma', 'ema']
+      });
+
+      res.json({
+        success: true,
+        data: {
+          signal: aiSignal,
+          analysis: aiAnalysis,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      logger.error('Failed to get AI signals:', error);
+      res.status(503).json({ error: 'AI signal service unavailable' });
+    }
+      }
+    });
+
+  } catch (error) {
+    logger.error('Get AI signals error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

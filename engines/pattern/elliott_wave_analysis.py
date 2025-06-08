@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Elliott Wave Analysis - Advanced Pattern Recognition
 Implements Ralph Nelson Elliott's Wave Principle for identifying market cycles and trends.
@@ -869,7 +870,7 @@ def test_elliott_wave_analysis():
             print("Strong Fibonacci Relationships:")
             for rel in fib_analysis['strong_relationships'][:3]:
                 print(f"  {rel['relationship']}: {rel['actual_ratio']:.3f} "
-                     f"≈ {rel['fibonacci_ratio']:.3f} (deviation: {rel['deviation']:.3f})")
+                     f"~= {rel['fibonacci_ratio']:.3f} (deviation: {rel['deviation']:.3f})")
     
     # Validate Elliott Wave rules were applied
     print(f"\n=== Elliott Wave Validation ===")

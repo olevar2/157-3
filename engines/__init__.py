@@ -1,3 +1,12 @@
+from shared.logging.platform3_logger import Platform3Logger
+from shared.error_handling.platform3_error_system import Platform3ErrorSystem, ServiceError
+from shared.database.platform3_database_manager import Platform3DatabaseManager
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
+import asyncio
+import numpy as np
+from typing import Dict, List, Any, Optional, Union
+from datetime import datetime, timedelta
+import time
 """
 Platform3 Advanced Trading Engines
 ===================================
@@ -22,7 +31,7 @@ __purpose__ = "Humanitarian Profit Generation Through Mathematical Precision"
 # Import from actual implementations
 try:
     from engines.gann.GannAnglesCalculator import GannAnglesCalculator
-    from engines.gann.GannSquareOfNine import GannSquareOfNine
+    from engines.gann.gann_square_of_nine import GannSquareOfNine
     from engines.gann.GannFanAnalysis import GannFanAnalysis
     from engines.gann.GannTimePrice import GannTimePrice
     from engines.gann.GannPatternDetector import GannPatternDetector
@@ -32,6 +41,7 @@ except ImportError as e:
 try:
     from engines.fibonacci.FibonacciRetracement import FibonacciRetracement
     from engines.fibonacci.FibonacciExtension import FibonacciExtension
+    from engines.fibonacci.FibonacciFan import FibonacciFanIndicator
     from engines.fibonacci.ConfluenceDetector import ConfluenceDetector
     from engines.fibonacci.TimeZoneAnalysis import TimeZoneAnalysis
     from engines.fibonacci.ProjectionArcCalculator import ProjectionArcCalculator
@@ -39,9 +49,19 @@ except ImportError as e:
     print(f"Warning: Fibonacci indicators not available: {e}")
 
 try:
-    from engines.indicators.momentum.RSI import RSI
-    from engines.indicators.momentum.MACD import MACD
-    from engines.indicators.momentum.Stochastic import Stochastic
+    from engines.ml_advanced.neural_network_predictor import NeuralNetworkPredictor
+    from engines.ml_advanced.genetic_algorithm_optimizer import GeneticAlgorithmOptimizer
+except ImportError as e:
+    print(f"Warning: ML Advanced indicators not available: {e}")
+
+try:
+    from engines.momentum.rsi import RelativeStrengthIndex as RSI
+    from engines.momentum.macd import MovingAverageConvergenceDivergence as MACD
+    from engines.momentum.stochastic import StochasticOscillator as Stochastic
+    from engines.momentum.correlation_momentum import (
+        DynamicCorrelationIndicator,
+        RelativeMomentumIndicator
+    )
 except ImportError as e:
     print(f"Warning: Technical indicators not available: {e}")
 
@@ -56,12 +76,18 @@ __all__ = [
     # Fibonacci Analysis
     'FibonacciRetracement',
     'FibonacciExtension',
+    'FibonacciFanIndicator',
     'ConfluenceDetector',
     'TimeZoneAnalysis',
     'ProjectionArcCalculator',
     
-    # Technical Indicators
+    # ML Advanced Analysis
+    'NeuralNetworkPredictor',
+    'GeneticAlgorithmOptimizer',
+      # Technical Indicators
     'RSI',
     'MACD',
     'Stochastic',
+    'DynamicCorrelationIndicator',
+    'RelativeMomentumIndicator',
 ]

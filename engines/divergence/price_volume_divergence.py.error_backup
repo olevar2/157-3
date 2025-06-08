@@ -1,0 +1,809 @@
+"""
+Price-Volume Divergence - Price vs Volume Direction Conflicts
+Critical for volume confirmation and early reversal detection
+"""
+
+import numpy as np
+import pandas as pd
+from typing import Dict, List, Optional, Tuple, Union
+from ..indicator_base import IndicatorBase
+
+# Platform3 Winston-style Logging Integration
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+from logging.platform3_logger import Platform3Logger, log_performance, LogMetadata
+
+class PriceVolumeDivergence(IndicatorBase):
+    """
+    Price-Volume Divergence - Price vs Volume Direction Conflicts
+    
+    Detects divergences between price movement and volume patterns to identify:
+    - Weakening trends (price up, volume down)
+    - Potential reversals (price making new highs/lows without volume confirmation)
+    - Volume climax patterns
+    - Accumulation/distribution phases
+    
+    Types of Divergences:
+    - Bullish Divergence: Price makes lower lows, volume shows strength
+    - Bearish Divergence: Price makes higher highs, volume weakens
+    - Hidden Divergence: Trend continuation with volume confirmation
+    - Volume Climax: Extreme volume with price exhaustion
+    """
+    
+    def __init__(self, 
+                 price_period: int = 14,
+                 volume_period: int = 14,
+                 divergence_sensitivity: float = 0.02,
+                 volume_ma_type: str = 'sma'):
+        """
+        Initialize Price-Volume Divergence
+        
+        Args:
+            price_period: Period for price momentum calculation
+            volume_period: Period for volume analysis
+            divergence_sensitivity: Sensitivity for divergence detection
+            volume_ma_type: Type of moving average for volume ('sma', 'ema')
+        """
+        super().__init__()
+        self.price_period = price_period
+        self.volume_period = volume_period
+        self.divergence_sensitivity = divergence_sensitivity
+        self.volume_ma_type = volume_ma_type
+        
+        # State tracking
+        self.price_history = []
+        self.volume_history = []
+        self.divergences = []
+        
+    def calculate(self, 
+                 data: Union[pd.DataFrame, Dict],
+                 price_column: str = 'close',
+                 volume_column: str = 'volume') -> Dict:
+        """
+        Calculate Price-Volume Divergence analysis
+        
+        Args:
+            data: Price and volume data
+            price_column: Column name for price data
+            volume_column: Column name for volume data
+            
+        Returns:
+            Dict containing divergence analysis
+        """
+        try:
+            # Extract data
+            if isinstance(data, pd.DataFrame):
+                prices = data[price_column].values
+                volumes = data[volume_column].values
+                highs = data.get('high', prices).values if 'high' in data.columns else prices
+                lows = data.get('low', prices).values if 'low' in data.columns else prices
+                timestamps = data.index if hasattr(data, 'index') else range(len(prices))
+            else:
+                prices = data.get(price_column, [])
+                volumes = data.get(volume_column, [])
+                highs = data.get('high', prices)
+                lows = data.get('low', prices)
+                timestamps = data.get('timestamp', range(len(prices)))
+            
+            if len(prices) < max(self.price_period, self.volume_period) or len(volumes) != len(prices):
+                return self._empty_result()
+            
+            # Calculate price momentum
+            price_momentum = self._calculate_price_momentum(prices)
+            
+            # Calculate volume analysis
+            volume_analysis = self._calculate_volume_analysis(volumes, prices)
+            
+            # Detect divergences
+            divergences = self._detect_divergences(prices, highs, lows, volumes, price_momentum, volume_analysis)
+            
+            # Analyze volume patterns
+            volume_patterns = self._analyze_volume_patterns(volumes, prices)
+            
+            # Generate signals
+            signals = self._generate_signals(divergences, volume_patterns, price_momentum, volume_analysis)
+            
+            # Calculate statistics
+            statistics = self._calculate_statistics(divergences, volume_patterns)
+            
+            return {
+                'price_momentum': price_momentum,
+                'volume_analysis': volume_analysis,
+                'divergences': divergences,
+                'volume_patterns': volume_patterns,
+                'signals': signals,
+                'statistics': statistics,
+                'current_analysis': self._get_current_analysis(prices, volumes, divergences),
+                'strength_analysis': self._analyze_trend_strength(price_momentum, volume_analysis),
+                'timestamp': timestamps[-1] if timestamps else None,
+                'price_period': self.price_period,
+                'volume_period': self.volume_period,
+                'indicator_name': 'Price-Volume Divergence'
+            }
+            
+        except Exception as e:
+            return {'error': f"Price-Volume Divergence calculation failed: {str(e)}"}
+    
+    def _calculate_price_momentum(self, prices: List[float]) -> List[Dict]:
+        """Calculate price momentum indicators"""
+        momentum_data = []
+        
+        for i in range(len(prices)):
+            if i >= self.price_period - 1:
+                # Price change over period
+                period_change = (prices[i] - prices[i - self.price_period + 1]) / prices[i - self.price_period + 1] * 100
+                
+                # Short-term momentum (last 3 periods)
+                short_periods = min(3, i + 1)
+                if i >= short_periods - 1:
+                    short_change = (prices[i] - prices[i - short_periods + 1]) / prices[i - short_periods + 1] * 100
+                else:
+                    short_change = 0
+                
+                # Momentum direction
+                momentum_direction = 'UP' if period_change > 0 else 'DOWN' if period_change < 0 else 'FLAT'
+                
+                momentum_data.append({
+                    'period_change': period_change,
+                    'short_change': short_change,
+                    'direction': momentum_direction,
+                    'strength': abs(period_change),
+                    'acceleration': short_change - period_change / self.price_period
+                })
+            else:
+                momentum_data.append({
+                    'period_change': 0,
+                    'short_change': 0,
+                    'direction': 'FLAT',
+                    'strength': 0,
+                    'acceleration': 0
+                })
+        
+        return momentum_data
+    
+    def _calculate_volume_analysis(self, volumes: List[float], prices: List[float]) -> List[Dict]:
+        """Calculate comprehensive volume analysis"""
+        volume_analysis = []
+        
+        # Calculate volume moving average
+        volume_ma = self._calculate_volume_ma(volumes)
+        
+        for i in range(len(volumes)):
+            if i >= self.volume_period - 1:
+                # Volume relative to average
+                current_vol = volumes[i]
+                avg_vol = volume_ma[i]
+                vol_ratio = current_vol / avg_vol if avg_vol > 0 else 1
+                
+                # Volume trend
+                recent_vols = volumes[max(0, i - 5):i + 1]
+                vol_trend = self._calculate_volume_trend(recent_vols)
+                
+                # Price-volume relationship
+                if i > 0:
+                    price_change = prices[i] - prices[i - 1]
+                    vol_change = volumes[i] - volumes[i - 1]
+                    
+                    # Categorize the relationship
+                    price_up = price_change > 0
+                    vol_up = vol_change > 0
+                    
+                    if price_up and vol_up:
+                        pv_relationship = 'BULLISH_CONFIRMED'
+                    elif not price_up and not vol_up:
+                        pv_relationship = 'BEARISH_CONFIRMED'
+                    elif price_up and not vol_up:
+                        pv_relationship = 'BULLISH_UNCONFIRMED'
+                    else:
+                        pv_relationship = 'BEARISH_UNCONFIRMED'
+                else:
+                    pv_relationship = 'NEUTRAL'
+                
+                volume_analysis.append({
+                    'volume': current_vol,
+                    'volume_ma': avg_vol,
+                    'volume_ratio': vol_ratio,
+                    'volume_trend': vol_trend,
+                    'pv_relationship': pv_relationship,
+                    'volume_strength': self._classify_volume_strength(vol_ratio),
+                    'relative_volume': (vol_ratio - 1) * 100
+                })
+            else:
+                volume_analysis.append({
+                    'volume': volumes[i] if i < len(volumes) else 0,
+                    'volume_ma': volumes[i] if i < len(volumes) else 0,
+                    'volume_ratio': 1,
+                    'volume_trend': 'NEUTRAL',
+                    'pv_relationship': 'NEUTRAL',
+                    'volume_strength': 'NORMAL',
+                    'relative_volume': 0
+                })
+        
+        return volume_analysis
+    
+    def _calculate_volume_ma(self, volumes: List[float]) -> List[float]:
+        """Calculate volume moving average"""
+        if self.volume_ma_type == 'ema':
+            return self._calculate_ema(volumes, self.volume_period)
+        else:
+            return self._calculate_sma(volumes, self.volume_period)
+    
+    def _calculate_sma(self, data: List[float], period: int) -> List[float]:
+        """Calculate Simple Moving Average"""
+        sma = []
+        for i in range(len(data)):
+            if i >= period - 1:
+                window = data[max(0, i - period + 1):i + 1]
+                sma.append(np.mean(window))
+            else:
+                sma.append(data[i])
+        return sma
+    
+    def _calculate_ema(self, data: List[float], period: int) -> List[float]:
+        """Calculate Exponential Moving Average"""
+        alpha = 2 / (period + 1)
+        ema = []
+        current_ema = data[0] if data else 0
+        
+        for value in data:
+            current_ema = alpha * value + (1 - alpha) * current_ema
+            ema.append(current_ema)
+        
+        return ema
+    
+    def _calculate_volume_trend(self, recent_volumes: List[float]) -> str:
+        """Calculate volume trend direction"""
+        if len(recent_volumes) < 3:
+            return 'NEUTRAL'
+        
+        # Linear regression on recent volumes
+        x = np.arange(len(recent_volumes))
+        try:
+            slope, _ = np.polyfit(x, recent_volumes, 1)
+            if slope > 0:
+                return 'INCREASING'
+            elif slope < 0:
+                return 'DECREASING'
+            else:
+                return 'FLAT'
+        except:
+            return 'NEUTRAL'
+    
+    def _classify_volume_strength(self, volume_ratio: float) -> str:
+        """Classify volume strength"""
+        if volume_ratio >= 2.0:
+            return 'VERY_HIGH'
+        elif volume_ratio >= 1.5:
+            return 'HIGH'
+        elif volume_ratio >= 1.2:
+            return 'ABOVE_AVERAGE'
+        elif volume_ratio >= 0.8:
+            return 'NORMAL'
+        elif volume_ratio >= 0.5:
+            return 'LOW'
+        else:
+            return 'VERY_LOW'
+    
+    def _detect_divergences(self, prices: List[float], highs: List[float], lows: List[float],
+                           volumes: List[float], price_momentum: List[Dict], volume_analysis: List[Dict]) -> List[Dict]:
+        """Detect various types of price-volume divergences"""
+        divergences = []
+        
+        if len(prices) < self.price_period * 2:
+            return divergences
+        
+        # Look for divergences over recent periods
+        lookback = min(20, len(prices) // 2)
+        
+        for i in range(self.price_period, len(prices)):
+            # Check for classical divergences
+            classical_div = self._check_classical_divergence(
+                prices, volumes, price_momentum, volume_analysis, i, lookback
+            )
+            if classical_div:
+                divergences.append(classical_div)
+            
+            # Check for hidden divergences
+            hidden_div = self._check_hidden_divergence(
+                prices, volumes, price_momentum, volume_analysis, i, lookback
+            )
+            if hidden_div:
+                divergences.append(hidden_div)
+            
+            # Check for volume climax
+            climax = self._check_volume_climax(prices, volumes, volume_analysis, i)
+            if climax:
+                divergences.append(climax)
+        
+        return divergences[-10:]  # Keep last 10 divergences
+    
+    def _check_classical_divergence(self, prices: List[float], volumes: List[float],
+                                   price_momentum: List[Dict], volume_analysis: List[Dict],
+                                   current_index: int, lookback: int) -> Optional[Dict]:
+        """Check for classical price-volume divergences"""
+        start_index = max(0, current_index - lookback)
+        
+        # Get recent price and volume data
+        recent_prices = prices[start_index:current_index + 1]
+        recent_volumes = volumes[start_index:current_index + 1]
+        recent_momentum = price_momentum[start_index:current_index + 1]
+        recent_vol_analysis = volume_analysis[start_index:current_index + 1]
+        
+        if len(recent_prices) < 5:
+            return None
+        
+        # Find price extremes
+        price_highs = []
+        price_lows = []
+        
+        for i in range(2, len(recent_prices) - 2):
+            # Local high
+            if recent_prices[i] > recent_prices[i-1] and recent_prices[i] > recent_prices[i+1]:
+                price_highs.append((start_index + i, recent_prices[i]))
+            
+            # Local low
+            if recent_prices[i] < recent_prices[i-1] and recent_prices[i] < recent_prices[i+1]:
+                price_lows.append((start_index + i, recent_prices[i]))
+        
+        # Check for bearish divergence (higher highs with weaker volume)
+        if len(price_highs) >= 2:
+            last_high = price_highs[-1]
+            prev_high = price_highs[-2]
+            
+            if last_high[1] > prev_high[1]:  # Higher high in price
+                # Check volume at these points
+                last_vol_strength = volume_analysis[last_high[0]]['volume_ratio']
+                prev_vol_strength = volume_analysis[prev_high[0]]['volume_ratio']
+                
+                if last_vol_strength < prev_vol_strength * (1 - self.divergence_sensitivity):
+                    return {
+                        'type': 'BEARISH_DIVERGENCE',
+                        'index': current_index,
+                        'price_high1': prev_high[1],
+                        'price_high2': last_high[1],
+                        'volume_strength1': prev_vol_strength,
+                        'volume_strength2': last_vol_strength,
+                        'strength': (prev_vol_strength - last_vol_strength) / prev_vol_strength * 100,
+                        'reliability': 'HIGH' if last_vol_strength < prev_vol_strength * 0.8 else 'MEDIUM'
+                    }
+        
+        # Check for bullish divergence (lower lows with stronger volume)
+        if len(price_lows) >= 2:
+            last_low = price_lows[-1]
+            prev_low = price_lows[-2]
+            
+            if last_low[1] < prev_low[1]:  # Lower low in price
+                # Check volume at these points
+                last_vol_strength = volume_analysis[last_low[0]]['volume_ratio']
+                prev_vol_strength = volume_analysis[prev_low[0]]['volume_ratio']
+                
+                if last_vol_strength > prev_vol_strength * (1 + self.divergence_sensitivity):
+                    return {
+                        'type': 'BULLISH_DIVERGENCE',
+                        'index': current_index,
+                        'price_low1': prev_low[1],
+                        'price_low2': last_low[1],
+                        'volume_strength1': prev_vol_strength,
+                        'volume_strength2': last_vol_strength,
+                        'strength': (last_vol_strength - prev_vol_strength) / prev_vol_strength * 100,
+                        'reliability': 'HIGH' if last_vol_strength > prev_vol_strength * 1.2 else 'MEDIUM'
+                    }
+        
+        return None
+    
+    def _check_hidden_divergence(self, prices: List[float], volumes: List[float],
+                                price_momentum: List[Dict], volume_analysis: List[Dict],
+                                current_index: int, lookback: int) -> Optional[Dict]:
+        """Check for hidden divergences (trend continuation patterns)"""
+        if current_index < lookback:
+            return None
+        
+        # Hidden divergences are opposite to classical
+        # Hidden bullish: higher lows in price, lower volume
+        # Hidden bearish: lower highs in price, higher volume
+        
+        start_index = max(0, current_index - lookback)
+        recent_prices = prices[start_index:current_index + 1]
+        recent_vol_analysis = volume_analysis[start_index:current_index + 1]
+        
+        if len(recent_prices) < 5:
+            return None
+        
+        # Check trend direction
+        trend_direction = self._determine_trend_direction(recent_prices)
+        
+        if trend_direction == 'BULLISH':
+            # Look for higher lows with decreasing volume (hidden bullish)
+            price_lows = []
+            for i in range(2, len(recent_prices) - 2):
+                if recent_prices[i] < recent_prices[i-1] and recent_prices[i] < recent_prices[i+1]:
+                    price_lows.append((start_index + i, recent_prices[i]))
+            
+            if len(price_lows) >= 2:
+                last_low = price_lows[-1]
+                prev_low = price_lows[-2]
+                
+                if last_low[1] > prev_low[1]:  # Higher low
+                    last_vol = volume_analysis[last_low[0]]['volume_ratio']
+                    prev_vol = volume_analysis[prev_low[0]]['volume_ratio']
+                    
+                    if last_vol < prev_vol * 0.9:  # Decreasing volume
+                        return {
+                            'type': 'HIDDEN_BULLISH_DIVERGENCE',
+                            'index': current_index,
+                            'trend_direction': trend_direction,
+                            'strength': (prev_vol - last_vol) / prev_vol * 100,
+                            'reliability': 'MEDIUM'
+                        }
+        
+        elif trend_direction == 'BEARISH':
+            # Look for lower highs with increasing volume (hidden bearish)
+            price_highs = []
+            for i in range(2, len(recent_prices) - 2):
+                if recent_prices[i] > recent_prices[i-1] and recent_prices[i] > recent_prices[i+1]:
+                    price_highs.append((start_index + i, recent_prices[i]))
+            
+            if len(price_highs) >= 2:
+                last_high = price_highs[-1]
+                prev_high = price_highs[-2]
+                
+                if last_high[1] < prev_high[1]:  # Lower high
+                    last_vol = volume_analysis[last_high[0]]['volume_ratio']
+                    prev_vol = volume_analysis[prev_high[0]]['volume_ratio']
+                    
+                    if last_vol > prev_vol * 1.1:  # Increasing volume
+                        return {
+                            'type': 'HIDDEN_BEARISH_DIVERGENCE',
+                            'index': current_index,
+                            'trend_direction': trend_direction,
+                            'strength': (last_vol - prev_vol) / prev_vol * 100,
+                            'reliability': 'MEDIUM'
+                        }
+        
+        return None
+    
+    def _check_volume_climax(self, prices: List[float], volumes: List[float],
+                           volume_analysis: List[Dict], current_index: int) -> Optional[Dict]:
+        """Check for volume climax patterns"""
+        if current_index < 5:
+            return None
+        
+        current_vol_data = volume_analysis[current_index]
+        
+        # Volume climax: Very high volume (>2x average) with price exhaustion
+        if current_vol_data['volume_ratio'] >= 2.0:
+            # Check for price exhaustion signals
+            recent_prices = prices[max(0, current_index - 5):current_index + 1]
+            
+            # Price exhaustion: small price move despite high volume
+            if len(recent_prices) >= 2:
+                price_change = abs(recent_prices[-1] - recent_prices[0]) / recent_prices[0] * 100
+                
+                if price_change < 2.0:  # Small price move despite high volume
+                    return {
+                        'type': 'VOLUME_CLIMAX',
+                        'index': current_index,
+                        'volume_ratio': current_vol_data['volume_ratio'],
+                        'price_change': price_change,
+                        'strength': current_vol_data['volume_ratio'] * 50,
+                        'reliability': 'HIGH' if current_vol_data['volume_ratio'] >= 3.0 else 'MEDIUM',
+                        'implication': 'TREND_EXHAUSTION'
+                    }
+        
+        return None
+    
+    def _determine_trend_direction(self, prices: List[float]) -> str:
+        """Determine overall trend direction"""
+        if len(prices) < 3:
+            return 'NEUTRAL'
+        
+        # Simple trend determination using first and last prices
+        start_price = np.mean(prices[:3])
+        end_price = np.mean(prices[-3:])
+        
+        change_pct = (end_price - start_price) / start_price * 100
+        
+        if change_pct > 2:
+            return 'BULLISH'
+        elif change_pct < -2:
+            return 'BEARISH'
+        else:
+            return 'NEUTRAL'
+    
+    def _analyze_volume_patterns(self, volumes: List[float], prices: List[float]) -> Dict:
+        """Analyze volume patterns and characteristics"""
+        if len(volumes) < self.volume_period:
+            return {}
+        
+        recent_volumes = volumes[-self.volume_period:]
+        recent_prices = prices[-self.volume_period:]
+        
+        # Volume distribution analysis
+        vol_mean = np.mean(recent_volumes)
+        vol_std = np.std(recent_volumes)
+        current_vol = volumes[-1]
+        
+        # Volume trend
+        vol_trend = self._calculate_volume_trend(recent_volumes[-5:])
+        
+        # Price-volume correlation
+        if len(recent_prices) == len(recent_volumes):
+            price_changes = [(recent_prices[i] - recent_prices[i-1]) for i in range(1, len(recent_prices))]
+            vol_changes = [(recent_volumes[i] - recent_volumes[i-1]) for i in range(1, len(recent_volumes))]
+            
+            if len(price_changes) > 1 and len(vol_changes) > 1:
+                correlation = np.corrcoef(price_changes, vol_changes)[0, 1]
+                if np.isnan(correlation):
+                    correlation = 0
+            else:
+                correlation = 0
+        else:
+            correlation = 0
+        
+        # Volume clusters (periods of consistently high/low volume)
+        high_vol_periods = len([v for v in recent_volumes if v > vol_mean + vol_std])
+        low_vol_periods = len([v for v in recent_volumes if v < vol_mean - vol_std])
+        
+        return {
+            'volume_trend': vol_trend,
+            'price_volume_correlation': correlation,
+            'high_volume_periods': high_vol_periods,
+            'low_volume_periods': low_vol_periods,
+            'volume_consistency': self._calculate_volume_consistency(recent_volumes),
+            'current_volume_percentile': self._calculate_volume_percentile(current_vol, recent_volumes),
+            'volume_pattern': self._classify_volume_pattern(recent_volumes, vol_mean, vol_std)
+        }
+    
+    def _calculate_volume_consistency(self, volumes: List[float]) -> float:
+        """Calculate volume consistency score"""
+        if len(volumes) < 2:
+            return 0
+        
+        vol_mean = np.mean(volumes)
+        vol_std = np.std(volumes)
+        
+        # Coefficient of variation (lower = more consistent)
+        cv = vol_std / vol_mean if vol_mean > 0 else float('inf')
+        
+        # Convert to consistency score (0-100)
+        consistency_score = max(0, 100 - (cv * 100))
+        return consistency_score
+    
+    def _calculate_volume_percentile(self, current_volume: float, volumes: List[float]) -> float:
+        """Calculate percentile rank of current volume"""
+        if not volumes:
+            return 50
+        
+        rank = sum(1 for v in volumes if v <= current_volume)
+        percentile = (rank / len(volumes)) * 100
+        return percentile
+    
+    def _classify_volume_pattern(self, volumes: List[float], vol_mean: float, vol_std: float) -> str:
+        """Classify the volume pattern"""
+        if len(volumes) < 3:
+            return 'INSUFFICIENT_DATA'
+        
+        recent_vols = volumes[-3:]
+        
+        # Check for volume spikes
+        if any(v > vol_mean + 2 * vol_std for v in recent_vols):
+            return 'VOLUME_SPIKE'
+        
+        # Check for volume drying up
+        if all(v < vol_mean - vol_std for v in recent_vols):
+            return 'VOLUME_DRYING_UP'
+        
+        # Check for increasing volume
+        if recent_vols[-1] > recent_vols[0] * 1.2:
+            return 'INCREASING_VOLUME'
+        
+        # Check for decreasing volume
+        if recent_vols[-1] < recent_vols[0] * 0.8:
+            return 'DECREASING_VOLUME'
+        
+        return 'NORMAL_VOLUME'
+    
+    def _generate_signals(self, divergences: List[Dict], volume_patterns: Dict,
+                         price_momentum: List[Dict], volume_analysis: List[Dict]) -> Dict:
+        """Generate trading signals based on divergence analysis"""
+        if not divergences or not price_momentum or not volume_analysis:
+            return {'action': 'HOLD', 'strength': 0, 'confidence': 0}
+        
+        # Get recent divergence
+        recent_divergences = [d for d in divergences if len(price_momentum) - d['index'] <= 5]
+        
+        action = 'HOLD'
+        strength = 0
+        confidence = 0
+        signal_type = 'DIVERGENCE'
+        
+        if recent_divergences:
+            latest_div = recent_divergences[-1]
+            
+            if latest_div['type'] == 'BULLISH_DIVERGENCE':
+                action = 'BUY'
+                strength = min(100, int(latest_div.get('strength', 50)))
+                confidence = 75 if latest_div.get('reliability') == 'HIGH' else 60
+                signal_type = 'BULLISH_DIVERGENCE'
+            
+            elif latest_div['type'] == 'BEARISH_DIVERGENCE':
+                action = 'SELL'
+                strength = min(100, int(latest_div.get('strength', 50)))
+                confidence = 75 if latest_div.get('reliability') == 'HIGH' else 60
+                signal_type = 'BEARISH_DIVERGENCE'
+            
+            elif latest_div['type'] == 'VOLUME_CLIMAX':
+                # Volume climax suggests reversal
+                current_momentum = price_momentum[-1]['direction']
+                if current_momentum == 'UP':
+                    action = 'SELL'
+                elif current_momentum == 'DOWN':
+                    action = 'BUY'
+                
+                strength = min(100, int(latest_div.get('strength', 50)))
+                confidence = 70
+                signal_type = 'VOLUME_CLIMAX'
+        
+        # Additional volume pattern signals
+        if volume_patterns and action == 'HOLD':
+            pattern = volume_patterns.get('volume_pattern', '')
+            
+            if pattern == 'VOLUME_DRYING_UP':
+                # Low volume often precedes breakouts
+                signal_type = 'VOLUME_DRYING_UP'
+                confidence = 50
+            elif pattern == 'VOLUME_SPIKE':
+                # Volume spike can signal reversal or continuation
+                current_momentum = price_momentum[-1]['direction']
+                signal_type = 'VOLUME_SPIKE'
+                confidence = 60
+        
+        return {
+            'action': action,
+            'strength': strength,
+            'confidence': confidence,
+            'signal_type': signal_type,
+            'recent_divergences': len(recent_divergences),
+            'volume_pattern': volume_patterns.get('volume_pattern', 'NORMAL'),
+            'price_volume_correlation': volume_patterns.get('price_volume_correlation', 0)
+        }
+    
+    def _get_current_analysis(self, prices: List[float], volumes: List[float], 
+                             divergences: List[Dict]) -> Dict:
+        """Get current price-volume analysis"""
+        if not prices or not volumes:
+            return {}
+        
+        current_price = prices[-1]
+        current_volume = volumes[-1]
+        
+        # Recent divergences
+        recent_divergences = [d for d in divergences if len(prices) - d['index'] <= 10]
+        
+        # Current price-volume relationship
+        if len(prices) > 1 and len(volumes) > 1:
+            price_change = (prices[-1] - prices[-2]) / prices[-2] * 100
+            vol_change = (volumes[-1] - volumes[-2]) / volumes[-2] * 100
+            
+            if price_change > 0 and vol_change > 0:
+                current_relationship = 'BULLISH_CONFIRMED'
+            elif price_change < 0 and vol_change < 0:
+                current_relationship = 'BEARISH_CONFIRMED'
+            elif price_change > 0 and vol_change < 0:
+                current_relationship = 'BULLISH_UNCONFIRMED'
+            else:
+                current_relationship = 'BEARISH_UNCONFIRMED'
+        else:
+            current_relationship = 'NEUTRAL'
+            price_change = 0
+            vol_change = 0
+        
+        return {
+            'current_price': current_price,
+            'current_volume': current_volume,
+            'price_change_pct': price_change,
+            'volume_change_pct': vol_change,
+            'current_relationship': current_relationship,
+            'recent_divergence_count': len(recent_divergences),
+            'latest_divergence_type': recent_divergences[-1]['type'] if recent_divergences else None
+        }
+    
+    def _analyze_trend_strength(self, price_momentum: List[Dict], volume_analysis: List[Dict]) -> Dict:
+        """Analyze trend strength based on price-volume relationship"""
+        if not price_momentum or not volume_analysis:
+            return {}
+        
+        current_momentum = price_momentum[-1]
+        current_volume = volume_analysis[-1]
+        
+        # Trend strength factors
+        momentum_strength = current_momentum['strength']
+        volume_confirmation = current_volume['volume_ratio']
+        pv_relationship = current_volume['pv_relationship']
+        
+        # Calculate overall trend strength
+        if pv_relationship in ['BULLISH_CONFIRMED', 'BEARISH_CONFIRMED']:
+            confirmation_multiplier = 1.5
+        elif pv_relationship in ['BULLISH_UNCONFIRMED', 'BEARISH_UNCONFIRMED']:
+            confirmation_multiplier = 0.7
+        else:
+            confirmation_multiplier = 1.0
+        
+        trend_strength = min(100, momentum_strength * volume_confirmation * confirmation_multiplier)
+        
+        # Classify strength
+        if trend_strength > 75:
+            strength_class = 'STRONG'
+        elif trend_strength > 50:
+            strength_class = 'MODERATE'
+        elif trend_strength > 25:
+            strength_class = 'WEAK'
+        else:
+            strength_class = 'VERY_WEAK'
+        
+        return {
+            'trend_strength': trend_strength,
+            'strength_class': strength_class,
+            'momentum_component': momentum_strength,
+            'volume_component': volume_confirmation,
+            'confirmation_status': pv_relationship,
+            'volume_support': volume_confirmation > 1.2
+        }
+    
+    def _calculate_statistics(self, divergences: List[Dict], volume_patterns: Dict) -> Dict:
+        """Calculate comprehensive statistics"""
+        if not divergences:
+            return {}
+        
+        # Divergence statistics
+        bullish_count = len([d for d in divergences if 'BULLISH' in d['type']])
+        bearish_count = len([d for d in divergences if 'BEARISH' in d['type']])
+        climax_count = len([d for d in divergences if d['type'] == 'VOLUME_CLIMAX'])
+        
+        # Recent activity
+        recent_divergences = [d for d in divergences if len(divergences) - divergences.index(d) <= 5]
+        
+        return {
+            'total_divergences': len(divergences),
+            'bullish_divergences': bullish_count,
+            'bearish_divergences': bearish_count,
+            'volume_climax_count': climax_count,
+            'recent_activity': len(recent_divergences),
+            'bullish_percentage': (bullish_count / len(divergences)) * 100 if divergences else 0,
+            'bearish_percentage': (bearish_count / len(divergences)) * 100 if divergences else 0,
+            'average_divergence_strength': np.mean([d.get('strength', 0) for d in divergences]) if divergences else 0,
+            'high_reliability_count': len([d for d in divergences if d.get('reliability') == 'HIGH']),
+            'volume_pattern': volume_patterns.get('volume_pattern', 'NORMAL')
+        }
+    
+    def _empty_result(self) -> Dict:
+        """Return empty result when insufficient data"""
+        return {
+            'divergences': [],
+            'signals': {},
+            'statistics': {},
+            'indicator_name': 'Price-Volume Divergence',
+            'error': 'Insufficient data for calculation'
+        }
+
+def calculate_price_volume_divergence(data: Union[pd.DataFrame, Dict],
+                                     price_period: int = 14,
+                                     volume_period: int = 14,
+                                     price_column: str = 'close',
+                                     volume_column: str = 'volume') -> Dict:
+    """
+    Convenience function for Price-Volume Divergence calculation
+    
+    Args:
+        data: Price and volume data
+        price_period: Period for price momentum
+        volume_period: Period for volume analysis
+        price_column: Price column name
+        volume_column: Volume column name
+        
+    Returns:
+        Price-Volume Divergence analysis results
+    """
+    analyzer = PriceVolumeDivergence(price_period, volume_period)
+    return analyzer.calculate(data, price_column, volume_column)

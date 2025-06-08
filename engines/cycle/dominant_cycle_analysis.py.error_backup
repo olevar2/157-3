@@ -1,0 +1,796 @@
+"""
+Dominant Cycle Analysis - Comprehensive Primary Cycle Characterization
+=====================================================================
+
+This module provides advanced analysis of the dominant market cycle including:
+- Primary cycle identification and validation
+- Cycle amplitude and frequency analysis
+- Phase relationship tracking
+- Cycle strength measurement
+- Harmonic analysis and sub-cycle detection
+- Cycle persistence and reliability scoring
+
+Key Features:
+- Multi-method cycle validation
+- Amplitude envelope tracking
+- Phase coherence analysis
+- Cycle quality metrics
+- Harmonic decomposition
+- Persistence measurement
+
+Author: Platform3 Development Team
+Date: May 29, 2025
+"""
+
+import numpy as np
+import pandas as pd
+from typing import Dict, List, Tuple, Optional, Union
+from scipy import signal
+from scipy.optimize import minimize_scalar
+from scipy.stats import pearsonr, zscore
+import warnings
+
+# Platform3 Winston-style Logging Integration
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+from logging.platform3_logger import Platform3Logger, log_performance, LogMetadata
+
+class DominantCycleAnalysis:
+    """
+    Advanced dominant cycle analysis and characterization system.
+    
+    This class provides comprehensive analysis of the primary market cycle including:
+    - Cycle identification and validation
+    - Amplitude and frequency tracking
+    - Phase analysis and coherence
+    - Quality metrics and reliability scoring
+    - Harmonic analysis and decomposition
+    """
+    
+    def __init__(self, 
+                 min_cycle_length: int = 8,
+                 max_cycle_length: int = 120,
+                 amplitude_threshold: float = 0.1,
+                 coherence_threshold: float = 0.6,
+                 persistence_periods: int = 10):
+        """
+        Initialize the Dominant Cycle Analysis system.
+        
+        Parameters:
+        -----------
+        min_cycle_length : int
+            Minimum cycle length to analyze (default: 8 periods)
+        max_cycle_length : int
+            Maximum cycle length to analyze (default: 120 periods)
+        amplitude_threshold : float
+            Minimum amplitude threshold for cycle validation
+        coherence_threshold : float
+            Minimum phase coherence for cycle validation (0.0-1.0)
+        persistence_periods : int
+            Number of periods to track for persistence analysis
+        """
+        self.min_cycle_length = min_cycle_length
+        self.max_cycle_length = max_cycle_length
+        self.amplitude_threshold = amplitude_threshold
+        self.coherence_threshold = coherence_threshold
+        self.persistence_periods = persistence_periods
+        
+        # Analysis state
+        self.cycle_history = []
+        self.amplitude_history = []
+        self.phase_history = []
+        
+    def calculate(self, 
+                  data: Union[pd.Series, np.ndarray],
+                  price_column: str = 'close') -> Dict[str, Union[float, List, Dict]]:
+        """
+        Perform comprehensive dominant cycle analysis.
+        
+        Parameters:
+        -----------
+        data : pd.Series or np.ndarray
+            Price data for cycle analysis
+        price_column : str
+            Column name if data is DataFrame (default: 'close')
+            
+        Returns:
+        --------
+        Dict containing:
+            - dominant_cycle: Primary cycle period
+            - cycle_amplitude: Amplitude of dominant cycle
+            - cycle_frequency: Frequency of dominant cycle
+            - cycle_phase: Current phase position (0-2π)
+            - cycle_quality: Quality score (0-1)
+            - phase_coherence: Phase stability measure (0-1)
+            - amplitude_envelope: Amplitude variation over time
+            - harmonic_analysis: Sub-cycle and harmonic components
+            - cycle_persistence: Persistence and reliability metrics
+            - cycle_strength: Overall cycle strength
+        """
+        try:
+            # Data validation and preprocessing
+            if isinstance(data, pd.DataFrame):
+                prices = data[price_column].values
+            else:
+                prices = np.array(data)
+                
+            if len(prices) < self.max_cycle_length:
+                raise ValueError(f"Insufficient data: need at least {self.max_cycle_length} periods")
+                
+            # Remove NaN values and detrend
+            prices = prices[~np.isnan(prices)]
+            detrended_prices = self._detrend_data(prices)
+            
+            # Identify dominant cycle using multiple methods
+            dominant_cycle_info = self._identify_dominant_cycle(detrended_prices)
+            
+            if dominant_cycle_info['cycle_period'] is None:
+                return self._return_empty_results("No dominant cycle detected")
+            
+            cycle_period = dominant_cycle_info['cycle_period']
+            
+            # Perform comprehensive cycle analysis
+            amplitude_analysis = self._analyze_amplitude(detrended_prices, cycle_period)
+            phase_analysis = self._analyze_phase(detrended_prices, cycle_period)
+            quality_analysis = self._analyze_cycle_quality(detrended_prices, cycle_period)
+            harmonic_analysis = self._analyze_harmonics(detrended_prices, cycle_period)
+            persistence_analysis = self._analyze_persistence(detrended_prices, cycle_period)
+            
+            # Calculate derived metrics
+            cycle_frequency = 1.0 / cycle_period
+            cycle_strength = self._calculate_cycle_strength(
+                amplitude_analysis['amplitude'],
+                quality_analysis['quality_score'],
+                persistence_analysis['persistence_score']
+            )
+            
+            # Update history for persistence tracking
+            self._update_history(cycle_period, amplitude_analysis['amplitude'], 
+                               phase_analysis['current_phase'])
+            
+            return {
+                'dominant_cycle': cycle_period,
+                'cycle_amplitude': amplitude_analysis['amplitude'],
+                'cycle_frequency': cycle_frequency,
+                'cycle_phase': phase_analysis['current_phase'],
+                'cycle_quality': quality_analysis['quality_score'],
+                'phase_coherence': phase_analysis['coherence'],
+                'amplitude_envelope': amplitude_analysis['envelope'],
+                'harmonic_analysis': harmonic_analysis,
+                'cycle_persistence': persistence_analysis,
+                'cycle_strength': cycle_strength,
+                'cycle_reliability': quality_analysis['reliability'],
+                'phase_shift': phase_analysis['phase_shift'],
+                'amplitude_stability': amplitude_analysis['stability']
+            }
+            
+        except Exception as e:
+            return self._return_empty_results(f"Error: {str(e)}")
+    
+    def _detrend_data(self, prices: np.ndarray) -> np.ndarray:
+        """Advanced detrending for cycle isolation."""
+        try:
+            # Multiple detrending approaches
+            n = len(prices)
+            
+            # 1. Linear detrending
+            x = np.arange(n)
+            coeffs = np.polyfit(x, prices, 1)
+            linear_trend = np.polyval(coeffs, x)
+            linear_detrended = prices - linear_trend
+            
+            # 2. High-pass filtering for cycle isolation
+            if n > 2 * self.max_cycle_length:
+                # Butterworth high-pass filter
+                nyquist = 0.5
+                cutoff_freq = 1.0 / self.max_cycle_length
+                normalized_cutoff = cutoff_freq / nyquist
+                
+                if 0 < normalized_cutoff < 1:
+                    try:
+                        b, a = signal.butter(2, normalized_cutoff, btype='high')
+                        filtered = signal.filtfilt(b, a, linear_detrended)
+                        return filtered
+                    except Exception:
+                        pass
+            
+            # 3. Fallback: Moving average detrending
+            if n > self.max_cycle_length:
+                window_size = min(self.max_cycle_length, n // 4)
+                moving_avg = np.convolve(prices, np.ones(window_size)/window_size, mode='same')
+                return prices - moving_avg
+            
+            return linear_detrended
+            
+        except Exception:
+            return np.diff(prices, prepend=prices[0])
+    
+    def _identify_dominant_cycle(self, data: np.ndarray) -> Dict:
+        """Identify the dominant cycle using multiple spectral methods."""
+        try:
+            methods_results = []
+            
+            # Method 1: FFT-based identification
+            fft_result = self._fft_dominant_cycle(data)
+            if fft_result['cycle_period'] is not None:
+                methods_results.append(('fft', fft_result))
+            
+            # Method 2: Autocorrelation-based identification
+            autocorr_result = self._autocorr_dominant_cycle(data)
+            if autocorr_result['cycle_period'] is not None:
+                methods_results.append(('autocorr', autocorr_result))
+            
+            # Method 3: Hilbert Transform instantaneous frequency
+            hilbert_result = self._hilbert_dominant_cycle(data)
+            if hilbert_result['cycle_period'] is not None:
+                methods_results.append(('hilbert', hilbert_result))
+            
+            if not methods_results:
+                return {'cycle_period': None, 'confidence': 0.0, 'method': None}
+            
+            # Consensus-based selection
+            return self._select_best_cycle(methods_results)
+            
+        except Exception as e:
+            return {'cycle_period': None, 'confidence': 0.0, 'method': None, 'error': str(e)}
+    
+    def _fft_dominant_cycle(self, data: np.ndarray) -> Dict:
+        """Identify dominant cycle using FFT analysis."""
+        try:
+            n = len(data)
+            
+            # Apply window and compute FFT
+            windowed_data = data * np.hanning(n)
+            fft_vals = np.fft.fft(windowed_data)
+            freqs = np.fft.fftfreq(n)
+            
+            # Power spectrum
+            power = np.abs(fft_vals) ** 2
+            
+            # Focus on positive frequencies in valid range
+            min_freq = 1.0 / self.max_cycle_length
+            max_freq = 1.0 / self.min_cycle_length
+            
+            valid_mask = (freqs > min_freq) & (freqs < max_freq) & (freqs > 0)
+            
+            if not np.any(valid_mask):
+                return {'cycle_period': None, 'confidence': 0.0}
+            
+            valid_freqs = freqs[valid_mask]
+            valid_power = power[valid_mask]
+            
+            # Find dominant frequency
+            max_power_idx = np.argmax(valid_power)
+            dominant_freq = valid_freqs[max_power_idx]
+            dominant_period = 1.0 / dominant_freq
+            
+            # Calculate confidence based on peak prominence
+            max_power = valid_power[max_power_idx]
+            mean_power = np.mean(valid_power)
+            confidence = min(1.0, (max_power - mean_power) / (max_power + 1e-10))
+            
+            return {
+                'cycle_period': dominant_period,
+                'confidence': confidence,
+                'frequency': dominant_freq,
+                'power': max_power
+            }
+            
+        except Exception:
+            return {'cycle_period': None, 'confidence': 0.0}
+    
+    def _autocorr_dominant_cycle(self, data: np.ndarray) -> Dict:
+        """Identify dominant cycle using autocorrelation analysis."""
+        try:
+            n = len(data)
+            max_lag = min(self.max_cycle_length, n // 2)
+            
+            # Calculate full autocorrelation
+            autocorr = np.correlate(data, data, mode='full')
+            autocorr = autocorr[autocorr.size // 2:]
+            autocorr = autocorr / autocorr[0]  # Normalize
+            
+            # Focus on valid range
+            valid_range = autocorr[self.min_cycle_length:max_lag]
+            
+            if len(valid_range) == 0:
+                return {'cycle_period': None, 'confidence': 0.0}
+            
+            # Find the highest peak
+            max_corr_idx = np.argmax(valid_range)
+            dominant_period = max_corr_idx + self.min_cycle_length
+            confidence = valid_range[max_corr_idx]
+            
+            return {
+                'cycle_period': float(dominant_period),
+                'confidence': abs(confidence),
+                'correlation': confidence
+            }
+            
+        except Exception:
+            return {'cycle_period': None, 'confidence': 0.0}
+    
+    def _hilbert_dominant_cycle(self, data: np.ndarray) -> Dict:
+        """Identify dominant cycle using Hilbert Transform."""
+        try:
+            # Hilbert transform for instantaneous frequency
+            analytic_signal = signal.hilbert(data)
+            instantaneous_phase = np.unwrap(np.angle(analytic_signal))
+            instantaneous_freq = np.diff(instantaneous_phase) / (2.0 * np.pi)
+            
+            # Filter valid frequencies
+            valid_freqs = instantaneous_freq[
+                (instantaneous_freq > 1.0 / self.max_cycle_length) &
+                (instantaneous_freq < 1.0 / self.min_cycle_length) &
+                (instantaneous_freq > 0)
+            ]
+            
+            if len(valid_freqs) == 0:
+                return {'cycle_period': None, 'confidence': 0.0}
+            
+            # Find most common frequency (mode)
+            freq_bins = np.linspace(np.min(valid_freqs), np.max(valid_freqs), 50)
+            hist, bin_edges = np.histogram(valid_freqs, bins=freq_bins)
+            
+            if np.max(hist) == 0:
+                return {'cycle_period': None, 'confidence': 0.0}
+            
+            max_bin_idx = np.argmax(hist)
+            dominant_freq = (bin_edges[max_bin_idx] + bin_edges[max_bin_idx + 1]) / 2
+            dominant_period = 1.0 / dominant_freq
+            
+            # Confidence based on frequency consistency
+            confidence = np.max(hist) / len(valid_freqs)
+            
+            return {
+                'cycle_period': dominant_period,
+                'confidence': confidence,
+                'frequency': dominant_freq
+            }
+            
+        except Exception:
+            return {'cycle_period': None, 'confidence': 0.0}
+    
+    def _select_best_cycle(self, methods_results: List[Tuple]) -> Dict:
+        """Select the best cycle based on consensus and confidence."""
+        try:
+            if len(methods_results) == 1:
+                return methods_results[0][1]
+            
+            # Extract cycles and confidences
+            cycles = []
+            confidences = []
+            methods = []
+            
+            for method_name, result in methods_results:
+                cycles.append(result['cycle_period'])
+                confidences.append(result['confidence'])
+                methods.append(method_name)
+            
+            cycles = np.array(cycles)
+            confidences = np.array(confidences)
+            
+            # Find consensus - cycles within 10% of each other
+            best_cycle = None
+            best_confidence = 0.0
+            best_method = None
+            
+            for i, cycle in enumerate(cycles):
+                # Find similar cycles
+                tolerance = 0.1 * cycle
+                similar_mask = np.abs(cycles - cycle) <= tolerance
+                similar_cycles = cycles[similar_mask]
+                similar_confidences = confidences[similar_mask]
+                
+                # Weighted average of similar cycles
+                if len(similar_cycles) > 0:
+                    total_confidence = np.sum(similar_confidences)
+                    weighted_cycle = np.sum(similar_cycles * similar_confidences) / total_confidence
+                    consensus_confidence = total_confidence / len(methods_results)
+                    
+                    if consensus_confidence > best_confidence:
+                        best_cycle = weighted_cycle
+                        best_confidence = consensus_confidence
+                        best_method = f"consensus_{len(similar_cycles)}_methods"
+            
+            return {
+                'cycle_period': best_cycle,
+                'confidence': best_confidence,
+                'method': best_method,
+                'method_agreement': len(methods_results)
+            }
+            
+        except Exception:
+            # Fallback to highest confidence method
+            max_conf_idx = np.argmax([r[1]['confidence'] for r in methods_results])
+            return methods_results[max_conf_idx][1]
+    
+    def _analyze_amplitude(self, data: np.ndarray, cycle_period: float) -> Dict:
+        """Analyze amplitude characteristics of the dominant cycle."""
+        try:
+            # Generate reference sine wave
+            t = np.arange(len(data))
+            reference_wave = np.sin(2 * np.pi * t / cycle_period)
+            
+            # Calculate amplitude using envelope detection
+            analytic_signal = signal.hilbert(data)
+            amplitude_envelope = np.abs(analytic_signal)
+            
+            # Current amplitude (recent values)
+            current_amplitude = np.mean(amplitude_envelope[-int(cycle_period):])
+            
+            # Amplitude stability
+            amplitude_std = np.std(amplitude_envelope)
+            amplitude_mean = np.mean(amplitude_envelope)
+            stability = 1.0 - (amplitude_std / (amplitude_mean + 1e-10))
+            stability = max(0.0, min(1.0, stability))
+            
+            return {
+                'amplitude': current_amplitude,
+                'envelope': amplitude_envelope.tolist(),
+                'stability': stability,
+                'mean_amplitude': amplitude_mean,
+                'amplitude_range': np.max(amplitude_envelope) - np.min(amplitude_envelope)
+            }
+            
+        except Exception as e:
+            return {
+                'amplitude': 0.0,
+                'envelope': [],
+                'stability': 0.0,
+                'error': str(e)
+            }
+    
+    def _analyze_phase(self, data: np.ndarray, cycle_period: float) -> Dict:
+        """Analyze phase characteristics of the dominant cycle."""
+        try:
+            # Hilbert transform for instantaneous phase
+            analytic_signal = signal.hilbert(data)
+            instantaneous_phase = np.angle(analytic_signal)
+            
+            # Current phase
+            current_phase = instantaneous_phase[-1]
+            if current_phase < 0:
+                current_phase += 2 * np.pi
+            
+            # Phase coherence (consistency of phase progression)
+            phase_diff = np.diff(np.unwrap(instantaneous_phase))
+            expected_phase_increment = 2 * np.pi / cycle_period
+            
+            phase_error = np.abs(phase_diff - expected_phase_increment)
+            coherence = 1.0 - np.mean(phase_error) / np.pi
+            coherence = max(0.0, min(1.0, coherence))
+            
+            # Phase shift relative to ideal cycle
+            t = np.arange(len(data))
+            ideal_phase = 2 * np.pi * t / cycle_period
+            phase_shift = np.mean(np.unwrap(instantaneous_phase) - ideal_phase) % (2 * np.pi)
+            
+            return {
+                'current_phase': current_phase,
+                'coherence': coherence,
+                'phase_shift': phase_shift,
+                'phase_progression': instantaneous_phase.tolist(),
+                'phase_stability': coherence
+            }
+            
+        except Exception as e:
+            return {
+                'current_phase': 0.0,
+                'coherence': 0.0,
+                'phase_shift': 0.0,
+                'error': str(e)
+            }
+    
+    def _analyze_cycle_quality(self, data: np.ndarray, cycle_period: float) -> Dict:
+        """Analyze overall quality and reliability of the cycle."""
+        try:
+            # Generate ideal cycle for comparison
+            t = np.arange(len(data))
+            ideal_cycle = np.sin(2 * np.pi * t / cycle_period)
+            
+            # Correlation with ideal cycle
+            correlation, p_value = pearsonr(data, ideal_cycle)
+            correlation_score = abs(correlation)
+            
+            # Signal-to-noise ratio
+            signal_power = np.var(data)
+            
+            # Estimate noise using high-frequency residual
+            if len(data) > 2 * cycle_period:
+                # High-pass filter to isolate noise
+                cutoff_freq = 2.0 / cycle_period
+                try:
+                    b, a = signal.butter(2, cutoff_freq, btype='high', fs=1.0)
+                    noise = signal.filtfilt(b, a, data)
+                    noise_power = np.var(noise)
+                    snr = signal_power / (noise_power + 1e-10)
+                    snr_score = min(1.0, snr / 10.0)  # Normalize
+                except Exception:
+                    snr_score = 0.5
+            else:
+                snr_score = 0.5
+            
+            # Regularity score (consistency of cycle periods)
+            regularity_score = self._calculate_regularity(data, cycle_period)
+            
+            # Overall quality score
+            quality_score = (correlation_score + snr_score + regularity_score) / 3.0
+            
+            # Reliability based on statistical significance
+            reliability = correlation_score * (1 - p_value) if p_value < 0.05 else 0.0
+            
+            return {
+                'quality_score': quality_score,
+                'correlation_score': correlation_score,
+                'snr_score': snr_score,
+                'regularity_score': regularity_score,
+                'reliability': reliability,
+                'p_value': p_value
+            }
+            
+        except Exception as e:
+            return {
+                'quality_score': 0.0,
+                'correlation_score': 0.0,
+                'snr_score': 0.0,
+                'regularity_score': 0.0,
+                'reliability': 0.0,
+                'error': str(e)
+            }
+    
+    def _calculate_regularity(self, data: np.ndarray, cycle_period: float) -> float:
+        """Calculate regularity score based on cycle period consistency."""
+        try:
+            # Find peaks and troughs
+            peaks, _ = signal.find_peaks(data, distance=int(cycle_period * 0.3))
+            troughs, _ = signal.find_peaks(-data, distance=int(cycle_period * 0.3))
+            
+            if len(peaks) < 2 and len(troughs) < 2:
+                return 0.0
+            
+            # Calculate peak-to-peak and trough-to-trough intervals
+            intervals = []
+            
+            if len(peaks) >= 2:
+                peak_intervals = np.diff(peaks)
+                intervals.extend(peak_intervals)
+            
+            if len(troughs) >= 2:
+                trough_intervals = np.diff(troughs)
+                intervals.extend(trough_intervals)
+            
+            if len(intervals) == 0:
+                return 0.0
+            
+            intervals = np.array(intervals)
+            
+            # Regularity based on consistency with expected cycle period
+            expected_interval = cycle_period
+            interval_errors = np.abs(intervals - expected_interval) / expected_interval
+            regularity = 1.0 - np.mean(interval_errors)
+            
+            return max(0.0, min(1.0, regularity))
+            
+        except Exception:
+            return 0.0
+    
+    def _analyze_harmonics(self, data: np.ndarray, cycle_period: float) -> Dict:
+        """Analyze harmonic components and sub-cycles."""
+        try:
+            # FFT for harmonic analysis
+            n = len(data)
+            fft_vals = np.fft.fft(data * np.hanning(n))
+            freqs = np.fft.fftfreq(n)
+            power = np.abs(fft_vals) ** 2
+            
+            fundamental_freq = 1.0 / cycle_period
+            harmonics = []
+            
+            # Check for harmonics (2x, 3x, etc.) and sub-harmonics (0.5x, 0.33x, etc.)
+            harmonic_ratios = [0.5, 0.33, 0.25, 2.0, 3.0, 4.0]
+            
+            for ratio in harmonic_ratios:
+                target_freq = fundamental_freq * ratio
+                
+                # Find closest frequency bin
+                freq_diff = np.abs(freqs - target_freq)
+                closest_idx = np.argmin(freq_diff)
+                
+                if freq_diff[closest_idx] < fundamental_freq * 0.1:  # Within 10% tolerance
+                    harmonic_power = power[closest_idx]
+                    fundamental_power = power[np.argmin(np.abs(freqs - fundamental_freq))]
+                    
+                    relative_strength = harmonic_power / (fundamental_power + 1e-10)
+                    
+                    if relative_strength > 0.1:  # Significant harmonic
+                        harmonics.append({
+                            'ratio': ratio,
+                            'frequency': freqs[closest_idx],
+                            'period': 1.0 / freqs[closest_idx] if freqs[closest_idx] != 0 else None,
+                            'strength': relative_strength
+                        })
+            
+            # Sort by strength
+            harmonics.sort(key=lambda x: x['strength'], reverse=True)
+            
+            return {
+                'harmonics': harmonics,
+                'harmonic_count': len(harmonics),
+                'total_harmonic_strength': sum(h['strength'] for h in harmonics)
+            }
+            
+        except Exception as e:
+            return {
+                'harmonics': [],
+                'harmonic_count': 0,
+                'total_harmonic_strength': 0.0,
+                'error': str(e)
+            }
+    
+    def _analyze_persistence(self, data: np.ndarray, cycle_period: float) -> Dict:
+        """Analyze cycle persistence and reliability over time."""
+        try:
+            if len(data) < 3 * cycle_period:
+                return {
+                    'persistence_score': 0.0,
+                    'consistency_score': 0.0,
+                    'trend_score': 0.0
+                }
+            
+            # Segment data for persistence analysis
+            segment_length = int(2 * cycle_period)
+            n_segments = len(data) // segment_length
+            
+            if n_segments < 2:
+                return {
+                    'persistence_score': 0.0,
+                    'consistency_score': 0.0,
+                    'trend_score': 0.0
+                }
+            
+            segment_scores = []
+            
+            for i in range(n_segments):
+                start_idx = i * segment_length
+                end_idx = start_idx + segment_length
+                segment = data[start_idx:end_idx]
+                
+                # Analyze cycle strength in this segment
+                t = np.arange(len(segment))
+                reference = np.sin(2 * np.pi * t / cycle_period)
+                
+                try:
+                    correlation, _ = pearsonr(segment, reference)
+                    segment_scores.append(abs(correlation))
+                except Exception:
+                    segment_scores.append(0.0)
+            
+            # Persistence metrics
+            persistence_score = np.mean(segment_scores)
+            consistency_score = 1.0 - np.std(segment_scores)
+            consistency_score = max(0.0, min(1.0, consistency_score))
+            
+            # Trend in cycle strength
+            if len(segment_scores) > 2:
+                x = np.arange(len(segment_scores))
+                trend_slope = np.polyfit(x, segment_scores, 1)[0]
+                trend_score = 0.5 + np.tanh(trend_slope * 10) * 0.5  # Normalize to 0-1
+            else:
+                trend_score = 0.5
+            
+            return {
+                'persistence_score': persistence_score,
+                'consistency_score': consistency_score,
+                'trend_score': trend_score,
+                'segment_scores': segment_scores
+            }
+            
+        except Exception as e:
+            return {
+                'persistence_score': 0.0,
+                'consistency_score': 0.0,
+                'trend_score': 0.0,
+                'error': str(e)
+            }
+    
+    def _calculate_cycle_strength(self, amplitude: float, quality: float, persistence: float) -> float:
+        """Calculate overall cycle strength from component metrics."""
+        try:
+            # Weighted combination of factors
+            weights = {'amplitude': 0.3, 'quality': 0.4, 'persistence': 0.3}
+            
+            # Normalize amplitude (assume typical range 0-2)
+            norm_amplitude = min(1.0, amplitude / 2.0)
+            
+            strength = (
+                weights['amplitude'] * norm_amplitude +
+                weights['quality'] * quality +
+                weights['persistence'] * persistence
+            )
+            
+            return max(0.0, min(1.0, strength))
+            
+        except Exception:
+            return 0.0
+    
+    def _update_history(self, cycle_period: float, amplitude: float, phase: float):
+        """Update historical tracking for persistence analysis."""
+        self.cycle_history.append(cycle_period)
+        self.amplitude_history.append(amplitude)
+        self.phase_history.append(phase)
+        
+        # Keep only recent history
+        max_history = self.persistence_periods
+        if len(self.cycle_history) > max_history:
+            self.cycle_history = self.cycle_history[-max_history:]
+            self.amplitude_history = self.amplitude_history[-max_history:]
+            self.phase_history = self.phase_history[-max_history:]
+    
+    def _return_empty_results(self, error_msg: str = "") -> Dict:
+        """Return empty results structure."""
+        return {
+            'dominant_cycle': None,
+            'cycle_amplitude': 0.0,
+            'cycle_frequency': 0.0,
+            'cycle_phase': 0.0,
+            'cycle_quality': 0.0,
+            'phase_coherence': 0.0,
+            'amplitude_envelope': [],
+            'harmonic_analysis': {'harmonics': [], 'harmonic_count': 0},
+            'cycle_persistence': {'persistence_score': 0.0},
+            'cycle_strength': 0.0,
+            'error': error_msg
+        }
+    
+    def get_cycle_statistics(self) -> Dict:
+        """Get statistics from historical cycle tracking."""
+        if not self.cycle_history:
+            return {'error': 'No cycle history available'}
+        
+        return {
+            'average_cycle_period': np.mean(self.cycle_history),
+            'cycle_period_std': np.std(self.cycle_history),
+            'average_amplitude': np.mean(self.amplitude_history),
+            'amplitude_std': np.std(self.amplitude_history),
+            'cycle_stability': 1.0 - (np.std(self.cycle_history) / np.mean(self.cycle_history)),
+            'history_length': len(self.cycle_history)
+        }
+
+# Example usage and testing
+if __name__ == "__main__":
+    # Generate sample data with known cycle
+    np.random.seed(42)
+    t = np.arange(300)
+    
+    # Create signal with dominant 20-period cycle
+    signal_data = (
+        np.sin(2 * np.pi * t / 20) +           # 20-period dominant cycle
+        0.3 * np.sin(2 * np.pi * t / 40) +    # 40-period harmonic
+        0.2 * np.sin(2 * np.pi * t / 10) +    # 10-period sub-harmonic
+        0.1 * np.random.randn(len(t))          # Noise
+    )
+    
+    # Add slight trend
+    signal_data += 0.01 * t
+    
+    # Initialize analyzer
+    cycle_analyzer = DominantCycleAnalysis(
+        min_cycle_length=8,
+        max_cycle_length=50,
+        coherence_threshold=0.5
+    )
+    
+    # Analyze dominant cycle
+    results = cycle_analyzer.calculate(signal_data)
+    
+    print("Dominant Cycle Analysis Results:")
+    print(f"Dominant Cycle: {results['dominant_cycle']:.1f} periods")
+    print(f"Cycle Amplitude: {results['cycle_amplitude']:.3f}")
+    print(f"Cycle Quality: {results['cycle_quality']:.3f}")
+    print(f"Phase Coherence: {results['phase_coherence']:.3f}")
+    print(f"Cycle Strength: {results['cycle_strength']:.3f}")
+    print(f"Current Phase: {results['cycle_phase']:.2f} radians")
+    print(f"Harmonics Found: {results['harmonic_analysis']['harmonic_count']}")
+    print(f"Persistence Score: {results['cycle_persistence']['persistence_score']:.3f}")

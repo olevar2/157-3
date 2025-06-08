@@ -1,0 +1,40 @@
+{
+  "trading": {
+    "pairs": [
+      "EURUSD", "GBPUSD", "USDJPY", "USDCHF", 
+      "AUDUSD", "USDCAD", "NZDUSD", "EURGBP",
+      "EURJPY", "GBPJPY", "CHFJPY", "AUDNZD",
+      "EURCAD", "GBPAUD"
+    ],
+    "timeframes": ["M1", "M5", "M15", "H1", "H4", "D1"],
+    "sessions": {
+      "asian": {"start": "00:00", "end": "09:00"},
+      "london": {"start": "08:00", "end": "17:00"},
+      "newyork": {"start": "13:00", "end": "22:00"}
+    }
+  },
+  "genius_agents": {
+    "update_frequencies": {
+      "risk_genius": 100,
+      "session_expert": 500,
+      "pattern_master": 200,
+      "execution_expert": 50,
+      "pair_specialist": 1000,
+      "decision_master": 100,
+      "ai_model_coordinator": 500,
+      "market_microstructure_genius": 100,
+      "sentiment_integration_genius": 1000
+    }
+  },
+  "indicators": {
+    "adaptive_mode": true,
+    "cache_enabled": true,
+    "parallel_calculation": true,
+    "max_cache_size": 1000
+  },
+  "performance": {
+    "target_latency_ms": 1.0,
+    "max_concurrent_calculations": 50,
+    "memory_limit_mb": 4096
+  }
+}

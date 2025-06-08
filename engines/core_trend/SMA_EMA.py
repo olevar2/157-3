@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Simple Moving Average (SMA) and Exponential Moving Average (EMA) Indicators
 
@@ -46,6 +47,11 @@ class MAType(Enum):
     WMA = "wma"
     DEMA = "dema"  # Double EMA
     TEMA = "tema"  # Triple EMA
+    VWMA = "vwma"  # Volume Weighted Moving Average
+    ZLEMA = "zlema"  # Zero Lag EMA
+    HMA = "hma"  # Hull Moving Average
+    KAMA = "kama"  # Kaufman Adaptive Moving Average
+    MCGINLEY = "mcginley"  # McGinley Dynamic
 
 @dataclass
 class MAResult:
@@ -225,8 +231,225 @@ class MovingAverages:
             logger.error(f"Error calculating TEMA: {e}")
             return np.full(len(prices), np.nan)
 
+    def calculate_hma(self, prices: Union[np.ndarray, pd.Series], period: int) -> np.ndarray:
+        """
+        Calculate Hull Moving Average
+        
+        The Hull Moving Average (HMA) aims to reduce lag while maintaining smoothness.
+        HMA = WMA(2*WMA(n/2) - WMA(n), sqrt(n))
+        
+        Args:
+            prices: Price data
+            period: Period for HMA calculation
+            
+        Returns:
+            Array of HMA values
+        """
+        try:
+            if isinstance(prices, pd.Series):
+                prices = prices.values
+            
+            if len(prices) < period:
+                return np.full(len(prices), np.nan)
+            
+            # Calculate WMA for period/2
+            wma_half = self.calculate_wma(prices, period // 2)
+            # Calculate WMA for full period
+            wma_full = self.calculate_wma(prices, period)
+            # Calculate 2*WMA(n/2) - WMA(n)
+            diff = 2 * wma_half - wma_full
+            # Calculate final HMA using WMA with sqrt(period)
+            sqrt_period = int(np.sqrt(period))
+            hma = self.calculate_wma(diff, sqrt_period)
+            
+            return hma
+            
+        except Exception as e:
+            logger.error(f"Error calculating HMA: {e}")
+            return np.full(len(prices), np.nan)
+
+    def calculate_kama(self, prices: Union[np.ndarray, pd.Series], period: int = 10, 
+                      fast_ema: int = 2, slow_ema: int = 30) -> np.ndarray:
+        """
+        Calculate Kaufman Adaptive Moving Average
+        
+        KAMA adapts to market volatility by using efficiency ratio to adjust smoothing.
+        
+        Args:
+            prices: Price data
+            period: Period for efficiency ratio calculation
+            fast_ema: Fast EMA period (default 2)
+            slow_ema: Slow EMA period (default 30)
+            
+        Returns:
+            Array of KAMA values
+        """
+        try:
+            if isinstance(prices, pd.Series):
+                prices = prices.values
+            
+            if len(prices) < period + 1:
+                return np.full(len(prices), np.nan)
+            
+            kama = np.full(len(prices), np.nan)
+            
+            # Calculate efficiency ratio
+            for i in range(period, len(prices)):
+                # Direction = abs(price_change over period)
+                direction = abs(prices[i] - prices[i - period])
+                
+                # Volatility = sum of abs(price_changes) over period
+                volatility = sum(abs(prices[j] - prices[j-1]) for j in range(i - period + 1, i + 1))
+                
+                # Efficiency ratio
+                er = direction / volatility if volatility != 0 else 0
+                
+                # Smoothing constant
+                fast_sc = 2.0 / (fast_ema + 1)
+                slow_sc = 2.0 / (slow_ema + 1)
+                sc = (er * (fast_sc - slow_sc) + slow_sc) ** 2
+                
+                # Calculate KAMA
+                if i == period:
+                    kama[i] = prices[i]  # First KAMA value
+                else:
+                    kama[i] = kama[i-1] + sc * (prices[i] - kama[i-1])
+            
+            return kama
+            
+        except Exception as e:
+            logger.error(f"Error calculating KAMA: {e}")
+            return np.full(len(prices), np.nan)
+
+    def calculate_vwma(self, prices: Union[np.ndarray, pd.Series], 
+                      volumes: Union[np.ndarray, pd.Series], period: int) -> np.ndarray:
+        """
+        Calculate Volume Weighted Moving Average
+        
+        VWMA gives more weight to periods with higher volume.
+        
+        Args:
+            prices: Price data
+            volumes: Volume data
+            period: Period for VWMA calculation
+            
+        Returns:
+            Array of VWMA values
+        """
+        try:
+            if isinstance(prices, pd.Series):
+                prices = prices.values
+            if isinstance(volumes, pd.Series):
+                volumes = volumes.values
+            
+            if len(prices) != len(volumes):
+                raise ValueError("Prices and volumes must have same length")
+            
+            if len(prices) < period:
+                return np.full(len(prices), np.nan)
+            
+            vwma = np.full(len(prices), np.nan)
+            
+            for i in range(period - 1, len(prices)):
+                price_window = prices[i - period + 1:i + 1]
+                volume_window = volumes[i - period + 1:i + 1]
+                
+                total_volume = np.sum(volume_window)
+                if total_volume > 0:
+                    vwma[i] = np.sum(price_window * volume_window) / total_volume
+                else:
+                    vwma[i] = np.mean(price_window)
+            
+            return vwma
+            
+        except Exception as e:
+            logger.error(f"Error calculating VWMA: {e}")
+            return np.full(len(prices), np.nan)
+
+    def calculate_mcginley_dynamic(self, prices: Union[np.ndarray, pd.Series], 
+                                  period: int) -> np.ndarray:
+        """
+        Calculate McGinley Dynamic Moving Average
+        
+        McGinley Dynamic is a moving average that adjusts to market speed changes.
+        
+        Args:
+            prices: Price data
+            period: Period for McGinley Dynamic calculation
+            
+        Returns:
+            Array of McGinley Dynamic values
+        """
+        try:
+            if isinstance(prices, pd.Series):
+                prices = prices.values
+            
+            if len(prices) < period:
+                return np.full(len(prices), np.nan)
+            
+            md = np.full(len(prices), np.nan)
+            
+            # Initialize with SMA
+            md[period-1] = np.mean(prices[:period])
+            
+            for i in range(period, len(prices)):
+                if md[i-1] != 0:
+                    k = (prices[i] / md[i-1] - 1) * period / (prices[i] / md[i-1]) ** 4
+                    md[i] = md[i-1] + k * (prices[i] - md[i-1])
+                else:
+                    md[i] = prices[i]
+            
+            return md
+            
+        except Exception as e:
+            logger.error(f"Error calculating McGinley Dynamic: {e}")
+            return np.full(len(prices), np.nan)
+
+    def calculate_zlema(self, prices: Union[np.ndarray, pd.Series], period: int) -> np.ndarray:
+        """
+        Calculate Zero Lag Exponential Moving Average
+        
+        ZLEMA attempts to eliminate lag by using price momentum.
+        
+        Args:
+            prices: Price data
+            period: Period for ZLEMA calculation
+            
+        Returns:
+            Array of ZLEMA values
+        """
+        try:
+            if isinstance(prices, pd.Series):
+                prices = prices.values
+            
+            if len(prices) < period:
+                return np.full(len(prices), np.nan)
+            
+            # Calculate lag
+            lag = (period - 1) // 2
+            
+            # Calculate ZLEMA
+            zlema_data = np.full(len(prices), np.nan)
+            
+            for i in range(lag, len(prices)):
+                # Adjusted price = price + (price - price[lag periods ago])
+                if i >= lag:
+                    adjusted_price = prices[i] + (prices[i] - prices[i - lag])
+                    zlema_data[i] = adjusted_price
+                else:
+                    zlema_data[i] = prices[i]
+            
+            # Apply EMA to adjusted prices
+            zlema = self.calculate_ema(zlema_data, period)
+            
+            return zlema
+            
+        except Exception as e:
+            logger.error(f"Error calculating ZLEMA: {e}")
+            return np.full(len(prices), np.nan)
+
     def calculate_ma(self, prices: Union[np.ndarray, pd.Series], 
-                    period: int, ma_type: MAType) -> MAData:
+                    period: int, ma_type: MAType, volumes: Optional[Union[np.ndarray, pd.Series]] = None) -> MAData:
         """
         Calculate moving average of specified type
         
@@ -234,6 +457,7 @@ class MovingAverages:
             prices: Price data
             period: Period for MA calculation
             ma_type: Type of moving average
+            volumes: Volume data (required for VWMA)
             
         Returns:
             MAData with calculated values
@@ -249,6 +473,18 @@ class MovingAverages:
                 values = self.calculate_dema(prices, period)
             elif ma_type == MAType.TEMA:
                 values = self.calculate_tema(prices, period)
+            elif ma_type == MAType.HMA:
+                values = self.calculate_hma(prices, period)
+            elif ma_type == MAType.KAMA:
+                values = self.calculate_kama(prices, period)
+            elif ma_type == MAType.VWMA:
+                if volumes is None:
+                    raise ValueError("VWMA requires volume data")
+                values = self.calculate_vwma(prices, volumes, period)
+            elif ma_type == MAType.MCGINLEY:
+                values = self.calculate_mcginley_dynamic(prices, period)
+            elif ma_type == MAType.ZLEMA:
+                values = self.calculate_zlema(prices, period)
             else:
                 raise ValueError(f"Unknown MA type: {ma_type}")
             

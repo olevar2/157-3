@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
 Self-Similarity Pattern Detection Indicator
 
@@ -26,7 +36,7 @@ import warnings
 from scipy import stats
 from scipy.signal import correlate, find_peaks
 from sklearn.metrics import mutual_info_score
-from ..indicator_base import IndicatorBase
+from engines.indicator_base import IndicatorBase
 
 warnings.filterwarnings('ignore')
 
@@ -62,6 +72,7 @@ class SelfSimilarityDetector(IndicatorBase):
     """
     
     def __init__(self, 
+                 config: Optional[Dict[str, Any]] = None, # Added config
                  period: int = 50,
                  min_pattern_length: int = 5,
                  max_pattern_length: int = 20,
@@ -72,6 +83,7 @@ class SelfSimilarityDetector(IndicatorBase):
         Initialize Self-Similarity Detector.
         
         Args:
+            config: Configuration dictionary.
             period: Lookback period for analysis
             min_pattern_length: Minimum pattern length to detect
             max_pattern_length: Maximum pattern length to detect
@@ -79,7 +91,8 @@ class SelfSimilarityDetector(IndicatorBase):
             scale_range: Range of scales to analyze (min_scale, max_scale)
             significance_level: Statistical significance threshold
         """
-        super().__init__(period)
+        super().__init__(config=config) # Pass config to super
+        self.period = period # Ensure period is set
         self.min_pattern_length = min_pattern_length
         self.max_pattern_length = max_pattern_length
         self.similarity_threshold = similarity_threshold
@@ -320,23 +333,35 @@ class SelfSimilarityDetector(IndicatorBase):
         
         return signature
     
-    def calculate(self, data: pd.DataFrame) -> pd.DataFrame:
+    def calculate(self, data: pd.Series) -> Optional[SelfSimilaritySignal]:
         """
-        Calculate self-similarity detection.
+        Calculate self-similarity measures and detect patterns.
         
         Args:
-            data: DataFrame with OHLCV data
+            data: Input time series data (e.g., close prices)
             
         Returns:
-            DataFrame with self-similarity signals
+            SelfSimilaritySignal if a significant pattern is found, else None
         """
+        if not isinstance(data, pd.Series):
+            # Try to convert if it's a DataFrame with a 'close' column
+            if isinstance(data, pd.DataFrame) and 'close' in data.columns:
+                data = data['close']
+            else:
+                self.logger.warning("SelfSimilarityDetector: Input data must be a pandas Series or a DataFrame with a 'close' column.")
+                return None
+
         if len(data) < self.period:
-            return pd.DataFrame()
+            self.logger.warning(f"SelfSimilarityDetector: Data length ({len(data)}) is less than period ({self.period}).")
+            return None
+        
+        # Use data from the lookback period
+        series_data = data.iloc[-self.period:].values
         
         results = []
         
         # Use close prices for analysis
-        prices = data['close'].values
+        prices = series_data
         
         for i in range(self.period, len(data)):
             window_data = prices[i - self.period:i]

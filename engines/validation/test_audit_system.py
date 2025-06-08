@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Simple test runner for the Comprehensive Indicator Audit System
+Platform3 - Humanitarian Trading System
+"""
+
+import asyncio
+import sys
+import os
+from pathlib import Path
+
+# Add project root to path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+
+from indicator_audit_system import ComprehensiveIndicatorAuditSystem
+
+async def test_audit_system():
+    """Test the audit system with basic functionality"""
+    print("[TESTING] Platform3 Comprehensive Indicator Audit System")
+    print("=" * 60)
+    
+    # Initialize the audit system
+    try:
+        audit_system = ComprehensiveIndicatorAuditSystem()
+        print("[SUCCESS] Audit system initialized successfully")
+    except Exception as e:
+        print(f"[FAILED] Failed to initialize audit system: {str(e)}")
+        return False
+    
+    # Test indicator discovery
+    try:
+        indicators = audit_system.discover_available_indicators()
+        print(f"[SUCCESS] Found {len(indicators)} indicators across all categories")
+        
+        if indicators:
+            print("[INFO] Sample indicators found:")
+            for i, indicator in enumerate(indicators[:5]):  # Show first 5
+                print(f"   {i+1}. {indicator.name} ({indicator.parent.name})")
+            if len(indicators) > 5:
+                print(f"   ... and {len(indicators) - 5} more")
+        else:
+            print("[WARNING] No indicators found - system may need indicator files")
+            
+    except Exception as e:
+        print(f"[FAILED] Indicator discovery failed: {str(e)}")
+        return False
+    
+    # Test sample data generation
+    try:
+        sample_data = audit_system.generate_sample_market_data()
+        print(f"[SUCCESS] Sample market data generated: {len(sample_data)} data points")
+    except Exception as e:
+        print(f"[FAILED] Sample data generation failed: {str(e)}")
+        return False
+    
+    # Test basic audit functionality (quick version)
+    try:
+        print("\n[TESTING] Running quick audit test...")
+        
+        # Test category validation (just one category)
+        momentum_result = await audit_system.validate_category('momentum')
+        print(f"[SUCCESS] Momentum category validation: {momentum_result.get('indicators_tested', 0)} indicators tested")
+        
+        # Test AI integration check
+        ai_result = await audit_system.validate_ai_integration()
+        print(f"[SUCCESS] AI integration check: {'Available' if ai_result.get('ai_platform_available') else 'Not available'}")
+        
+        # Test TypeScript integration check
+        ts_result = await audit_system.validate_typescript_integration()
+        print(f"[SUCCESS] TypeScript integration check: {'Available' if ts_result.get('typescript_integration_available') else 'Not available'}")
+        
+        print("\n[SUMMARY] Quick Audit Summary:")
+        print(f"   • Momentum indicators tested: {momentum_result.get('indicators_tested', 0)}")
+        print(f"   • AI platform available: {ai_result.get('ai_platform_available', False)}")
+        print(f"   • TypeScript bridge available: {ts_result.get('typescript_integration_available', False)}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"[FAILED] Quick audit test failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def main():
+    """Main test function"""
+    print("Platform3 Indicator Audit System - Test Runner")
+    print("=" * 60)
+    
+    # Run the async test
+    success = asyncio.run(test_audit_system())
+    
+    if success:
+        print("\n[SUCCESS] All tests passed! Audit system is functional.")
+        print("\nNext steps:")
+        print("1. Run full audit: python -m engines.validation.indicator_audit_system")
+        print("2. Check specific category: python -m engines.validation.indicator_audit_system --category momentum")
+        print("3. Generate report only: python -m engines.validation.indicator_audit_system --report-only")
+    else:
+        print("\n[FAILED] Some tests failed. Please check the errors above.")
+        
+    return success
+
+if __name__ == "__main__":
+    success = main()
+    sys.exit(0 if success else 1)

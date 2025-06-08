@@ -18,7 +18,8 @@
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "helmet": "^7.1.0",
-    "winston": "^3.11.0"
+    "winston": "^3.11.0",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "@types/consul": "^0.40.0",

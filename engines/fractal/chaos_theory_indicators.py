@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Chaos Theory Indicators Implementation
 Advanced non-linear dynamics analysis for market behavior prediction.
@@ -513,7 +514,7 @@ class ChaosTheoryIndicators:
         recurrences = 0
         total_comparisons = 0
         
-        # Sample pairs to avoid O(n²) complexity
+        # Sample pairs to avoid O(n**2) complexity
         sample_size = min(100, len(embedded_data))
         indices = np.random.choice(len(embedded_data), sample_size, replace=False)
         

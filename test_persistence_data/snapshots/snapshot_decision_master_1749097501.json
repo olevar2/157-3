@@ -1,0 +1,41 @@
+{
+  "agent_id": "decision_master",
+  "snapshot_id": "snapshot_decision_master_1749097501",
+  "timestamp": "2025-06-04T21:25:01.107618",
+  "states": {
+    "CONFIGURATION": {
+      "agent_id": "decision_master",
+      "timestamp": "2025-06-04T21:25:01.107483",
+      "test_id": "f666629d-4d1f-42c7-9ac8-4316072013ec",
+      "random_value": 0.03387600089370335,
+      "config_version": "test_1.0",
+      "parameters": {
+        "threshold": 0.4935978222308167,
+        "max_connections": 6,
+        "response_timeout_ms": 3537
+      },
+      "features_enabled": {
+        "advanced_risk": false,
+        "real_time_updates": true,
+        "pattern_recognition": false
+      }
+    },
+    "COMMUNICATION_STATE": {
+      "agent_id": "decision_master",
+      "timestamp": "2025-06-04T21:25:01.107550",
+      "test_id": "d9a90769-ff17-41ab-a325-212053ebe506",
+      "random_value": 0.8434118243844135,
+      "connected_agents": [
+        "ai_model_coordinator",
+        "risk_genius"
+      ],
+      "message_counts": {
+        "sent": 9044,
+        "received": 7346,
+        "pending": 87
+      },
+      "connection_quality": 0.562134369661506,
+      "last_heartbeat": "2025-06-04T21:25:01.107596"
+    }
+  }
+}

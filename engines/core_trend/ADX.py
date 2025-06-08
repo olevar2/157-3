@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Average Directional Index (ADX) Indicator
 Advanced trend strength analysis for forex trading
@@ -42,7 +43,7 @@ class TrendDirection(Enum):
     """Trend direction based on DI+ and DI-"""
     BULLISH = "bullish"    # DI+ > DI-
     BEARISH = "bearish"    # DI- > DI+
-    NEUTRAL = "neutral"    # DI+ ≈ DI-
+    NEUTRAL = "neutral"    # DI+ ~= DI-
 
 class ADXSignalType(Enum):
     """Types of ADX signals"""

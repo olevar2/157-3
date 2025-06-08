@@ -8,6 +8,10 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
+
+// Platform3 Service Mesh Integration
+const correlationMiddleware = require('../../shared/middleware/correlation_middleware');
+const { circuitBreakerMiddleware } = require('../../shared/middleware/circuit_breaker_middleware');
 // Import custom middleware
 const authMiddleware = require('./middleware/auth');
 const logger = require('./utils/logger');
@@ -16,6 +20,10 @@ const ServiceDiscoveryMiddleware = require('./middleware/serviceDiscovery');
 const mTLSMiddleware = require('./middleware/mtls');
 
 const app = express();
+// Apply service mesh middleware
+app.use(correlationMiddleware);
+app.use(circuitBreakerMiddleware('api-gateway'));
+
 const PORT = process.env.PORT || 3000;
 
 // Initialize service discovery and mTLS

@@ -1,325 +1,277 @@
-"""
-Parabolic SAR Trend Indicator
-A trend-following indicator that provides potential reversal points in price.
-Part of Platform3's 67-indicator humanitarian trading system.
-"""
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+
+
+# Platform3 path management
 import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
 
-from typing import List, Optional
-from datetime import datetime
-from indicator_base import (
-    TrendIndicator, IndicatorResult, IndicatorSignal, MarketData, 
-    SignalType, TimeFrame
-)
+"""
+ParabolicSar - Enhanced Trading Engine
+Platform3 Phase 3 - Enhanced with Framework Integration
+"""
 
-class ParabolicSAR(TrendIndicator):
-    """
-    Parabolic SAR (Stop and Reverse) trend indicator.
+from shared.logging.platform3_logger import Platform3Logger
+from shared.error_handling.platform3_error_system import Platform3ErrorSystem, ServiceError
+from shared.database.platform3_database_manager import Platform3DatabaseManager
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
+import asyncio
+import numpy as np
+from typing import Dict, List, Any, Optional, Union
+from datetime import datetime, timedelta
+import time
+
+class ParabolicSar:
+    """Enhanced ParabolicSar with Platform3 framework integration"""
     
-    The Parabolic SAR is used to determine the direction of an asset's momentum
-    and the point in time when this momentum has a higher-than-normal probability
-    of switching directions.
-    """
-    
-    def __init__(self, timeframe: TimeFrame, 
-                 initial_af: float = 0.02, 
-                 max_af: float = 0.20, 
-                 af_increment: float = 0.02):
+    def __init__(self):
+        """Initialize with Platform3 framework components"""
+        self.logger = Platform3Logger(self.__class__.__name__)
+        self.error_system = Platform3ErrorSystem()
+        self.db_manager = Platform3DatabaseManager()
+        self.comm_framework = Platform3CommunicationFramework()
+        
+        self.logger.info(f"{self.__class__.__name__} initialized successfully")
+        
+    async def calculate(self, data: Union[np.ndarray, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         """
-        Initialize Parabolic SAR indicator.
+        Calculate Parabolic SAR values with enhanced accuracy
         
         Args:
-            timeframe: Timeframe for analysis
-            initial_af: Initial acceleration factor (default 0.02)
-            max_af: Maximum acceleration factor (default 0.20)
-            af_increment: Acceleration factor increment (default 0.02)
-        """
-        super().__init__("Parabolic SAR", timeframe, lookback_periods=2)
-        self.initial_af = initial_af
-        self.max_af = max_af
-        self.af_increment = af_increment
-        
-    def calculate(self, data: List[MarketData]) -> IndicatorResult:
-        """
-        Calculate Parabolic SAR value.
-        
-        Args:
-            data: List of MarketData objects
+            data: Input market data - can be:
+                  - Dictionary with 'high', 'low', 'close' keys and optional parameters
+                  - Legacy np.ndarray (will be processed as close prices)
             
         Returns:
-            IndicatorResult with Parabolic SAR calculation
+            Dictionary containing calculated values or None on error
         """
-        if len(data) < 2:
-            raise ValueError(f"Insufficient data for Parabolic SAR calculation. Need at least 2 periods, got {len(data)}")
-        
-        start_time = datetime.now()
+        start_time = time.time()
         
         try:
-            # Initialize variables
-            sar_values = []
+            self.logger.debug("Starting calculation process")
             
-            # Determine initial trend direction
-            if data[1].close > data[0].close:
-                trend = 1  # Uptrend
-                sar = data[0].low
-                ep = data[1].high  # Extreme point
-            else:
-                trend = -1  # Downtrend
-                sar = data[0].high
-                ep = data[1].low
+            # Input validation
+            if data is None or len(data) == 0:
+                raise ServiceError("Invalid input data", "INVALID_INPUT")
             
-            af = self.initial_af
-            sar_values.append(sar)
+            # Perform calculations
+            result = await self._perform_calculation(data)
             
-            # Calculate SAR for each subsequent period
-            for i in range(1, len(data)):
-                current = data[i]
-                
-                # Calculate new SAR
-                sar = sar + af * (ep - sar)
-                
-                if trend == 1:  # Uptrend
-                    # Check for trend reversal
-                    if current.low <= sar:
-                        # Trend reversal to downtrend
-                        trend = -1
-                        sar = ep
-                        ep = current.low
-                        af = self.initial_af
-                    else:
-                        # Continue uptrend
-                        if current.high > ep:
-                            ep = current.high
-                            af = min(af + self.af_increment, self.max_af)
-                        
-                        # Ensure SAR doesn't exceed recent lows
-                        if i >= 1:
-                            sar = min(sar, data[i-1].low)
-                        if i >= 2:
-                            sar = min(sar, data[i-2].low)
-                
-                else:  # Downtrend
-                    # Check for trend reversal
-                    if current.high >= sar:
-                        # Trend reversal to uptrend
-                        trend = 1
-                        sar = ep
-                        ep = current.high
-                        af = self.initial_af
-                    else:
-                        # Continue downtrend
-                        if current.low < ep:
-                            ep = current.low
-                            af = min(af + self.af_increment, self.max_af)
-                        
-                        # Ensure SAR doesn't fall below recent highs
-                        if i >= 1:
-                            sar = max(sar, data[i-1].high)
-                        if i >= 2:
-                            sar = max(sar, data[i-2].high)
-                
-                sar_values.append(sar)
+            # Performance monitoring
+            execution_time = time.time() - start_time
+            self.logger.info(f"Calculation completed in {execution_time:.4f}s")
             
-            current_sar = sar_values[-1]
-            current_price = data[-1].close
-            
-            # Determine position relative to SAR
-            is_above_sar = current_price > current_sar
-            distance_from_sar = abs(current_price - current_sar) / current_price * 100
-            
-            calculation_time = (datetime.now() - start_time).total_seconds() * 1000
-            
-            result = IndicatorResult(
-                timestamp=data[-1].timestamp,
-                indicator_name=self.name,
-                indicator_type=self.indicator_type,
-                timeframe=self.timeframe,
-                value=current_sar,
-                raw_data={
-                    'sar': current_sar,
-                    'current_price': current_price,
-                    'trend': trend,
-                    'acceleration_factor': af,
-                    'extreme_point': ep,
-                    'is_above_sar': is_above_sar,
-                    'distance_from_sar': distance_from_sar,
-                    'sar_values': sar_values[-5:]  # Last 5 values for context
-                },
-                calculation_time_ms=calculation_time
-            )
-            
-            # Generate signal
-            signal = self.generate_signal(result, [])
-            if signal:
-                result.signal = signal
-                
             return result
             
+        except ServiceError as e:
+            self.logger.error(f"Service error: {e}", extra={"error": e.to_dict()})
+            return None
         except Exception as e:
-            raise ValueError(f"Parabolic SAR calculation failed: {e}")
+            self.logger.error(f"Unexpected error: {e}")
+            self.error_system.handle_error(e, self.__class__.__name__)
+            return None
     
-    def generate_signal(self, current_result: IndicatorResult, 
-                       historical_results: List[IndicatorResult]) -> Optional[IndicatorSignal]:
+    async def _perform_calculation(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Generate trading signals based on Parabolic SAR.
+        Calculate Parabolic SAR values
+        
+        Parabolic SAR formula:
+        - Uptrend: SAR(t+1) = SAR(t) + AF * (EP - SAR(t))
+        - Downtrend: SAR(t+1) = SAR(t) - AF * (SAR(t) - EP)
+        
+        Where:
+        - SAR = Stop and Reverse
+        - AF = Acceleration Factor (starts at 0.02, increases by 0.02 each time EP is updated, max 0.20)
+        - EP = Extreme Point (highest high in uptrend, lowest low in downtrend)
         
         Args:
-            current_result: Current Parabolic SAR calculation
-            historical_results: Previous results for trend analysis
+            data: Dictionary containing 'high', 'low', 'close' and optional parameters
             
         Returns:
-            IndicatorSignal if conditions are met
+            Dictionary containing Parabolic SAR values and signals
         """
-        sar_data = current_result.raw_data
-        current_price = sar_data['current_price']
-        sar = sar_data['sar']
-        trend = sar_data['trend']
-        distance = sar_data['distance_from_sar']
-        
-        # Trend continuation signals
-        if trend == 1 and current_price > sar:  # Strong uptrend
-            strength = min(1.0, distance / 5)  # Normalize based on distance
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.BUY,
-                strength=strength,
-                confidence=0.75,
-                stop_loss=sar,  # SAR acts as stop loss
-                metadata={
-                    'sar': sar,
-                    'current_price': current_price,
-                    'trend': 'uptrend',
-                    'signal': 'trend_continuation_bullish',
-                    'stop_loss': sar
-                }
-            )
-        elif trend == -1 and current_price < sar:  # Strong downtrend
-            strength = min(1.0, distance / 5)
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.SELL,
-                strength=strength,
-                confidence=0.75,
-                stop_loss=sar,  # SAR acts as stop loss
-                metadata={
-                    'sar': sar,
-                    'current_price': current_price,
-                    'trend': 'downtrend',
-                    'signal': 'trend_continuation_bearish',
-                    'stop_loss': sar
-                }
-            )
-        
-        # Trend reversal signals (if we have historical data)
-        if len(historical_results) >= 1:
-            prev_result = historical_results[-1]
-            if hasattr(prev_result, 'raw_data'):
-                prev_trend = prev_result.raw_data.get('trend', 0)
+        try:
+            # Extract data
+            high_prices = np.array(data.get('high', []))
+            low_prices = np.array(data.get('low', []))
+            close_prices = np.array(data.get('close', []))
+            
+            # Parameters
+            af_start = data.get('af_start', 0.02)
+            af_increment = data.get('af_increment', 0.02)
+            af_max = data.get('af_max', 0.20)
+            
+            if len(high_prices) != len(low_prices) or len(high_prices) != len(close_prices):
+                raise ValueError("High, low, and close price arrays must have same length")
+            
+            if len(high_prices) < 2:
+                raise ValueError("Need at least 2 data points for Parabolic SAR calculation")
+            
+            length = len(high_prices)
+            sar = np.full(length, np.nan)
+            trend = np.full(length, np.nan)  # 1 for uptrend, -1 for downtrend
+            af = np.full(length, np.nan)
+            ep = np.full(length, np.nan)  # Extreme Point
+            
+            # Initialize first values
+            # Assume starting in uptrend
+            sar[0] = low_prices[0]
+            trend[0] = 1
+            af[0] = af_start
+            ep[0] = high_prices[0]
+            
+            # Calculate SAR for each period
+            for i in range(1, length):
+                prev_sar = sar[i-1]
+                prev_trend = trend[i-1]
+                prev_af = af[i-1]
+                prev_ep = ep[i-1]
                 
-                # Bullish reversal
-                if prev_trend == -1 and trend == 1:
-                    return IndicatorSignal(
-                        timestamp=current_result.timestamp,
-                        indicator_name=self.name,
-                        signal_type=SignalType.STRONG_BUY,
-                        strength=0.9,
-                        confidence=0.8,
-                        stop_loss=sar,
-                        metadata={
-                            'sar': sar,
-                            'current_price': current_price,
-                            'signal': 'bullish_trend_reversal',
-                            'previous_trend': 'downtrend',
-                            'new_trend': 'uptrend'
-                        }
-                    )
-                # Bearish reversal
-                elif prev_trend == 1 and trend == -1:
-                    return IndicatorSignal(
-                        timestamp=current_result.timestamp,
-                        indicator_name=self.name,
-                        signal_type=SignalType.STRONG_SELL,
-                        strength=0.9,
-                        confidence=0.8,
-                        stop_loss=sar,
-                        metadata={
-                            'sar': sar,
-                            'current_price': current_price,
-                            'signal': 'bearish_trend_reversal',
-                            'previous_trend': 'uptrend',
-                            'new_trend': 'downtrend'
-                        }
-                    )
+                # Calculate new SAR based on previous trend
+                if prev_trend == 1:  # Uptrend
+                    new_sar = prev_sar + prev_af * (prev_ep - prev_sar)
+                    
+                    # SAR should not exceed the low of the current or previous period
+                    new_sar = min(new_sar, low_prices[i], low_prices[i-1])
+                    
+                    # Check for trend reversal
+                    if low_prices[i] < new_sar:
+                        # Trend reversal to downtrend
+                        trend[i] = -1
+                        sar[i] = prev_ep  # SAR becomes the previous extreme point
+                        af[i] = af_start  # Reset acceleration factor
+                        ep[i] = low_prices[i]  # New extreme point is current low
+                    else:
+                        # Continue uptrend
+                        trend[i] = 1
+                        sar[i] = new_sar
+                        
+                        # Update extreme point and acceleration factor
+                        if high_prices[i] > prev_ep:
+                            ep[i] = high_prices[i]
+                            af[i] = min(prev_af + af_increment, af_max)
+                        else:
+                            ep[i] = prev_ep
+                            af[i] = prev_af
+                
+                else:  # Downtrend
+                    new_sar = prev_sar - prev_af * (prev_sar - prev_ep)
+                    
+                    # SAR should not exceed the high of the current or previous period
+                    new_sar = max(new_sar, high_prices[i], high_prices[i-1])
+                    
+                    # Check for trend reversal
+                    if high_prices[i] > new_sar:
+                        # Trend reversal to uptrend
+                        trend[i] = 1
+                        sar[i] = prev_ep  # SAR becomes the previous extreme point
+                        af[i] = af_start  # Reset acceleration factor
+                        ep[i] = high_prices[i]  # New extreme point is current high
+                    else:
+                        # Continue downtrend
+                        trend[i] = -1
+                        sar[i] = new_sar
+                        
+                        # Update extreme point and acceleration factor
+                        if low_prices[i] < prev_ep:
+                            ep[i] = low_prices[i]
+                            af[i] = min(prev_af + af_increment, af_max)
+                        else:
+                            ep[i] = prev_ep
+                            af[i] = prev_af
+            
+            # Generate signals
+            signals = self._generate_psar_signals(sar, trend, close_prices)
+            
+            return {
+                "sar": sar.tolist(),
+                "trend": trend.tolist(),
+                "acceleration_factor": af.tolist(),
+                "extreme_point": ep.tolist(),
+                "signals": signals,
+                "parameters": {
+                    "af_start": af_start,
+                    "af_increment": af_increment,
+                    "af_max": af_max
+                },
+                "timestamp": datetime.now().isoformat(),
+                "engine": self.__class__.__name__
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Parabolic SAR calculation error: {e}")
+            raise ServiceError(f"Parabolic SAR calculation failed: {str(e)}", "CALCULATION_ERROR")
+    
+    def _generate_psar_signals(self, sar: np.ndarray, trend: np.ndarray, 
+                              close_prices: np.ndarray) -> List[Dict[str, Any]]:
+        """Generate trading signals based on Parabolic SAR"""
+        signals = []
         
-        return None
-
-def test_parabolic_sar():
-    """Test Parabolic SAR calculation with sample data."""
-    from datetime import datetime, timedelta
-    
-    # Create sample market data with clear trend
-    base_time = datetime.now()
-    test_data = []
-    
-    # Generate test data: uptrend followed by downtrend
-    base_price = 100
-    
-    # Uptrend phase
-    for i in range(15):
-        price = base_price + i * 0.5
-        high = price + 0.3
-        low = price - 0.2
+        for i in range(1, len(trend)):
+            if np.isnan(trend[i]) or np.isnan(trend[i-1]):
+                continue
+            
+            # Trend reversal signals
+            if trend[i] == 1 and trend[i-1] == -1:
+                signals.append({
+                    "index": i,
+                    "signal": "bullish_reversal",
+                    "sar": sar[i],
+                    "price": close_prices[i],
+                    "trend": "uptrend"
+                })
+            
+            elif trend[i] == -1 and trend[i-1] == 1:
+                signals.append({
+                    "index": i,
+                    "signal": "bearish_reversal",
+                    "sar": sar[i],
+                    "price": close_prices[i],
+                    "trend": "downtrend"
+                })
+            
+            # Current trend signals
+            elif trend[i] == 1 and close_prices[i] > sar[i]:
+                signals.append({
+                    "index": i,
+                    "signal": "bullish_trend",
+                    "sar": sar[i],
+                    "price": close_prices[i],
+                    "trend": "uptrend"
+                })
+            
+            elif trend[i] == -1 and close_prices[i] < sar[i]:
+                signals.append({
+                    "index": i,
+                    "signal": "bearish_trend",
+                    "sar": sar[i],
+                    "price": close_prices[i],
+                    "trend": "downtrend"
+                })
         
-        test_data.append(MarketData(
-            timestamp=base_time + timedelta(minutes=i),
-            open=price - 0.1,
-            high=high,
-            low=low,
-            close=price,
-            volume=1000,
-            timeframe=TimeFrame.M1
-        ))
+        return signals
     
-    # Downtrend phase
-    for i in range(15):
-        price = base_price + 14 * 0.5 - i * 0.4
-        high = price + 0.2
-        low = price - 0.3
-        
-        test_data.append(MarketData(
-            timestamp=base_time + timedelta(minutes=15 + i),
-            open=price + 0.1,
-            high=high,
-            low=low,
-            close=price,
-            volume=1000,
-            timeframe=TimeFrame.M1
-        ))
+    def get_parameters(self) -> Dict[str, Any]:
+        """Get engine parameters"""
+        return {
+            "engine_name": self.__class__.__name__,
+            "version": "3.0.0",
+            "framework": "Platform3"
+        }
     
-    # Test Parabolic SAR calculation
-    psar = ParabolicSAR(TimeFrame.M1)
-    result = psar.calculate(test_data)
-    
-    print(f"Parabolic SAR Test Results:")
-    print(f"SAR: {result.value:.4f}")
-    print(f"Current Price: {result.raw_data['current_price']:.4f}")
-    print(f"Trend: {result.raw_data['trend']} ({'Uptrend' if result.raw_data['trend'] == 1 else 'Downtrend'})")
-    print(f"Acceleration Factor: {result.raw_data['acceleration_factor']:.4f}")
-    print(f"Distance from SAR: {result.raw_data['distance_from_sar']:.2f}%")
-    print(f"Calculation time: {result.calculation_time_ms:.2f}ms")
-    
-    if result.signal:
-        print(f"Signal: {result.signal.signal_type.value} (strength: {result.signal.strength:.2f})")
-        print(f"Stop Loss: {result.signal.stop_loss:.4f}")
-        print(f"Metadata: {result.signal.metadata}")
-    else:
-        print("No signal generated")
-    
-    return result
-
-if __name__ == "__main__":
-    test_parabolic_sar()
+    async def validate_input(self, data: Any) -> bool:
+        """Validate input data"""
+        try:
+            if data is None:
+                return False
+            if isinstance(data, np.ndarray) and len(data) == 0:
+                return False
+            return True
+        except Exception as e:
+            self.logger.error(f"Input validation error: {e}")
+            return False

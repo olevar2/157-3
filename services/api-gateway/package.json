@@ -9,7 +9,12 @@
     "test": "jest",
     "test:watch": "jest --watch"
   },
-  "keywords": ["api-gateway", "forex", "trading", "microservices"],
+  "keywords": [
+    "api-gateway",
+    "forex",
+    "trading",
+    "microservices"
+  ],
   "author": "Platform3 Team",
   "license": "MIT",
   "dependencies": {
@@ -24,7 +29,8 @@
     "express-validator": "^7.0.1",
     "winston": "^3.11.0",
     "compression": "^1.7.4",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",

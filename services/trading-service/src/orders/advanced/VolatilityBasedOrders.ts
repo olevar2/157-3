@@ -16,9 +16,35 @@
 
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import { Logger } from 'winston';
-import {
-  OrderSide,
+import axios from 'axios';
+
+// Define common types since we're removing external dependencies
+export enum OrderSide {
+  BUY = 'BUY',
+  SELL = 'SELL'
+}
+
+export enum OrderType {
+  MARKET = 'MARKET',
+  LIMIT = 'LIMIT',
+  STOP = 'STOP',
+  STOP_LIMIT = 'STOP_LIMIT'
+}
+
+export enum OrderStatus {
+  PENDING = 'PENDING',
+  FILLED = 'FILLED',
+  PARTIALLY_FILLED = 'PARTIALLY_FILLED',
+  CANCELLED = 'CANCELLED',
+  REJECTED = 'REJECTED'
+}
+
+export enum TimeInForce {
+  GTC = 'GTC', // Good Till Cancelled
+  IOC = 'IOC', // Immediate or Cancel
+  FOK = 'FOK', // Fill or Kill
+  DAY = 'DAY'  // Day order
+}
   OrderType,
   OrderStatus,
   TimeInForce,
@@ -100,10 +126,10 @@ export class VolatilityBasedOrderManager extends EventEmitter {
 
   constructor(logger: Logger /*, volatilityProvider, omsClient */) {
     super();
-    this.logger = logger;
+    console = logger;
     // this.volatilityProvider = volatilityProvider;
     // this.omsClient = omsClient;
-    this.logger.info('VolatilityBasedOrderManager initialized.');
+    console.info('VolatilityBasedOrderManager initialized.');
   }
 
   private _validateInput(input: VolatilityBasedOrderInput): void {
@@ -140,14 +166,14 @@ export class VolatilityBasedOrderManager extends EventEmitter {
       originalInput: { ...input },
     };
     this.volatileOrders.set(orderId, initialState);
-    this.logger.info(`VolatilityBasedOrder ${orderId} created. Status: PENDING_CALCULATION.`);
+    console.info(`VolatilityBasedOrder ${orderId} created. Status: PENDING_CALCULATION.`);
     this.emit('volatilityOrderCreated', initialState);
 
     // Fetch initial volatility data and calculate parameters
     try {
       const currentVolatility = await this._fetchVolatilityData(input.symbol);
       if (!currentVolatility || currentVolatility.atr === undefined) { // Assuming ATR for now
-        this.logger.error(`VolatilityBasedOrder ${orderId}: Failed to fetch valid ATR data for ${input.symbol}.`);
+        console.error(`VolatilityBasedOrder ${orderId}: Failed to fetch valid ATR data for ${input.symbol}.`);
         initialState.status = VolatilityOrderStatus.FAILED_VOLATILITY_DATA;
         initialState.updatedAt = new Date();
         this.emit('volatilityOrderFailed', initialState);
@@ -157,14 +183,14 @@ export class VolatilityBasedOrderManager extends EventEmitter {
       this._calculateOrderParameters(initialState, currentVolatility);
       
       initialState.status = VolatilityOrderStatus.PARAMETERS_CALCULATED;
-      this.logger.info(`VolatilityBasedOrder ${orderId}: Parameters calculated. SL: ${initialState.calculatedStopLossPrice}, TP: ${initialState.calculatedTakeProfitPrice}, Qty: ${initialState.calculatedQuantity}`);
+      console.info(`VolatilityBasedOrder ${orderId}: Parameters calculated. SL: ${initialState.calculatedStopLossPrice}, TP: ${initialState.calculatedTakeProfitPrice}, Qty: ${initialState.calculatedQuantity}`);
       this.emit('volatilityOrderParametersCalculated', initialState);
 
       // Now place the order with calculated parameters
       await this._placeUnderlyingOrder(orderId);
 
     } catch (error: any) {
-      this.logger.error(`VolatilityBasedOrder ${orderId}: Error during creation or initial calculation: ${error.message}`);
+      console.error(`VolatilityBasedOrder ${orderId}: Error during creation or initial calculation: ${error.message}`);
       if (initialState.status === VolatilityOrderStatus.PENDING_CALCULATION) {
         initialState.status = VolatilityOrderStatus.FAILED_VOLATILITY_DATA;
       }
@@ -204,7 +230,7 @@ export class VolatilityBasedOrderManager extends EventEmitter {
     // For this example, let's assume input.price is the entry for LIMIT or current market for MARKET orders.
     const basePrice = input.price || volatility.last || (volatility.bid! + volatility.ask!) / 2; // Simplified entry price
     if (basePrice === undefined) {
-        this.logger.warn(`VolatilityBasedOrder ${state.volatilityOrderId}: Cannot determine base price for SL/TP calculation.`);
+        console.warn(`VolatilityBasedOrder ${state.volatilityOrderId}: Cannot determine base price for SL/TP calculation.`);
         return;
     }
 
@@ -238,7 +264,7 @@ export class VolatilityBasedOrderManager extends EventEmitter {
     }
 
     if (state.calculatedQuantity !== undefined && state.calculatedQuantity <= 0) {
-        this.logger.warn(`VolatilityBasedOrder ${state.volatilityOrderId}: Calculated quantity is zero or negative. Defaulting to input quantity or 1 if not set.`);
+        console.warn(`VolatilityBasedOrder ${state.volatilityOrderId}: Calculated quantity is zero or negative. Defaulting to input quantity or 1 if not set.`);
         state.calculatedQuantity = input.quantity > 0 ? input.quantity : 1; // Ensure positive quantity
     }
     state.updatedAt = new Date();
@@ -247,7 +273,7 @@ export class VolatilityBasedOrderManager extends EventEmitter {
   private async _placeUnderlyingOrder(volatilityOrderId: string): Promise<void> {
     const orderState = this.volatileOrders.get(volatilityOrderId);
     if (!orderState || orderState.status !== VolatilityOrderStatus.PARAMETERS_CALCULATED) {
-      this.logger.warn(`VolatilityBasedOrder ${volatilityOrderId}: Cannot place order, status is not PARAMETERS_CALCULATED.`);
+      console.warn(`VolatilityBasedOrder ${volatilityOrderId}: Cannot place order, status is not PARAMETERS_CALCULATED.`);
       return;
     }
 
@@ -274,10 +300,10 @@ export class VolatilityBasedOrderManager extends EventEmitter {
       orderState.underlyingOrder = placedOrder;
       orderState.status = VolatilityOrderStatus.ORDER_PLACED;
       orderState.updatedAt = new Date();
-      this.logger.info(`VolatilityBasedOrder ${volatilityOrderId}: Underlying order ${placedOrder.id} placed.`);
+      console.info(`VolatilityBasedOrder ${volatilityOrderId}: Underlying order ${placedOrder.id} placed.`);
       this.emit('volatilityUnderlyingOrderPlaced', orderState);
     } catch (error: any) {
-      this.logger.error(`VolatilityBasedOrder ${volatilityOrderId}: Failed to place underlying order: ${error.message}`, { payload });
+      console.error(`VolatilityBasedOrder ${volatilityOrderId}: Failed to place underlying order: ${error.message}`, { payload });
       orderState.status = VolatilityOrderStatus.REJECTED;
       orderState.updatedAt = new Date();
       this.emit('volatilityOrderPlacementFailed', { orderState, error });
@@ -292,7 +318,7 @@ export class VolatilityBasedOrderManager extends EventEmitter {
           orderState.status === VolatilityOrderStatus.ORDER_PLACED && // Only adjust if order is live
           orderState.underlyingOrder && orderState.underlyingOrder.status === OrderStatus.ACTIVE) {
         
-        this.logger.debug(`VolatilityBasedOrder ${orderState.volatilityOrderId}: Received volatility update for active order.`);
+        console.debug(`VolatilityBasedOrder ${orderState.volatilityOrderId}: Received volatility update for active order.`);
         orderState.lastVolatilityData = volatilityData;
         const oldSl = orderState.calculatedStopLossPrice;
         const oldTp = orderState.calculatedTakeProfitPrice;
@@ -300,7 +326,7 @@ export class VolatilityBasedOrderManager extends EventEmitter {
         this._calculateOrderParameters(orderState, volatilityData); // Recalculate SL/TP
 
         if (orderState.calculatedStopLossPrice !== oldSl || orderState.calculatedTakeProfitPrice !== oldTp) {
-          this.logger.info(`VolatilityBasedOrder ${orderState.volatilityOrderId}: Volatility update. New SL: ${orderState.calculatedStopLossPrice}, New TP: ${orderState.calculatedTakeProfitPrice}. Attempting to modify.`);
+          console.info(`VolatilityBasedOrder ${orderState.volatilityOrderId}: Volatility update. New SL: ${orderState.calculatedStopLossPrice}, New TP: ${orderState.calculatedTakeProfitPrice}. Attempting to modify.`);
           this.emit('volatilityOrderParametersRecalculated', orderState);
           // Simulate modifying the order with OMS
           try {
@@ -313,10 +339,10 @@ export class VolatilityBasedOrderManager extends EventEmitter {
             // Update orderState.underlyingOrder with new SL/TP if OMS returns them
             if(orderState.underlyingOrder && orderState.calculatedStopLossPrice) orderState.underlyingOrder.stopPrice = orderState.calculatedStopLossPrice; // This is not quite right, depends on OMS model
 
-            this.logger.info(`VolatilityBasedOrder ${orderState.volatilityOrderId}: Underlying order ${orderState.underlyingOrder!.id} modified with new SL/TP.`);
+            console.info(`VolatilityBasedOrder ${orderState.volatilityOrderId}: Underlying order ${orderState.underlyingOrder!.id} modified with new SL/TP.`);
             this.emit('volatilityOrderModified', orderState);
           } catch (error: any) {
-            this.logger.error(`VolatilityBasedOrder ${orderState.volatilityOrderId}: Failed to modify order ${orderState.underlyingOrder!.id}: ${error.message}`);
+            console.error(`VolatilityBasedOrder ${orderState.volatilityOrderId}: Failed to modify order ${orderState.underlyingOrder!.id}: ${error.message}`);
             // Revert to old values or handle error
             orderState.calculatedStopLossPrice = oldSl;
             orderState.calculatedTakeProfitPrice = oldTp;
@@ -330,7 +356,7 @@ export class VolatilityBasedOrderManager extends EventEmitter {
   public async handleUnderlyingOrderFill(volatilityOrderId: string, fillEvent: OrderFillEvent): Promise<void> {
     const orderState = this.volatileOrders.get(volatilityOrderId);
     if (!orderState || !orderState.underlyingOrder || orderState.underlyingOrder.id !== fillEvent.orderId) {
-        this.logger.warn(`VolatilityBasedOrder: Received fill for unknown or mismatched underlying order ${fillEvent.orderId}.`);
+        console.warn(`VolatilityBasedOrder: Received fill for unknown or mismatched underlying order ${fillEvent.orderId}.`);
         return;
     }
 
@@ -342,7 +368,7 @@ export class VolatilityBasedOrderManager extends EventEmitter {
     orderState.status = VolatilityOrderStatus.FILLED;
     orderState.updatedAt = new Date();
     
-    this.logger.info(`VolatilityBasedOrder ${volatilityOrderId}: Underlying order ${fillEvent.orderId} FILLED.`);
+    console.info(`VolatilityBasedOrder ${volatilityOrderId}: Underlying order ${fillEvent.orderId} FILLED.`);
     this.emit('volatilityOrderFilled', orderState);
   }
 
@@ -367,7 +393,7 @@ export class VolatilityBasedOrderManager extends EventEmitter {
         }
       } catch (error: any) {
         orderState.status = oldStatus; // Revert
-        this.logger.error(`VolatilityBasedOrder ${volatilityOrderId}: Failed to cancel underlying: ${error.message}`);
+        console.error(`VolatilityBasedOrder ${volatilityOrderId}: Failed to cancel underlying: ${error.message}`);
         throw error;
       }
     }
@@ -409,19 +435,19 @@ export class VolatilityBasedOrderManager extends EventEmitter {
       stopPrice: payload.stopPrice,
       // SL/TP might be managed as separate orders or part of this order in a real OMS
     };
-    this.logger.debug(`Simulated OMS: Volatility order ${placedOrder.id} placed.`, placedOrder);
+    console.debug(`Simulated OMS: Volatility order ${placedOrder.id} placed.`, placedOrder);
     return placedOrder;
   }
 
   private async _modifyOMSOrder(orderId: string, modifications: { stopLoss?: number; takeProfit?: number; quantity?: number }): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 50));
-    this.logger.debug(`Simulated OMS: Order ${orderId} modification processed.`, modifications);
+    console.debug(`Simulated OMS: Order ${orderId} modification processed.`, modifications);
     // Real OMS would confirm, and an update event would flow back.
   }
 
   private async _cancelOMSOrder(orderId: string, reason: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 50));
-    this.logger.debug(`Simulated OMS: Order ${orderId} cancellation processed. Reason: ${reason}.`);
+    console.debug(`Simulated OMS: Order ${orderId} cancellation processed. Reason: ${reason}.`);
   }
   
   // --- Utility Functions (should be in a shared utility module) ---
@@ -440,7 +466,7 @@ export class VolatilityBasedOrderManager extends EventEmitter {
   public destroy(): void {
     this.volatileOrders.clear();
     this.removeAllListeners();
-    this.logger.info('VolatilityBasedOrderManager destroyed.');
+    console.info('VolatilityBasedOrderManager destroyed.');
   }
 }
 

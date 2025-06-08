@@ -1,369 +1,207 @@
 """
-Awesome Oscillator (AO) - Bill Williams Momentum Indicator
-Measures momentum by comparing 5-period and 34-period simple moving averages of midpoint prices.
-Used to identify momentum changes and potential reversal points.
+Awesome Oscillator (AO)
+=======================
+
+The Awesome Oscillator is a momentum indicator that shows the difference 
+between a 5-period and 34-period simple moving average of the median prices.
+
+Author: Platform3 AI System
+Created: June 3, 2025
 """
 
-from typing import List, Dict, Any, Optional, Tuple
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass
-from ..indicator_base import BaseIndicator, IndicatorResult, IndicatorSignal, SignalType, IndicatorType, MarketData
+from typing import Dict, Optional, Any
+from datetime import datetime
+
+# Fix import - use absolute import with fallback
+try:
+    from engines.indicator_base import IndicatorBase
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from indicator_base import IndicatorBase
 
 
-@dataclass
-class AwesomeOscillatorConfig:
-    """Configuration for Awesome Oscillator"""
-    short_period: int = 5
-    long_period: int = 34
-    signal_threshold: float = 0.0001  # Minimum value for signal generation
-    divergence_lookback: int = 10
-
-
-class AwesomeOscillator(BaseIndicator):
+class AwesomeOscillator(IndicatorBase):
     """
-    Awesome Oscillator Implementation
+    Awesome Oscillator (AO) indicator.
     
-    The Awesome Oscillator is the difference between:
-    - 5-period SMA of (high + low) / 2
-    - 34-period SMA of (high + low) / 2
-    
-    Signals:
-    - Zero line crossover (bullish/bearish)
-    - Twin peaks (bullish/bearish divergence)
-    - Saucer pattern (momentum acceleration)
+    AO is calculated as the difference between a 5-period SMA and 34-period SMA 
+    of the median price (high+low)/2.
     """
     
-    def __init__(self, config: Optional[AwesomeOscillatorConfig] = None):
-        super().__init__(IndicatorType.MOMENTUM)
-        self.config = config or AwesomeOscillatorConfig()
-        self.values: List[float] = []
-        self.midpoints: List[float] = []
-        self.short_sma: List[float] = []
-        self.long_sma: List[float] = []
+    def __init__(self, 
+                 fast_period: int = 5,
+                 slow_period: int = 34):
+        """
+        Initialize Awesome Oscillator.
         
-    def calculate(self, data: List[MarketData]) -> IndicatorResult:
-        """Calculate Awesome Oscillator values"""
+        Args:
+            fast_period: Fast SMA period (typically 5)
+            slow_period: Slow SMA period (typically 34)
+        """
+        super().__init__()
+        
+        self.fast_period = fast_period
+        self.slow_period = slow_period
+        
+        # Validation
+        if fast_period <= 0 or slow_period <= 0:
+            raise ValueError("Periods must be positive")
+        if fast_period >= slow_period:
+            raise ValueError("Fast period must be less than slow period")
+    
+    def calculate(self, data: pd.DataFrame) -> Dict:
+        """
+        Calculate Awesome Oscillator values.
+        
+        Args:
+            data: DataFrame with 'high', 'low' columns
+            
+        Returns:
+            Dictionary containing AO values and signals
+        """
         try:
-            if len(data) < self.config.long_period:
-                return IndicatorResult(
-                    success=False,
-                    error=f"Insufficient data: need {self.config.long_period}, got {len(data)}"
-                )
+            # Validate input data
+            required_columns = ['high', 'low']
+            self._validate_data(data, required_columns)
             
-            # Calculate midpoints (high + low) / 2
-            midpoints = [(candle.high + candle.low) / 2 for candle in data]
+            if len(data) < self.slow_period:
+                raise ValueError(f"Insufficient data: need at least {self.slow_period} periods")
             
-            # Calculate SMAs
-            short_sma = self._calculate_sma(midpoints, self.config.short_period)
-            long_sma = self._calculate_sma(midpoints, self.config.long_period)
+            high = data['high'].values
+            low = data['low'].values
             
-            # Calculate AO values (short SMA - long SMA)
-            ao_values = []
-            for i in range(len(long_sma)):
-                if i < len(short_sma):
-                    ao_values.append(short_sma[i] - long_sma[i])
-                else:
-                    ao_values.append(0.0)
-            
-            # Store values for signal generation
-            self.values = ao_values
-            self.midpoints = midpoints
-            self.short_sma = short_sma
-            self.long_sma = long_sma
+            # Calculate Awesome Oscillator
+            ao = self._calculate_awesome_oscillator(high, low)
             
             # Generate signals
-            signals = self._generate_signals(data, ao_values)
+            signals = self._generate_signals(ao)
             
-            return IndicatorResult(
-                success=True,
-                values={
-                    'ao': ao_values,
-                    'short_sma': short_sma,
-                    'long_sma': long_sma,
-                    'midpoints': midpoints
-                },
-                signals=signals,
-                metadata={
-                    'short_period': self.config.short_period,
-                    'long_period': self.config.long_period,
-                    'current_ao': ao_values[-1] if ao_values else 0,
-                    'zero_line_position': 'above' if ao_values and ao_values[-1] > 0 else 'below'
-                }
-            )
+            # Calculate additional metrics
+            metrics = self._calculate_metrics(ao)
+            
+            return {
+                'awesome_oscillator': ao,
+                'signals': signals,
+                'metrics': metrics,
+                'interpretation': self._interpret_signals(ao[-1], signals[-1])
+            }
             
         except Exception as e:
-            return IndicatorResult(
-                success=False,
-                error=f"AO calculation failed: {str(e)}"
-            )
+            self.logger.error(f"Error calculating Awesome Oscillator: {e}")
+            raise
     
-    def _calculate_sma(self, values: List[float], period: int) -> List[float]:
-        """Calculate Simple Moving Average"""
-        sma_values = []
-        for i in range(len(values)):
-            if i >= period - 1:
-                sma = sum(values[i - period + 1:i + 1]) / period
-                sma_values.append(sma)
-        return sma_values
+    def _calculate_awesome_oscillator(self, high: np.ndarray, low: np.ndarray) -> np.ndarray:
+        """Calculate Awesome Oscillator values."""
+        # Calculate median price
+        median_price = (high + low) / 2
+        
+        # Calculate SMAs
+        fast_sma = self._sma(median_price, self.fast_period)
+        slow_sma = self._sma(median_price, self.slow_period)
+        
+        # Calculate AO
+        ao = fast_sma - slow_sma
+        
+        return ao
     
-    def _generate_signals(self, data: List[MarketData], ao_values: List[float]) -> List[IndicatorSignal]:
-        """Generate trading signals based on AO analysis"""
-        signals = []
+    def _sma(self, data: np.ndarray, period: int) -> np.ndarray:
+        """Calculate Simple Moving Average."""
+        sma = np.full(len(data), np.nan)
         
-        if len(ao_values) < 3:
-            return signals
+        for i in range(period - 1, len(data)):
+            sma[i] = np.mean(data[i - period + 1:i + 1])
         
-        # Zero line crossover signals
-        self._detect_zero_line_crossover(ao_values, signals)
+        return sma
+    
+    def _generate_signals(self, ao: np.ndarray) -> np.ndarray:
+        """Generate trading signals based on Awesome Oscillator."""
+        signals = np.zeros(len(ao))
         
-        # Twin peaks pattern
-        self._detect_twin_peaks(ao_values, signals)
-        
-        # Saucer pattern
-        self._detect_saucer_pattern(ao_values, signals)
-        
-        # Momentum acceleration
-        self._detect_momentum_acceleration(ao_values, signals)
+        for i in range(2, len(ao)):
+            if np.isnan(ao[i]) or np.isnan(ao[i-1]) or np.isnan(ao[i-2]):
+                continue
+            
+            # Zero line crossovers
+            if ao[i-1] <= 0 and ao[i] > 0:
+                signals[i] = 1  # Buy signal
+            elif ao[i-1] >= 0 and ao[i] < 0:
+                signals[i] = -1  # Sell signal
+            
+            # Saucer signal (bullish)
+            elif (ao[i] > 0 and ao[i-1] > 0 and ao[i-2] > 0 and
+                  ao[i] > ao[i-1] and ao[i-1] < ao[i-2]):
+                signals[i] = 0.5  # Weak buy
+            
+            # Twin peaks signal (bearish)
+            elif (ao[i] < 0 and ao[i-1] < 0 and ao[i-2] < 0 and
+                  ao[i] < ao[i-1] and ao[i-1] > ao[i-2]):
+                signals[i] = -0.5  # Weak sell
         
         return signals
     
-    def _detect_zero_line_crossover(self, ao_values: List[float], signals: List[IndicatorSignal]):
-        """Detect zero line crossover signals"""
-        if len(ao_values) < 2:
-            return
+    def _calculate_metrics(self, ao: np.ndarray) -> Dict:
+        """Calculate additional Awesome Oscillator metrics."""
+        valid_values = ao[~np.isnan(ao)]
         
-        current = ao_values[-1]
-        previous = ao_values[-2]
+        if len(valid_values) == 0:
+            return {}
         
-        # Bullish crossover (from negative to positive)
-        if previous <= 0 < current and abs(current) > self.config.signal_threshold:
-            signals.append(IndicatorSignal(
-                signal_type=SignalType.BUY,
-                strength=0.7,
-                confidence=0.8,
-                metadata={
-                    'pattern': 'zero_line_crossover_bullish',
-                    'ao_value': current,
-                    'crossover_strength': abs(current)
-                }
-            ))
+        # Momentum analysis
+        positive_pct = np.sum(valid_values > 0) / len(valid_values) * 100
+        negative_pct = np.sum(valid_values < 0) / len(valid_values) * 100
         
-        # Bearish crossover (from positive to negative)
-        elif previous >= 0 > current and abs(current) > self.config.signal_threshold:
-            signals.append(IndicatorSignal(
-                signal_type=SignalType.SELL,
-                strength=0.7,
-                confidence=0.8,
-                metadata={
-                    'pattern': 'zero_line_crossover_bearish',
-                    'ao_value': current,
-                    'crossover_strength': abs(current)
-                }
-            ))
+        # Recent trend
+        recent_values = valid_values[-min(5, len(valid_values)):]
+        trend = np.mean(np.diff(recent_values)) if len(recent_values) > 1 else 0
+        
+        # Histogram analysis
+        histogram_increasing = 0
+        histogram_decreasing = 0
+        
+        for i in range(1, len(valid_values)):
+            if valid_values[i] > valid_values[i-1]:
+                histogram_increasing += 1
+            elif valid_values[i] < valid_values[i-1]:
+                histogram_decreasing += 1
+        
+        return {
+            'current_value': ao[-1] if not np.isnan(ao[-1]) else None,
+            'positive_momentum_pct': positive_pct,
+            'negative_momentum_pct': negative_pct,
+            'recent_trend': trend,
+            'histogram_increasing_pct': histogram_increasing / len(valid_values) * 100 if len(valid_values) > 1 else 0,
+            'histogram_decreasing_pct': histogram_decreasing / len(valid_values) * 100 if len(valid_values) > 1 else 0,
+            'volatility': np.std(valid_values),
+            'mean_value': np.mean(valid_values),
+            'max_value': np.max(valid_values),
+            'min_value': np.min(valid_values)
+        }
     
-    def _detect_twin_peaks(self, ao_values: List[float], signals: List[IndicatorSignal]):
-        """Detect twin peaks bullish/bearish divergence patterns"""
-        if len(ao_values) < self.config.divergence_lookback:
-            return
+    def _interpret_signals(self, current_ao: float, current_signal: float) -> str:
+        """Provide human-readable interpretation."""
+        if np.isnan(current_ao):
+            return "Insufficient data for Awesome Oscillator calculation"
         
-        recent_values = ao_values[-self.config.divergence_lookback:]
+        if current_ao > 0:
+            momentum = "BULLISH"
+        else:
+            momentum = "BEARISH"
         
-        # Look for twin peaks below zero line (bullish)
-        if all(v < 0 for v in recent_values[-3:]):
-            peaks = self._find_local_peaks(recent_values)
-            if len(peaks) >= 2:
-                first_peak = peaks[-2]
-                second_peak = peaks[-1]
-                
-                # Second peak higher than first (bullish divergence)
-                if second_peak > first_peak:
-                    signals.append(IndicatorSignal(
-                        signal_type=SignalType.BUY,
-                        strength=0.8,
-                        confidence=0.75,
-                        metadata={
-                            'pattern': 'twin_peaks_bullish',
-                            'first_peak': first_peak,
-                            'second_peak': second_peak,
-                            'divergence_strength': second_peak - first_peak
-                        }
-                    ))
+        signal_desc = {
+            1: "BUY signal (zero line cross up)",
+            0.5: "Weak BUY signal (saucer pattern)",
+            -0.5: "Weak SELL signal (twin peaks)",
+            -1: "SELL signal (zero line cross down)",
+            0: "No signal"
+        }.get(current_signal, "No signal")
         
-        # Look for twin peaks above zero line (bearish)
-        elif all(v > 0 for v in recent_values[-3:]):
-            peaks = self._find_local_peaks(recent_values, find_max=True)
-            if len(peaks) >= 2:
-                first_peak = peaks[-2]
-                second_peak = peaks[-1]
-                
-                # Second peak lower than first (bearish divergence)
-                if second_peak < first_peak:
-                    signals.append(IndicatorSignal(
-                        signal_type=SignalType.SELL,
-                        strength=0.8,
-                        confidence=0.75,
-                        metadata={
-                            'pattern': 'twin_peaks_bearish',
-                            'first_peak': first_peak,
-                            'second_peak': second_peak,
-                            'divergence_strength': first_peak - second_peak
-                        }
-                    ))
-    
-    def _detect_saucer_pattern(self, ao_values: List[float], signals: List[IndicatorSignal]):
-        """Detect saucer pattern - three consecutive bars forming a saucer shape"""
-        if len(ao_values) < 3:
-            return
-        
-        v1, v2, v3 = ao_values[-3], ao_values[-2], ao_values[-1]
-        
-        # Bullish saucer (all below zero, middle lowest, trending up)
-        if v1 < 0 and v2 < 0 and v3 < 0 and v2 < v1 and v3 > v2:
-            signals.append(IndicatorSignal(
-                signal_type=SignalType.BUY,
-                strength=0.6,
-                confidence=0.7,
-                metadata={
-                    'pattern': 'saucer_bullish',
-                    'saucer_depth': min(v1, v2, v3),
-                    'momentum_change': v3 - v2
-                }
-            ))
-        
-        # Bearish saucer (all above zero, middle highest, trending down)
-        elif v1 > 0 and v2 > 0 and v3 > 0 and v2 > v1 and v3 < v2:
-            signals.append(IndicatorSignal(
-                signal_type=SignalType.SELL,
-                strength=0.6,
-                confidence=0.7,
-                metadata={
-                    'pattern': 'saucer_bearish',
-                    'saucer_height': max(v1, v2, v3),
-                    'momentum_change': v2 - v3
-                }
-            ))
-    
-    def _detect_momentum_acceleration(self, ao_values: List[float], signals: List[IndicatorSignal]):
-        """Detect momentum acceleration patterns"""
-        if len(ao_values) < 5:
-            return
-        
-        recent = ao_values[-5:]
-        
-        # Calculate momentum acceleration
-        changes = [recent[i] - recent[i-1] for i in range(1, len(recent))]
-        acceleration = [changes[i] - changes[i-1] for i in range(1, len(changes))]
-        
-        if len(acceleration) >= 2:
-            current_accel = acceleration[-1]
-            
-            # Strong positive acceleration
-            if current_accel > 0 and ao_values[-1] > ao_values[-2]:
-                signals.append(IndicatorSignal(
-                    signal_type=SignalType.BUY,
-                    strength=0.5,
-                    confidence=0.6,
-                    metadata={
-                        'pattern': 'momentum_acceleration_bullish',
-                        'acceleration': current_accel,
-                        'ao_trend': 'increasing'
-                    }
-                ))
-            
-            # Strong negative acceleration
-            elif current_accel < 0 and ao_values[-1] < ao_values[-2]:
-                signals.append(IndicatorSignal(
-                    signal_type=SignalType.SELL,
-                    strength=0.5,
-                    confidence=0.6,
-                    metadata={
-                        'pattern': 'momentum_acceleration_bearish',
-                        'acceleration': current_accel,
-                        'ao_trend': 'decreasing'
-                    }
-                ))
-    
-    def _find_local_peaks(self, values: List[float], find_max: bool = False) -> List[float]:
-        """Find local peaks (max or min) in the values"""
-        peaks = []
-        for i in range(1, len(values) - 1):
-            if find_max:
-                if values[i] > values[i-1] and values[i] > values[i+1]:
-                    peaks.append(values[i])
-            else:
-                if values[i] < values[i-1] and values[i] < values[i+1]:
-                    peaks.append(values[i])
-        return peaks
-    
-    def get_signal_strength(self, current_value: float) -> float:
-        """Calculate signal strength based on AO value and position"""
-        if not self.values:
-            return 0.0
-        
-        # Normalize strength based on recent volatility
-        recent_values = self.values[-20:] if len(self.values) >= 20 else self.values
-        if not recent_values:
-            return 0.0
-        
-        volatility = np.std(recent_values)
-        if volatility == 0:
-            return 0.0
-        
-        # Strength increases with distance from zero line
-        strength = min(abs(current_value) / (volatility * 2), 1.0)
-        return strength
+        return f"Awesome Oscillator: {current_ao:.4f} ({momentum}) - {signal_desc}"
 
 
-def test_awesome_oscillator():
-    """Test the Awesome Oscillator implementation"""
-    # Create test data
-    np.random.seed(42)
-    test_data = []
-    base_price = 100.0
-    
-    for i in range(50):
-        # Generate realistic OHLC data
-        trend = 0.1 * np.sin(i * 0.1)  # Sine wave trend
-        noise = np.random.normal(0, 0.5)
-        
-        open_price = base_price + trend + noise
-        close_price = open_price + np.random.normal(0, 0.3)
-        high_price = max(open_price, close_price) + abs(np.random.normal(0, 0.2))
-        low_price = min(open_price, close_price) - abs(np.random.normal(0, 0.2))
-        volume = 1000 + np.random.randint(0, 500)
-        
-        test_data.append(MarketData(
-            timestamp=i,
-            open=open_price,
-            high=high_price,
-            low=low_price,
-            close=close_price,
-            volume=volume
-        ))
-        
-        base_price = close_price
-    
-    # Test Awesome Oscillator
-    ao = AwesomeOscillator()
-    result = ao.calculate(test_data)
-    
-    print("=== AWESOME OSCILLATOR TEST ===")
-    print(f"Success: {result.success}")
-    if result.success:
-        ao_values = result.values['ao']
-        print(f"AO Values (last 5): {[round(v, 6) for v in ao_values[-5:]]}")
-        print(f"Current AO: {round(ao_values[-1], 6)}")
-        print(f"Zero Line Position: {result.metadata['zero_line_position']}")
-        print(f"Number of signals: {len(result.signals)}")
-        
-        for i, signal in enumerate(result.signals[-3:]):  # Show last 3 signals
-            print(f"Signal {i+1}: {signal.signal_type.value} - Strength: {signal.strength:.2f} - {signal.metadata.get('pattern', 'N/A')}")
-    else:
-        print(f"Error: {result.error}")
-    
-    return result.success
-
-
-if __name__ == "__main__":
-    test_awesome_oscillator()
+def create_awesome_oscillator(fast_period: int = 5, **kwargs) -> AwesomeOscillator:
+    """Factory function to create Awesome Oscillator indicator."""
+    return AwesomeOscillator(fast_period=fast_period, **kwargs)

@@ -1,0 +1,19 @@
+PLATFORM3 TEST CERTIFICATE SUMMARY
+========================================
+Generated: 2025-06-04 13:16:05.589547
+CA Certificate: ca-cert.pem
+CA Private Key: ca-key.pem
+Total Agent Certificates: 9
+
+Agent Certificates:
+  - market_data_agent-cert.pem / market_data_agent-key.pem
+  - risk_analysis_agent-cert.pem / risk_analysis_agent-key.pem
+  - pattern_recognition_agent-cert.pem / pattern_recognition_agent-key.pem
+  - execution_strategy_agent-cert.pem / execution_strategy_agent-key.pem
+  - session_management_agent-cert.pem / session_management_agent-key.pem
+  - pair_trading_agent-cert.pem / pair_trading_agent-key.pem
+  - decision_master_agent-cert.pem / decision_master_agent-key.pem
+  - microstructure_agent-cert.pem / microstructure_agent-key.pem
+  - sentiment_analysis_agent-cert.pem / sentiment_analysis_agent-key.pem
+
+WARNING: FOR TESTING ONLY!

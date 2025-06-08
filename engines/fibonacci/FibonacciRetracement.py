@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Fibonacci Retracement
 Multi-level retracement calculations for support and resistance analysis.
@@ -20,7 +21,7 @@ import time
 import logging
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import math
@@ -188,6 +189,104 @@ class FibonacciRetracement:
         except Exception as e:
             self.logger.error(f"Error calculating Fibonacci retracement for {symbol}: {e}")
             raise
+
+    def calculate(self, data: Union[Dict, List[Dict], pd.DataFrame]) -> Dict[str, Any]:
+        """
+        Standard calculate method for BaseIndicator compatibility
+
+        Args:
+            data: Market data in dict format with high, low, close arrays
+                 or list of OHLC dictionaries, or pandas DataFrame
+
+        Returns:
+            Dict containing Fibonacci retracement levels and analysis
+        """
+        start_time = time.time()
+
+        try:
+            # Convert data to standard format
+            if isinstance(data, pd.DataFrame):
+                high_values = data['high'].tolist()
+                low_values = data['low'].tolist()
+                close_values = data['close'].tolist()
+            elif isinstance(data, dict):
+                high_values = data.get('high', [])
+                low_values = data.get('low', [])
+                close_values = data.get('close', [])
+            else:
+                # Assume list of dicts
+                high_values = [d.get('high', 0) for d in data]
+                low_values = [d.get('low', 0) for d in data]
+                close_values = [d.get('close', 0) for d in data]
+
+            if not high_values or not low_values:
+                return {"error": "Insufficient data for Fibonacci calculation"}
+
+            # Find swing high and low
+            swing_high = max(high_values)
+            swing_low = min(low_values)
+            current_price = close_values[-1] if close_values else swing_high
+
+            # Calculate range
+            price_range = swing_high - swing_low
+
+            if price_range == 0:
+                return {"error": "No price range available for Fibonacci calculation"}
+
+            # Calculate Fibonacci levels
+            fibonacci_levels = {}
+            for level in self.fibonacci_levels:
+                price_level = swing_high - (price_range * level)
+                fibonacci_levels[f"{level * 100:.1f}%"] = round(price_level, 5)
+
+            # Determine trend direction
+            trend_direction = "bullish" if current_price > swing_low + (price_range * 0.5) else "bearish"
+
+            # Calculate current retracement percentage
+            if trend_direction == "bullish":
+                current_retracement = ((swing_high - current_price) / price_range) * 100
+            else:
+                current_retracement = ((current_price - swing_low) / price_range) * 100
+
+            # Find next support/resistance levels
+            next_support = None
+            next_resistance = None
+
+            for level_name, level_price in fibonacci_levels.items():
+                if trend_direction == "bullish" and level_price < current_price:
+                    if next_support is None or level_price > next_support:
+                        next_support = level_price
+                elif trend_direction == "bearish" and level_price > current_price:
+                    if next_resistance is None or level_price < next_resistance:
+                        next_resistance = level_price
+
+            # Performance tracking
+            calculation_time = time.time() - start_time
+            self.calculation_count += 1
+            self.total_calculation_time += calculation_time
+
+            result = {
+                "symbol": "UNKNOWN",
+                "timestamp": datetime.now().isoformat(),
+                "swing_high": swing_high,
+                "swing_low": swing_low,
+                "current_price": current_price,
+                "price_range": price_range,
+                "trend_direction": trend_direction,
+                "fibonacci_levels": fibonacci_levels,
+                "current_retracement_pct": round(current_retracement, 2),
+                "next_support": next_support,
+                "next_resistance": next_resistance,
+                "calculation_time_ms": round(calculation_time * 1000, 2),
+                "total_calculations": self.calculation_count
+            }
+
+            self.logger.info(f"Fibonacci retracement calculated successfully in {calculation_time:.3f}s")
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Error calculating Fibonacci retracement: {e}")
+            return {"error": str(e)}
 
     async def _find_swing_points(self, df: pd.DataFrame) -> Tuple[Tuple[datetime, float], Tuple[datetime, float]]:
         """Find significant swing high and low points"""

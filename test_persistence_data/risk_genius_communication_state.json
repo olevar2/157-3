@@ -1,0 +1,16 @@
+{
+  "agent_id": "risk_genius",
+  "timestamp": "2025-06-04T21:25:00.616231",
+  "test_id": "e1ae4a9e-e406-4144-94d2-8b210e1f268b",
+  "random_value": 0.47544168187193403,
+  "connected_agents": [
+    "decision_master"
+  ],
+  "message_counts": {
+    "sent": 940,
+    "received": 8997,
+    "pending": 54
+  },
+  "connection_quality": 0.8059108408550572,
+  "last_heartbeat": "2025-06-04T21:25:00.616302"
+}

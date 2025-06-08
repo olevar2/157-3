@@ -14,9 +14,50 @@
  * - More predictable trade outcomes.
  */
 
-import { Logger } from 'winston';
-import { Order, OrderSide, OrderType, OrderStatus } from '../orders/advanced/ScalpingOCOOrder'; // Common types
-import { ExecutionVenue } from './ScalpingRouter'; // Access to venue info
+import { EventEmitter } from 'events';
+import axios from 'axios';
+
+// Define common types since we're removing external dependencies
+export enum OrderSide {
+  BUY = 'BUY',
+  SELL = 'SELL'
+}
+
+export enum OrderType {
+  MARKET = 'MARKET',
+  LIMIT = 'LIMIT',
+  STOP = 'STOP',
+  STOP_LIMIT = 'STOP_LIMIT'
+}
+
+export enum OrderStatus {
+  PENDING = 'PENDING',
+  FILLED = 'FILLED',
+  PARTIALLY_FILLED = 'PARTIALLY_FILLED',
+  CANCELLED = 'CANCELLED',
+  REJECTED = 'REJECTED'
+}
+
+export interface Order {
+  id: string;
+  symbol: string;
+  side: OrderSide;
+  type: OrderType;
+  quantity: number;
+  price?: number;
+  stopPrice?: number;
+  status: OrderStatus;
+}
+
+export interface ExecutionVenue {
+  id: string;
+  name: string;
+  enabled: boolean;
+  priority: number;
+  maxOrderSize: number;
+  latency: number;
+  costBps: number;
+}
 
 // --- Slippage Minimization Specific Types ---
 
@@ -63,15 +104,13 @@ export interface MinimizationResult {
  * SlippageMinimizer: Implements strategies to reduce slippage for orders.
  */
 export class SlippageMinimizer {
-  private logger: Logger;
   // private orderBookProvider: OrderBookProvider; // Hypothetical: provides live order book data
   // private omsClient: OrderManagementSystem; // Hypothetical: for placing/managing orders
 
-  constructor(logger: Logger /*, orderBookProvider, omsClient */) {
-    this.logger = logger;
+  constructor() {
     // this.orderBookProvider = orderBookProvider;
     // this.omsClient = omsClient;
-    this.logger.info('SlippageMinimizer initialized.');
+    console.log('SlippageMinimizer initialized.');
   }
 
   private _getPipSize(symbol: string): number {
@@ -162,7 +201,7 @@ export class SlippageMinimizer {
       status: 'PENDING',
     };
 
-    this.logger.info(`SlippageMinimizer: Planning execution for order ${order.id} Qty ${order.quantity} on ${venue?.name || 'any venue'}.`);
+    console.log(`SlippageMinimizer: Planning execution for order ${order.id} Qty ${order.quantity} on ${venue?.name || 'any venue'}.`);
 
     const orderBook = await this._getCurrentOrderBook(order.symbol, venue?.id);
     const pipSize = this._getPipSize(order.symbol);
@@ -171,7 +210,7 @@ export class SlippageMinimizer {
     let cumulativeSlippage = 0;
 
     if (params.orderChunkingEnabled && params.maxChunkSize && order.quantity > params.maxChunkSize) {
-      this.logger.debug(`Order ${order.id}: Chunking enabled. Max chunk size: ${params.maxChunkSize}`);
+      console.log(`Order ${order.id}: Chunking enabled. Max chunk size: ${params.maxChunkSize}`);
       let chunkCount = 0;
       while (remainingQuantity > 0) {
         chunkCount++;
@@ -240,15 +279,15 @@ export class SlippageMinimizer {
     if (params.maxAllowedSlippagePips !== undefined && result.totalEstimatedSlippagePips > params.maxAllowedSlippagePips) {
       result.status = 'FAILED';
       result.message = `Estimated slippage ${result.totalEstimatedSlippagePips} pips exceeds max allowed ${params.maxAllowedSlippagePips} pips.`;
-      this.logger.warn(`SlippageMinimizer: ${result.message} for order ${order.id}`);
+      console.warn(`SlippageMinimizer: ${result.message} for order ${order.id}`);
     } else if (result.totalEstimatedSlippagePips === Infinity) {
         result.status = 'FAILED';
         result.message = `Estimated slippage is effectively infinite due to lack of liquidity for order ${order.id}.`;
-        this.logger.warn(`SlippageMinimizer: ${result.message}`);
+        console.warn(`SlippageMinimizer: ${result.message}`);
     }else {
       result.status = 'SUCCESS';
       result.message = `Execution plan created with ${result.steps.length} steps. Estimated slippage: ${result.totalEstimatedSlippagePips} pips.`;
-      this.logger.info(`SlippageMinimizer: ${result.message} for order ${order.id}`);
+      console.log(`SlippageMinimizer: ${result.message} for order ${order.id}`);
     }
     
     this.emit('executionPlanCreated', result);

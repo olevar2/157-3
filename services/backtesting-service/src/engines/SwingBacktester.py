@@ -1,18 +1,22 @@
 """
 Swing Trading Backtesting Engine
+Platform3 Phase 3 - Enhanced with Framework Integration
 H4 short-term swing testing with pattern recognition and multi-timeframe analysis.
 
 This module provides comprehensive backtesting for swing trading strategies
 with maximum 5-day holding periods and advanced pattern validation.
 """
 
+from shared.logging.platform3_logger import Platform3Logger
+from shared.error_handling.platform3_error_system import Platform3ErrorSystem, ServiceError
+from shared.database.platform3_database_manager import Platform3DatabaseManager
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
 import asyncio
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-import logging
 from enum import Enum
 
 class SwingPattern(Enum):
@@ -66,7 +70,6 @@ class SwingBacktester:
     - Pattern-specific performance analysis
     - Advanced position management
     """
-    
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.logger = logging.getLogger(__name__)
@@ -165,7 +168,6 @@ class SwingBacktester:
     
     def _filter_setups(self, setups: List[SwingSetup]) -> List[SwingSetup]:
         """Filter setups based on quality criteria"""
-        
         qualified_setups = []
         
         for setup in setups:
@@ -185,7 +187,6 @@ class SwingBacktester:
     
     def _validate_pattern_setup(self, setup: SwingSetup) -> bool:
         """Validate pattern-specific setup criteria"""
-        
         if setup.pattern == SwingPattern.ELLIOTT_WAVE:
             # Validate Elliott Wave structure
             wave_data = setup.pattern_data.get('wave_structure', {})
@@ -217,7 +218,6 @@ class SwingBacktester:
         self, setup: SwingSetup, balance: float, active_positions: List[Dict]
     ) -> bool:
         """Determine if a setup should be executed"""
-        
         # Check maximum number of concurrent positions
         max_positions = self.config.get('max_concurrent_positions', 3)
         if len(active_positions) >= max_positions:
@@ -241,7 +241,6 @@ class SwingBacktester:
         self, balance: float, setup: SwingSetup, risk_per_trade: float
     ) -> float:
         """Calculate position size based on risk management"""
-        
         # Calculate risk amount
         risk_amount = balance * risk_per_trade
         
@@ -263,7 +262,6 @@ class SwingBacktester:
         strategy_params: Dict[str, Any]
     ) -> Optional[Dict]:
         """Execute a swing trade based on the setup"""
-        
         # Find the entry point in market data
         entry_index = self._find_entry_point(setup, market_data)
         if entry_index is None:
@@ -282,7 +280,6 @@ class SwingBacktester:
     
     def _find_entry_point(self, setup: SwingSetup, market_data: pd.DataFrame) -> Optional[int]:
         """Find the entry point in market data"""
-        
         # Find the closest timestamp to setup time
         setup_time = setup.timestamp
         time_diffs = abs(market_data['timestamp'] - setup_time)
@@ -300,7 +297,6 @@ class SwingBacktester:
     
     def _simulate_swing_execution(self, price: float, execution_type: str) -> float:
         """Simulate realistic execution for swing trades"""
-        
         # Swing trades typically have lower slippage due to longer timeframes
         base_slippage = 0.2  # 0.2 pips average
         
@@ -322,7 +318,6 @@ class SwingBacktester:
         position_size: float
     ) -> Dict:
         """Track a swing trade through its complete lifecycle"""
-        
         # Initialize trade tracking
         trade = {
             'setup': setup,
@@ -400,7 +395,6 @@ class SwingBacktester:
         self, pattern_stats: Dict[SwingPattern, Dict]
     ) -> Dict[SwingPattern, Dict[str, float]]:
         """Analyze performance by swing pattern"""
-        
         performance = {}
         
         for pattern, stats in pattern_stats.items():
@@ -489,7 +483,6 @@ class SwingBacktester:
         self, pattern_performance: Dict[SwingPattern, Dict[str, float]]
     ) -> SwingPattern:
         """Find the best performing pattern"""
-        
         best_pattern = SwingPattern.ELLIOTT_WAVE  # Default
         best_pnl = float('-inf')
         

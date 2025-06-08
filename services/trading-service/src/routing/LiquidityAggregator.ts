@@ -14,24 +14,44 @@
  * - Potential for price improvement on orders.
  */
 
-import { Logger } from 'winston';
-import { OrderBookLevel, OrderBookSnapshot } from './SlippageMinimizer'; // Re-use types
-import { ExecutionVenue } from './ScalpingRouter';
-import { OrderSide } from '../orders/advanced/ScalpingOCOOrder';
+export interface OrderBookLevel {
+  price: number;
+  quantity: number;
+  venueId?: string | undefined;
+}
+
+export interface OrderBookSnapshot {
+  symbol: string;
+  timestamp: Date;
+  bids: OrderBookLevel[];
+  asks: OrderBookLevel[];
+  venueId?: string;
+}
+
+export interface ExecutionVenue {
+  id: string;
+  name: string;
+  enabled: boolean;
+  priority: number;
+  maxOrderSize: number;
+  latency: number;
+  costBps: number;
+}
+
+export enum OrderSide {
+  BUY = 'BUY',
+  SELL = 'SELL'
+}
 
 export class LiquidityAggregator {
-    private logger: Logger;
     private aggregatedOrderBook: Map<string, OrderBookSnapshot> = new Map(); // Keyed by symbol
     private venueSnapshots: Map<string, Map<string, OrderBookSnapshot>> = new Map(); // Keyed by symbol, then venueId
 
-    constructor(logger: Logger) {
-        this.logger = logger;
-        this.logger.info('LiquidityAggregator initialized.');
-    }
-
-    public updateVenueOrderBook(snapshot: OrderBookSnapshot): void {
+    constructor() {
+        console.log('LiquidityAggregator initialized.');
+    }    public updateVenueOrderBook(snapshot: OrderBookSnapshot): void {
         if (!snapshot.venueId) {
-            this.logger.warn('Received order book snapshot without venueId, cannot process for aggregation.');
+            console.warn('Received order book snapshot without venueId, cannot process for aggregation.');
             return;
         }
         let symbolVenues = this.venueSnapshots.get(snapshot.symbol);
@@ -85,10 +105,8 @@ export class LiquidityAggregator {
             timestamp: new Date(), // Timestamp of aggregation
             bids: finalBids.sort((a,b) => b.price - a.price).slice(0, 20), // Top 20 levels
             asks: finalAsks.sort((a,b) => a.price - b.price).slice(0, 20),
-        };
-
-        this.aggregatedOrderBook.set(symbol, aggregatedSnapshot);
-        this.logger.debug(`Aggregated order book for ${symbol} rebuilt. Bids: ${finalBids.length}, Asks: ${finalAsks.length}`);
+        };        this.aggregatedOrderBook.set(symbol, aggregatedSnapshot);
+        console.log(`Aggregated order book for ${symbol} rebuilt. Bids: ${finalBids.length}, Asks: ${finalAsks.length}`);
         // this.emit('aggregatedBookUpdated', aggregatedSnapshot); // If eventing needed
     }
 

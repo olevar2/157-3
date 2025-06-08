@@ -1,292 +1,258 @@
 """
-Volume Weighted Average Price (VWAP) Volume Indicator
-Calculates the average price weighted by volume, providing insight into the fair value.
-Part of Platform3's 67-indicator humanitarian trading system.
+Volume Weighted Average Price (VWAP)
+A trading indicator that shows the ratio of the value traded to total volume traded over a time period.
 """
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from typing import List, Optional
+import numpy as np
+import pandas as pd
+from typing import Union, Optional, Tuple, List, Dict, Any
 from datetime import datetime
-from indicator_base import (
-    VolumeIndicator, IndicatorResult, IndicatorSignal, MarketData, 
-    SignalType, TimeFrame, typical_price
-)
+from engines.indicator_base import TechnicalIndicator, MarketData, IndicatorSignal, SignalType, IndicatorConfig, IndicatorType, TimeFrame
 
-class VWAP(VolumeIndicator):
+
+class VolumeWeightedAveragePrice(TechnicalIndicator):
     """
-    Volume Weighted Average Price (VWAP) volume indicator.
+    Volume Weighted Average Price (VWAP)
     
-    VWAP provides the average price a security has traded at throughout the day,
-    based on both volume and price. It's used as a trading benchmark and to
-    identify value areas.
+    VWAP is calculated by finding the sum of dollars traded for each transaction
+    (price multiplied by the number of shares traded) and then dividing by the 
+    total shares traded. It represents the average price a security has traded 
+    at throughout the day, based on both volume and price.
+    
+    Formula:
+    VWAP = ∑(Price * Volume) / ∑(Volume)
+    
+    Often calculated per day and reset at market open.
     """
     
-    def __init__(self, timeframe: TimeFrame, lookback_periods: int = 20):
+    def __init__(self, reset_period: str = 'day', config=None):
         """
-        Initialize VWAP indicator.
+        Initialize Volume Weighted Average Price
         
         Args:
-            timeframe: Timeframe for analysis
-            lookback_periods: Period for VWAP calculation
+            reset_period: When to reset the VWAP calculation ('day', 'week', 'month')
+            config : dict, optional
+                Configuration dictionary containing parameters
         """
-        super().__init__("VWAP", timeframe, lookback_periods=lookback_periods)
-        self.period = lookback_periods
+        # Handle config parameter
+        if config is not None:
+            if isinstance(config, dict):
+                self.reset_period = config.get('reset_period', reset_period)
+            else:
+                self.reset_period = reset_period
+        else:
+            self.reset_period = reset_period
         
-    def calculate(self, data: List[MarketData]) -> IndicatorResult:
+        # Create proper IndicatorConfig if needed
+        if config is None or not isinstance(config, IndicatorConfig):
+            config_dict = config if isinstance(config, dict) else {}
+            config = IndicatorConfig(
+                name="Volume Weighted Average Price",
+                indicator_type=IndicatorType.VOLUME,
+                timeframe=config_dict.get('timeframe', TimeFrame.M15),
+                lookback_periods=50,
+                parameters={'reset_period': self.reset_period}
+            )
+        
+        super().__init__(config)    
+        self.name = "Volume Weighted Average Price"
+        
+    def calculate(self, data: List[MarketData]) -> 'IndicatorResult':
         """
-        Calculate VWAP value.
+        Calculate VWAP for base class compatibility
         
-        Args:
-            data: List of MarketData objects
+        Parameters:
+        -----------
+        data : List[MarketData]
+            List of market data points
             
         Returns:
-            IndicatorResult with VWAP calculation
+        --------
+        IndicatorResult
+            Result with VWAP values
         """
-        if len(data) < self.period:
-            raise ValueError(f"Insufficient data for VWAP calculation. Need {self.period} periods, got {len(data)}")
+        from engines.indicator_base import IndicatorResult
         
-        start_time = datetime.now()
-        
-        try:
-            # Calculate VWAP over the specified period
-            calc_data = data[-self.period:]
-            
-            total_pv = 0  # Price * Volume
-            total_volume = 0
-            
-            for candle in calc_data:
-                tp = typical_price(candle)
-                pv = tp * candle.volume
-                total_pv += pv
-                total_volume += candle.volume
-            
-            if total_volume == 0:
-                vwap = data[-1].close  # Fallback to current price
-            else:
-                vwap = total_pv / total_volume
-            
-            # Current price for comparison
-            current_price = data[-1].close
-            
-            # Calculate deviation from VWAP
-            vwap_deviation = (current_price - vwap) / vwap * 100
-            
-            # Calculate VWAP bands (standard deviation-based)
-            price_deviations = []
-            for candle in calc_data:
-                tp = typical_price(candle)
-                deviation = (tp - vwap) ** 2 * candle.volume
-                price_deviations.append(deviation)
-            
-            if total_volume > 0:
-                variance = sum(price_deviations) / total_volume
-                std_dev = variance ** 0.5
-            else:
-                std_dev = 0
-            
-            upper_band = vwap + std_dev
-            lower_band = vwap - std_dev
-            
-            calculation_time = (datetime.now() - start_time).total_seconds() * 1000
-            
-            result = IndicatorResult(
-                timestamp=data[-1].timestamp,
+        if not data:
+            return IndicatorResult(
+                timestamp=datetime.now(),
                 indicator_name=self.name,
-                indicator_type=self.indicator_type,
-                timeframe=self.timeframe,
-                value=vwap,
-                raw_data={
-                    'vwap': vwap,
-                    'current_price': current_price,
-                    'vwap_deviation': vwap_deviation,
-                    'upper_band': upper_band,
-                    'lower_band': lower_band,
-                    'standard_deviation': std_dev,
-                    'total_volume': total_volume,
-                    'period': self.period
-                },
-                calculation_time_ms=calculation_time
+                indicator_type=IndicatorType.VOLUME,
+                timeframe=self.config.timeframe,
+                value=0.0
             )
-            
-            # Generate signal
-            signal = self.generate_signal(result, [])
-            if signal:
-                result.signal = signal
-                
-            return result
-            
-        except Exception as e:
-            raise ValueError(f"VWAP calculation failed: {e}")
-    
-    def generate_signal(self, current_result: IndicatorResult, 
-                       historical_results: List[IndicatorResult]) -> Optional[IndicatorSignal]:
-        """
-        Generate trading signals based on VWAP position and bands.
         
-        Args:
-            current_result: Current VWAP calculation
-            historical_results: Previous results for trend analysis
+        # Convert MarketData to pandas series
+        high = pd.Series([d.high for d in data])
+        low = pd.Series([d.low for d in data]) 
+        close = pd.Series([d.close for d in data])
+        volume = pd.Series([d.volume for d in data])
+        dates = pd.Series([d.timestamp for d in data])
+        
+        vwap = self.calculate_values(high, low, close, volume, dates)
+        
+        latest_timestamp = data[-1].timestamp if data else datetime.now()
+        
+        return IndicatorResult(
+            timestamp=latest_timestamp,
+            indicator_name=self.name,
+            indicator_type=IndicatorType.VOLUME,
+            timeframe=self.config.timeframe,
+            value=vwap.iloc[-1] if len(vwap) > 0 else 0.0
+        )
+        
+    def calculate_values(self, high: Union[pd.Series, np.ndarray], 
+                low: Union[pd.Series, np.ndarray],
+                close: Union[pd.Series, np.ndarray], 
+                volume: Union[pd.Series, np.ndarray],
+                dates: Optional[pd.Series] = None) -> pd.Series:
+        """
+        Calculate Volume Weighted Average Price
+        
+        Parameters:
+        -----------
+        high : pd.Series or np.ndarray
+            High prices
+        low : pd.Series or np.ndarray
+            Low prices
+        close : pd.Series or np.ndarray
+            Close prices
+        volume : pd.Series or np.ndarray
+            Volume data
+        dates : pd.Series, optional
+            Datetime index for resetting VWAP calculation
             
         Returns:
-            IndicatorSignal if conditions are met
+        --------
+        pd.Series
+            VWAP values
         """
-        vwap = current_result.value
-        current_price = current_result.raw_data['current_price']
-        vwap_deviation = current_result.raw_data['vwap_deviation']
-        upper_band = current_result.raw_data['upper_band']
-        lower_band = current_result.raw_data['lower_band']
+        # Convert to pandas Series if numpy arrays
+        if isinstance(high, np.ndarray):
+            high = pd.Series(high)
+        if isinstance(low, np.ndarray):
+            low = pd.Series(low)
+        if isinstance(close, np.ndarray):
+            close = pd.Series(close)
+        if isinstance(volume, np.ndarray):
+            volume = pd.Series(volume)
+            
+        # Calculate typical price: (high + low + close) / 3
+        typical_price = (high + low + close) / 3
         
-        # Band breakout signals
-        if current_price >= upper_band:
+        # Use index as dates if none provided
+        if dates is None:
+            if isinstance(close.index, pd.DatetimeIndex):
+                dates = close.index
+            else:
+                # If no dates provided and index is not DatetimeIndex, 
+                # we can't reset based on dates, so calculate cumulative VWAP
+                cumulative_tp_vol = (typical_price * volume).cumsum()
+                cumulative_vol = volume.cumsum()
+                return cumulative_tp_vol / cumulative_vol
+        
+        # Reset VWAP calculation based on reset_period
+        vwap = pd.Series(index=close.index, dtype=float)
+        
+        if self.reset_period == 'day':
+            date_groups = dates.dt.date
+        elif self.reset_period == 'week':
+            date_groups = dates.dt.isocalendar().week
+        elif self.reset_period == 'month':
+            date_groups = dates.dt.month
+        else:
+            # Default to daily reset
+            date_groups = dates.dt.date
+        
+        # Calculate VWAP for each period
+        for date_value in date_groups.unique():
+            mask = date_groups == date_value
+            period_tp = typical_price.loc[mask]
+            period_volume = volume.loc[mask]
+            
+            # Calculate cumulative values for the period
+            cum_tp_vol = (period_tp * period_volume).cumsum()
+            cum_vol = period_volume.cumsum()
+            
+            # Calculate VWAP
+            period_vwap = cum_tp_vol / cum_vol
+            vwap.loc[mask] = period_vwap
+        
+        return vwap
+    
+    def generate_signal(self, data: MarketData) -> IndicatorSignal:
+        """
+        Generate signals based on Volume Weighted Average Price for compatibility with indicator registry
+        
+        Parameters:
+        -----------
+        data : MarketData
+            Market data containing OHLCV information
+            
+        Returns:
+        --------
+        IndicatorSignal
+            Signal object with buy/sell/neutral recommendation
+        """
+        if not hasattr(data, 'data') or not all(key in data.data for key in ["high", "low", "close", "volume"]):
             return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.BUY,
-                strength=min(1.0, abs(vwap_deviation) / 5),
-                confidence=0.7,
-                metadata={
-                    'vwap': vwap,
-                    'current_price': current_price,
-                    'deviation': vwap_deviation,
-                    'signal': 'upper_band_breakout'
-                }
+                timestamp=data.timestamp if hasattr(data, 'timestamp') else datetime.now(),
+                indicator_name=self.name, 
+                signal_type=SignalType.NEUTRAL, 
+                strength=0.0,
+                confidence=0.0
             )
-        elif current_price <= lower_band:
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.SELL,
-                strength=min(1.0, abs(vwap_deviation) / 5),
-                confidence=0.7,
-                metadata={
-                    'vwap': vwap,
-                    'current_price': current_price,
-                    'deviation': vwap_deviation,
-                    'signal': 'lower_band_breakdown'
-                }
-            )
+            
+        high = data.data["high"]
+        low = data.data["low"]
+        close = data.data["close"]
+        volume = data.data["volume"]
         
-        # VWAP position signals
-        if abs(vwap_deviation) > 2:  # Significant deviation from VWAP
-            if vwap_deviation > 2:  # Price well above VWAP
-                return IndicatorSignal(
-                    timestamp=current_result.timestamp,
-                    indicator_name=self.name,
-                    signal_type=SignalType.SELL,
-                    strength=min(1.0, vwap_deviation / 10),
-                    confidence=0.6,
-                    metadata={
-                        'vwap': vwap,
-                        'current_price': current_price,
-                        'deviation': vwap_deviation,
-                        'signal': 'overvalued_vs_vwap'
-                    }
-                )
-            elif vwap_deviation < -2:  # Price well below VWAP
-                return IndicatorSignal(
-                    timestamp=current_result.timestamp,
-                    indicator_name=self.name,
-                    signal_type=SignalType.BUY,
-                    strength=min(1.0, abs(vwap_deviation) / 10),
-                    confidence=0.6,
-                    metadata={
-                        'vwap': vwap,
-                        'current_price': current_price,
-                        'deviation': vwap_deviation,
-                        'signal': 'undervalued_vs_vwap'
-                    }
-                )
+        # Get datetime index if available
+        dates = None
+        if isinstance(data.data.get("datetime"), pd.Series) or isinstance(close.index, pd.DatetimeIndex):
+            dates = data.data.get("datetime") if "datetime" in data.data else close.index
         
-        # VWAP crossover signals
-        if len(historical_results) >= 1:
-            prev_result = historical_results[-1]
-            if hasattr(prev_result, 'raw_data'):
-                prev_price = prev_result.raw_data.get('current_price', 0)
-                prev_vwap = prev_result.value
-                
-                # Bullish VWAP crossover
-                if prev_price <= prev_vwap and current_price > vwap:
-                    return IndicatorSignal(
-                        timestamp=current_result.timestamp,
-                        indicator_name=self.name,
-                        signal_type=SignalType.BUY,
-                        strength=0.8,
-                        confidence=0.75,
-                        metadata={
-                            'vwap': vwap,
-                            'current_price': current_price,
-                            'signal': 'bullish_vwap_crossover'
-                        }
-                    )
-                # Bearish VWAP crossover
-                elif prev_price >= prev_vwap and current_price < vwap:
-                    return IndicatorSignal(
-                        timestamp=current_result.timestamp,
-                        indicator_name=self.name,
-                        signal_type=SignalType.SELL,
-                        strength=0.8,
-                        confidence=0.75,
-                        metadata={
-                            'vwap': vwap,
-                            'current_price': current_price,
-                            'signal': 'bearish_vwap_crossover'
-                        }
-                    )
+        # Calculate VWAP
+        vwap = self.calculate_values(high, low, close, volume, dates)
         
-        return None
-
-def test_vwap():
-    """Test VWAP calculation with sample data."""
-    from datetime import datetime, timedelta
-    
-    # Create sample market data with realistic volume patterns
-    base_time = datetime.now()
-    test_data = []
-    
-    # Generate test data with varying prices and volumes
-    base_price = 100
-    
-    for i in range(25):
-        # Create price movement
-        trend = i * 0.1
-        volatility = (i % 5) * 0.2
-        price = base_price + trend + volatility
+        # Get the last close and VWAP values
+        last_close = close.iloc[-1]
+        last_vwap = vwap.iloc[-1]
         
-        # Volume patterns (higher volume on moves)
-        volume_base = 1000
-        volume_multiplier = 1 + abs(volatility) * 2
-        volume = volume_base * volume_multiplier
+        # Calculate distance from VWAP as percentage
+        distance = ((last_close / last_vwap) - 1) * 100
         
-        test_data.append(MarketData(
-            timestamp=base_time + timedelta(minutes=i),
-            open=price - 0.05,
-            high=price + 0.1,
-            low=price - 0.1,
-            close=price,
-            volume=volume,
-            timeframe=TimeFrame.M1
-        ))
-    
-    # Test VWAP calculation
-    vwap = VWAP(TimeFrame.M1)
-    result = vwap.calculate(test_data)
-    
-    print(f"VWAP Test Results:")
-    print(f"VWAP: {result.value:.4f}")
-    print(f"Current Price: {result.raw_data['current_price']:.4f}")
-    print(f"Deviation: {result.raw_data['vwap_deviation']:.2f}%")
-    print(f"Upper Band: {result.raw_data['upper_band']:.4f}")
-    print(f"Lower Band: {result.raw_data['lower_band']:.4f}")
-    print(f"Calculation time: {result.calculation_time_ms:.2f}ms")
-    
-    if result.signal:
-        print(f"Signal: {result.signal.signal_type.value} (strength: {result.signal.strength:.2f})")
-    else:
-        print("No signal generated")
-    
-    return result
-
-if __name__ == "__main__":
-    test_vwap()
+        # Thresholds for signals (price relative to VWAP)
+        upper_threshold = 1.5  # 1.5% above VWAP
+        lower_threshold = -1.5  # 1.5% below VWAP
+        
+        if distance > upper_threshold:
+            signal_type = SignalType.SELL
+            strength = 0.6
+            confidence = 0.5
+            message = f"Price ({last_close:.4f}) is {distance:.2f}% above VWAP ({last_vwap:.4f}), potentially overbought"
+        elif distance < lower_threshold:
+            signal_type = SignalType.BUY
+            strength = 0.6
+            confidence = 0.5
+            message = f"Price ({last_close:.4f}) is {distance:.2f}% below VWAP ({last_vwap:.4f}), potentially oversold"
+        else:
+            signal_type = SignalType.NEUTRAL
+            strength = 0.0
+            confidence = 0.3
+            message = f"Price ({last_close:.4f}) is close to VWAP ({last_vwap:.4f}), {distance:.2f}% difference"
+        
+        return IndicatorSignal(
+            timestamp=data.timestamp if hasattr(data, 'timestamp') else datetime.now(),
+            indicator_name=self.name,
+            signal_type=signal_type,
+            strength=strength,
+            confidence=confidence,
+            metadata={
+                "vwap": last_vwap,
+                "close": last_close,
+                "distance_pct": distance,
+                "message": message
+            }
+        )

@@ -1,0 +1,562 @@
+"""
+Platform3 Momentum Divergence Scanner
+Advanced momentum divergence detection across multiple oscillators and timeframes
+"""
+
+import numpy as np
+import pandas as pd
+from typing import Dict, List, Tuple, Optional, Any
+from scipy import stats
+from scipy.signal import find_peaks, savgol_filter
+import ta
+
+# Platform3 Winston-style Logging Integration
+import sys
+import os
+
+# Platform3 Error Handling Integration
+from shared.error_handling.platform3_error_system import ServiceError, EventEmitter, CircuitBreaker, ErrorSeverity, ErrorCategory
+from shared.error_handling.base_service import BaseService
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+from logging.platform3_logger import Platform3Logger, log_performance, LogMetadata
+
+class MomentumDivergenceScanner, BaseService:
+    """
+    Advanced momentum divergence scanner for comprehensive divergence detection
+    across multiple momentum oscillators and timeframes.
+    """
+    
+    def __init__(self, 
+                 rsi_period: int = 14,
+                 macd_fast: int = 12,
+                 macd_slow: int = 26,
+                 macd_signal: int = 9,
+                 stoch_k: int = 14,
+                 stoch_d: int = 3,
+                 stoch_smooth: int = 3,
+                 williams_period: int = 14,
+                 cci_period: int = 20,
+                 momentum_period: int = 10,
+                 roc_period: int = 12,
+                 lookback_period: int = 100,
+                 min_bars_between_peaks: int = 5,
+                 peak_prominence: float = 0.3,
+                 divergence_threshold: float = 0.7):
+        """
+        Initialize Momentum Divergence Scanner
+        
+        Parameters:
+        -----------
+        rsi_period : int
+            RSI calculation period
+        macd_fast : int
+            MACD fast EMA period
+        macd_slow : int
+            MACD slow EMA period
+        macd_signal : int
+            MACD signal line period
+        stoch_k : int
+            Stochastic %K period
+        stoch_d : int
+            Stochastic %D period
+        stoch_smooth : int
+            Stochastic smoothing period
+        williams_period : int
+            Williams %R period
+        cci_period : int
+            CCI period
+        momentum_period : int
+            Momentum period
+        roc_period : int
+            Rate of Change period
+        lookback_period : int
+            Lookback period for divergence detection
+        min_bars_between_peaks : int
+            Minimum bars between peaks/troughs
+        peak_prominence : float
+            Minimum prominence for peak detection
+        divergence_threshold : float
+            Correlation threshold for divergence confirmation
+        """
+        self.rsi_period = rsi_period
+        self.macd_fast = macd_fast
+        self.macd_slow = macd_slow
+        self.macd_signal = macd_signal
+        self.stoch_k = stoch_k
+        self.stoch_d = stoch_d
+        self.stoch_smooth = stoch_smooth
+        self.williams_period = williams_period
+        self.cci_period = cci_period
+        self.momentum_period = momentum_period
+        self.roc_period = roc_period
+        self.lookback_period = lookback_period
+        self.min_bars_between_peaks = min_bars_between_peaks
+        self.peak_prominence = peak_prominence
+        self.divergence_threshold = divergence_threshold
+        
+        # Oscillator weights for consensus scoring
+        self.oscillator_weights = {
+            'rsi': 0.20,
+            'macd': 0.25,
+            'stochastic': 0.15,
+            'williams_r': 0.10,
+            'cci': 0.15,
+            'momentum': 0.10,
+            'roc': 0.05
+        }
+    
+    def calculate_oscillators(self, data: pd.DataFrame) -> Dict[str, pd.Series]:
+        try:
+        """Calculate multiple momentum oscillators"""
+        high = data['high']
+        low = data['low']
+        close = data['close']
+        volume = data.get('volume', pd.Series(index=data.index, data=1))
+        
+        oscillators = {}
+        
+        # RSI
+        oscillators['rsi'] = ta.momentum.RSIIndicator(
+            close=close, window=self.rsi_period
+        ).rsi()
+        
+        # MACD
+        macd_indicator = ta.trend.MACD(
+            close=close,
+            window_fast=self.macd_fast,
+            window_slow=self.macd_slow,
+            window_sign=self.macd_signal
+        )
+        oscillators['macd'] = macd_indicator.macd()
+        oscillators['macd_signal'] = macd_indicator.macd_signal()
+        oscillators['macd_histogram'] = macd_indicator.macd_diff()
+        
+        # Stochastic
+        stoch_indicator = ta.momentum.StochasticOscillator(
+            high=high, low=low, close=close,
+            window=self.stoch_k,
+            smooth_window=self.stoch_smooth
+        )
+        oscillators['stochastic'] = stoch_indicator.stoch()
+        oscillators['stochastic_signal'] = stoch_indicator.stoch_signal()
+        
+        # Williams %R
+        oscillators['williams_r'] = ta.momentum.WilliamsRIndicator(
+            high=high, low=low, close=close,
+            window=self.williams_period
+        ).williams_r()
+        
+        # CCI
+        oscillators['cci'] = ta.trend.CCIIndicator(
+            high=high, low=low, close=close,
+            window=self.cci_period
+        ).cci()
+        
+        # Momentum
+        oscillators['momentum'] = ta.momentum.ROCIndicator(
+            close=close, window=self.momentum_period
+        ).roc()
+        
+        # Rate of Change
+        oscillators['roc'] = ta.momentum.ROCIndicator(
+            close=close, window=self.roc_period
+        ).roc()
+        
+        return oscillators
+    
+    def detect_peaks_troughs(self, series: pd.Series) -> Tuple[np.ndarray, np.ndarray]:
+        try:
+        """Detect peaks and troughs in a series"""
+        # Smooth the series to reduce noise
+        smoothed = savgol_filter(series.dropna(), 
+                               window_length=min(11, len(series.dropna()) // 4 * 2 + 1),
+                               polyorder=3)
+        
+        # Find peaks
+        peaks, _ = find_peaks(smoothed, 
+                             distance=self.min_bars_between_peaks,
+                             prominence=self.peak_prominence * np.std(smoothed))
+        
+        # Find troughs (peaks of inverted series)
+        troughs, _ = find_peaks(-smoothed,
+                               distance=self.min_bars_between_peaks,
+                               prominence=self.peak_prominence * np.std(smoothed))
+        
+        return peaks, troughs
+    
+    def calculate_divergence_strength(self, 
+        try:
+                                    price_points: List[float], 
+                                    oscillator_points: List[float]) -> float:
+        """Calculate divergence strength using correlation analysis"""
+        if len(price_points) < 2 or len(oscillator_points) < 2:
+            return 0.0
+        
+        try:
+            # Calculate slopes
+            price_slope = np.polyfit(range(len(price_points)), price_points, 1)[0]
+            osc_slope = np.polyfit(range(len(oscillator_points)), oscillator_points, 1)[0]
+            
+            # Normalize slopes
+            price_slope_norm = price_slope / (np.std(price_points) + 1e-8)
+            osc_slope_norm = osc_slope / (np.std(oscillator_points) + 1e-8)
+            
+            # Calculate divergence strength (negative correlation indicates divergence)
+            correlation = np.corrcoef(price_points, oscillator_points)[0, 1]
+            
+            # Divergence strength increases with opposite slopes and low correlation
+            slope_divergence = abs(np.sign(price_slope_norm) - np.sign(osc_slope_norm)) / 2
+            correlation_divergence = 1 - abs(correlation)
+            
+            return (slope_divergence + correlation_divergence) / 2
+            
+        except (np.linalg.LinAlgError, ValueError):
+            return 0.0
+    
+    def detect_bullish_divergence(self, 
+        try:
+                                price_series: pd.Series, 
+                                oscillator_series: pd.Series) -> Dict[str, Any]:
+        """Detect bullish divergence patterns"""
+        price_peaks, price_troughs = self.detect_peaks_troughs(price_series)
+        osc_peaks, osc_troughs = self.detect_peaks_troughs(oscillator_series)
+        
+        divergences = []
+        
+        # Check for bullish divergence at troughs
+        if len(price_troughs) >= 2 and len(osc_troughs) >= 2:
+            # Get recent troughs
+            recent_price_troughs = price_troughs[-3:] if len(price_troughs) >= 3 else price_troughs
+            recent_osc_troughs = osc_troughs[-3:] if len(osc_troughs) >= 3 else osc_troughs
+            
+            for i in range(1, len(recent_price_troughs)):
+                price_idx1, price_idx2 = recent_price_troughs[i-1], recent_price_troughs[i]
+                
+                # Find corresponding oscillator troughs
+                for j in range(len(recent_osc_troughs)-1):
+                    osc_idx1, osc_idx2 = recent_osc_troughs[j], recent_osc_troughs[j+1]
+                    
+                    # Check if timeframes align roughly
+                    if abs(price_idx1 - osc_idx1) <= 5 and abs(price_idx2 - osc_idx2) <= 5:
+                        price_values = [price_series.iloc[price_idx1], price_series.iloc[price_idx2]]
+                        osc_values = [oscillator_series.iloc[osc_idx1], oscillator_series.iloc[osc_idx2]]
+                        
+                        # Bullish divergence: lower price lows, higher oscillator lows
+                        if price_values[1] < price_values[0] and osc_values[1] > osc_values[0]:
+                            strength = self.calculate_divergence_strength(price_values, osc_values)
+                            
+                            if strength >= self.divergence_threshold:
+                                divergences.append({
+                                    'type': 'bullish',
+                                    'price_points': (price_idx1, price_idx2),
+                                    'oscillator_points': (osc_idx1, osc_idx2),
+                                    'strength': strength,
+                                    'price_values': price_values,
+                                    'oscillator_values': osc_values
+                                })
+        
+        return {
+            'divergences': divergences,
+            'count': len(divergences),
+            'max_strength': max([d['strength'] for d in divergences]) if divergences else 0.0
+        }
+    
+    def detect_bearish_divergence(self, 
+        try:
+                                price_series: pd.Series, 
+                                oscillator_series: pd.Series) -> Dict[str, Any]:
+        """Detect bearish divergence patterns"""
+        price_peaks, price_troughs = self.detect_peaks_troughs(price_series)
+        osc_peaks, osc_troughs = self.detect_peaks_troughs(oscillator_series)
+        
+        divergences = []
+        
+        # Check for bearish divergence at peaks
+        if len(price_peaks) >= 2 and len(osc_peaks) >= 2:
+            # Get recent peaks
+            recent_price_peaks = price_peaks[-3:] if len(price_peaks) >= 3 else price_peaks
+            recent_osc_peaks = osc_peaks[-3:] if len(osc_peaks) >= 3 else osc_peaks
+            
+            for i in range(1, len(recent_price_peaks)):
+                price_idx1, price_idx2 = recent_price_peaks[i-1], recent_price_peaks[i]
+                
+                # Find corresponding oscillator peaks
+                for j in range(len(recent_osc_peaks)-1):
+                    osc_idx1, osc_idx2 = recent_osc_peaks[j], recent_osc_peaks[j+1]
+                    
+                    # Check if timeframes align roughly
+                    if abs(price_idx1 - osc_idx1) <= 5 and abs(price_idx2 - osc_idx2) <= 5:
+                        price_values = [price_series.iloc[price_idx1], price_series.iloc[price_idx2]]
+                        osc_values = [oscillator_series.iloc[osc_idx1], oscillator_series.iloc[osc_idx2]]
+                        
+                        # Bearish divergence: higher price highs, lower oscillator highs
+                        if price_values[1] > price_values[0] and osc_values[1] < osc_values[0]:
+                            strength = self.calculate_divergence_strength(price_values, osc_values)
+                            
+                            if strength >= self.divergence_threshold:
+                                divergences.append({
+                                    'type': 'bearish',
+                                    'price_points': (price_idx1, price_idx2),
+                                    'oscillator_points': (osc_idx1, osc_idx2),
+                                    'strength': strength,
+                                    'price_values': price_values,
+                                    'oscillator_values': osc_values
+                                })
+        
+        return {
+            'divergences': divergences,
+            'count': len(divergences),
+            'max_strength': max([d['strength'] for d in divergences]) if divergences else 0.0
+        }
+    
+    def calculate_consensus_score(self, divergence_results: Dict[str, Dict]) -> Dict[str, float]:
+        try:
+        """Calculate consensus divergence score across all oscillators"""
+        bullish_score = 0.0
+        bearish_score = 0.0
+        
+        for oscillator, weight in self.oscillator_weights.items():
+            if oscillator in divergence_results:
+                bullish_strength = divergence_results[oscillator]['bullish']['max_strength']
+                bearish_strength = divergence_results[oscillator]['bearish']['max_strength']
+                
+                bullish_score += bullish_strength * weight
+                bearish_score += bearish_strength * weight
+        
+        return {
+            'bullish_consensus': bullish_score,
+            'bearish_consensus': bearish_score,
+            'net_consensus': bullish_score - bearish_score
+        }
+    
+    def scan_momentum_divergences(self, data: pd.DataFrame) -> Dict[str, Any]:
+        try:
+        """
+        Comprehensive momentum divergence scan across all oscillators
+        
+        Parameters:
+        -----------
+        data : pd.DataFrame
+            OHLCV data with columns: open, high, low, close, volume
+            
+        Returns:
+        --------
+        Dict containing divergence analysis results
+        """
+        if len(data) < max(self.lookback_period, 50):
+            return {
+                'error': 'Insufficient data',
+                'required_length': max(self.lookback_period, 50),
+                'actual_length': len(data)
+            }
+        
+        # Use recent data for analysis
+        recent_data = data.tail(self.lookback_period)
+        
+        # Calculate all oscillators
+        oscillators = self.calculate_oscillators(recent_data)
+        
+        # Price series for comparison
+        price_series = recent_data['close']
+        
+        # Analyze divergences for each oscillator
+        divergence_results = {}
+        
+        for osc_name, osc_series in oscillators.items():
+            if osc_name in ['macd_signal', 'macd_histogram', 'stochastic_signal']:
+                continue  # Skip derivative oscillators for main analysis
+            
+            if osc_series.dropna().empty:
+                continue
+            
+            bullish_div = self.detect_bullish_divergence(price_series, osc_series)
+            bearish_div = self.detect_bearish_divergence(price_series, osc_series)
+            
+            divergence_results[osc_name] = {
+                'bullish': bullish_div,
+                'bearish': bearish_div,
+                'total_strength': bullish_div['max_strength'] + bearish_div['max_strength']
+            }
+        
+        # Calculate consensus scores
+        consensus = self.calculate_consensus_score(divergence_results)
+        
+        # Determine overall signal
+        signal_strength = abs(consensus['net_consensus'])
+        if consensus['net_consensus'] > 0.3:
+            overall_signal = 'BULLISH_DIVERGENCE'
+        elif consensus['net_consensus'] < -0.3:
+            overall_signal = 'BEARISH_DIVERGENCE'
+        else:
+            overall_signal = 'NEUTRAL'
+        
+        # Calculate confidence level
+        confidence = min(signal_strength * 100, 100)
+        
+        return {
+            'timestamp': data.index[-1],
+            'overall_signal': overall_signal,
+            'signal_strength': signal_strength,
+            'confidence': confidence,
+            'consensus_scores': consensus,
+            'oscillator_results': divergence_results,
+            'oscillator_values': {
+                name: series.iloc[-1] if not series.dropna().empty else None 
+                for name, series in oscillators.items()
+            },
+            'summary': {
+                'total_bullish_divergences': sum(
+                    result['bullish']['count'] for result in divergence_results.values()
+                ),
+                'total_bearish_divergences': sum(
+                    result['bearish']['count'] for result in divergence_results.values()
+                ),
+                'strongest_oscillator': max(
+                    divergence_results.keys(),
+                    key=lambda x: divergence_results[x]['total_strength']
+                ) if divergence_results else None
+            }
+        }
+    
+    def get_divergence_signals(self, data: pd.DataFrame) -> pd.DataFrame:
+        try:
+        """
+        Generate divergence signals as a DataFrame
+        
+        Returns:
+        --------
+        pd.DataFrame with divergence signals and strength values
+        """
+        results = []
+        
+        # Calculate signals for each row where possible
+        min_required = max(self.lookback_period // 2, 30)
+        
+        for i in range(min_required, len(data)):
+            subset_data = data.iloc[:i+1]
+            scan_result = self.scan_momentum_divergences(subset_data)
+            
+            if 'error' not in scan_result:
+                results.append({
+                    'timestamp': subset_data.index[-1],
+                    'signal': scan_result['overall_signal'],
+                    'strength': scan_result['signal_strength'],
+                    'confidence': scan_result['confidence'],
+                    'bullish_consensus': scan_result['consensus_scores']['bullish_consensus'],
+                    'bearish_consensus': scan_result['consensus_scores']['bearish_consensus'],
+                    'net_consensus': scan_result['consensus_scores']['net_consensus']
+                })
+            else:
+                results.append({
+                    'timestamp': subset_data.index[-1],
+                    'signal': 'INSUFFICIENT_DATA',
+                    'strength': 0.0,
+                    'confidence': 0.0,
+                    'bullish_consensus': 0.0,
+                    'bearish_consensus': 0.0,
+                    'net_consensus': 0.0
+                })
+        
+        return pd.DataFrame(results).set_index('timestamp')
+
+
+    def handle_service_error(self, error: Exception, context: Dict[str, Any] = None) -> None:
+        """Handle service errors with proper event emission and logging"""
+        try:
+            service_error = ServiceError(
+                message=str(error),
+                code=f"{self.__class__.__name__.upper()}_ERROR",
+                metadata={
+                    "file_path": "engines/divergence/momentum_divergence_scanner.py",
+                    "context": context or {},
+                    "timestamp": pd.Timestamp.now().isoformat(),
+                    "service_name": self.__class__.__name__
+                }
+            )
+            
+            # Emit error event for monitoring
+            self.emit('error', service_error)
+            
+            # Log error with correlation context
+            if hasattr(self, 'logger'):
+                self.logger.error(
+                    f"Service error in {self.__class__.__name__}: {str(error)}",
+                    extra={
+                        "error_code": service_error.code,
+                        "error_severity": service_error.severity.value,
+                        "error_category": service_error.category.value,
+                        "context": context
+                    }
+                )
+        except Exception as handling_error:
+            # Fallback error handling
+            print(f"Critical error in error handling: {handling_error}")
+    
+    def implement_circuit_breaker(self, service_name: str, failure_threshold: int = 5) -> CircuitBreaker:
+        """Implement circuit breaker for external service calls"""
+        return CircuitBreaker(
+            service_name=service_name,
+            failure_threshold=failure_threshold,
+            recovery_timeout=30,
+            on_failure=lambda error: self.emit('circuit_breaker_open', {'service': service_name, 'error': error})
+        )
+    
+    def graceful_degradation(self, primary_function, fallback_function, context: str = "operation"):
+        """Implement graceful degradation pattern"""
+        try:
+            return primary_function()
+        except Exception as error:
+            self.handle_service_error(error, {"context": context, "degradation": "fallback_used"})
+            
+            # Emit degradation event
+            self.emit('service_degradation', {
+                'context': context,
+                'primary_error': str(error),
+                'fallback_activated': True
+            })
+            
+            return fallback_function()
+
+# Example usage and testing
+if __name__ == "__main__":
+    # Create sample data
+    np.random.seed(42)
+    dates = pd.date_range('2023-01-01', periods=200, freq='D')
+    
+    # Generate sample OHLCV data with trend and momentum patterns
+    price_trend = np.cumsum(np.random.randn(200) * 0.02) + 100
+    volatility = np.random.randn(200) * 0.5
+    
+    sample_data = pd.DataFrame({
+        'open': price_trend + volatility,
+        'high': price_trend + np.abs(volatility) + 0.5,
+        'low': price_trend - np.abs(volatility) - 0.5,
+        'close': price_trend + volatility * 0.8,
+        'volume': np.random.randint(1000, 10000, 200)
+    }, index=dates)
+    
+    # Test the momentum divergence scanner
+    scanner = MomentumDivergenceScanner()
+    
+    print("Testing Momentum Divergence Scanner...")
+    print("=" * 50)
+    
+    # Test full scan
+    result = scanner.scan_momentum_divergences(sample_data)
+    print(f"Overall Signal: {result['overall_signal']}")
+    print(f"Signal Strength: {result['signal_strength']:.3f}")
+    print(f"Confidence: {result['confidence']:.1f}%")
+    print(f"Bullish Consensus: {result['consensus_scores']['bullish_consensus']:.3f}")
+    print(f"Bearish Consensus: {result['consensus_scores']['bearish_consensus']:.3f}")
+    print(f"Net Consensus: {result['consensus_scores']['net_consensus']:.3f}")
+    
+    print(f"\nSummary:")
+    print(f"Total Bullish Divergences: {result['summary']['total_bullish_divergences']}")
+    print(f"Total Bearish Divergences: {result['summary']['total_bearish_divergences']}")
+    print(f"Strongest Oscillator: {result['summary']['strongest_oscillator']}")
+    
+    # Test signal generation
+    signals_df = scanner.get_divergence_signals(sample_data.tail(100))
+    print(f"\nGenerated {len(signals_df)} divergence signals")
+    print(f"Recent signals:\n{signals_df.tail()}")

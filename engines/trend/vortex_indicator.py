@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
 Vortex Indicator (VI) - Advanced Trend Change Detection
 =======================================================
@@ -30,7 +40,7 @@ from enum import Enum
 import logging
 from datetime import datetime, timedelta
 
-from ..indicator_base import IndicatorBase, IndicatorConfig, IndicatorSignal, SignalStrength, MarketCondition
+from engines.indicator_base import IndicatorBase, IndicatorConfig, IndicatorSignal, SignalStrength, MarketCondition
 
 logger = logging.getLogger(__name__)
 
@@ -583,6 +593,64 @@ class VortexIndicator(IndicatorBase[VortexConfig]):
             'last_crossover_bar': self.last_crossover_bar
         }
 
+    def calculate(self, data: pd.DataFrame) -> Optional[pd.DataFrame]:
+        """Calculate Vortex Indicator"""
+        if not isinstance(data, pd.DataFrame) or data.empty:
+            self.logger.warning("VortexIndicator: Input data is not a valid DataFrame or is empty.")
+            return None
+
+        required_columns = ['high', 'low', 'close']
+        if not all(col in data.columns for col in required_columns):
+            self.logger.warning(f"VortexIndicator: Input DataFrame missing required columns: {required_columns}")
+            return None
+
+        if len(data) < self.config.period:
+            self.logger.warning(f"VortexIndicator: Insufficient data for period {self.config.period}. Need at least {self.config.period} bars.")
+            return None
+
+        high = data['high']
+        low = data['low']
+        close = data['close']
+
+        # Calculate True Range (TR)
+        tr = pd.Series(index=data.index, dtype=float)
+        prev_close = close.shift(1)
+        for i in range(len(data)):
+            tr.iloc[i] = self._calculate_true_range(high.iloc[i], low.iloc[i], prev_close.iloc[i])
+        
+        tr_sum = tr.rolling(window=self.config.period).sum()
+
+        # Calculate Vortex Movement (VM+ and VM-)
+        prev_high = high.shift(1)
+        prev_low = low.shift(1)
+
+        vm_plus = abs(high - prev_low)
+        vm_minus = abs(low - prev_high)
+
+        vm_plus_sum = vm_plus.rolling(window=self.config.period).sum()
+        vm_minus_sum = vm_minus.rolling(window=self.config.period).sum()
+
+        # Calculate VI+ and VI-
+        vi_plus = vm_plus_sum / tr_sum
+        vi_minus = vm_minus_sum / tr_sum
+        
+        # Replace NaN or inf with 0 or a more appropriate value if necessary
+        vi_plus = vi_plus.fillna(0).replace([np.inf, -np.inf], 0)
+        vi_minus = vi_minus.fillna(0).replace([np.inf, -np.inf], 0)
+
+        result_df = pd.DataFrame({
+            'VIp': vi_plus,
+            'VIm': vi_minus
+        }, index=data.index)
+
+        if not result_df.empty: # Corrected DataFrame check
+            self.logger.debug("Vortex Indicator calculation successful.")
+        else:
+            self.logger.warning("Vortex Indicator calculation resulted in an empty DataFrame.")
+            return None
+
+        return result_df
+    
 def test_vortex_indicator():
     """Test Vortex Indicator implementation with realistic market data"""
     config = VortexConfig(

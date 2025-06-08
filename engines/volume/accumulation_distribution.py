@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
 Accumulation/Distribution Line (A/D Line) - Advanced Volume Flow Analysis
 Platform3 - Humanitarian Trading System
@@ -15,7 +25,7 @@ Key Features:
 - Multi-timeframe coordination
 
 Money Flow Multiplier = ((Close - Low) - (High - Close)) / (High - Low)
-Money Flow Volume = Money Flow Multiplier × Volume
+Money Flow Volume = Money Flow Multiplier multiply Volume
 A/D Line = Previous A/D Line + Money Flow Volume
 
 Humanitarian Mission: Identify smart money accumulation patterns for optimal
@@ -24,9 +34,10 @@ entry timing and maximize profit generation through volume-confirmed signals.
 
 import numpy as np
 import pandas as pd
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass
-from ..indicator_base import IndicatorSignal, TechnicalIndicator
+from dataclasses import dataclass, field
+from engines.indicator_base import IndicatorSignal, TechnicalIndicator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -34,16 +45,26 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AccumulationDistributionSignal(IndicatorSignal):
     """A/D Line-specific signal with detailed analysis"""
-    ad_line_value: float
-    money_flow_multiplier: float
-    money_flow_volume: float
-    trend_direction: str  # "accumulation", "distribution", "neutral"
-    trend_strength: str  # "strong", "moderate", "weak"
-    momentum_phase: str  # "accelerating", "decelerating", "stable"
-    divergence_signal: Optional[str]  # "bullish_divergence", "bearish_divergence"
-    volume_confirmation: str  # "confirmed", "unconfirmed", "weak"
-    buying_pressure: float  # -1 to 1 scale
-    flow_analysis: Dict[str, Any]
+    ad_line_value: float = 0.0
+    money_flow_multiplier: float = 0.0
+    money_flow_volume: float = 0.0
+    trend_direction: str = "neutral"  # "accumulation", "distribution", "neutral"
+    trend_strength: str = "moderate"  # "strong", "moderate", "weak"
+    momentum_phase: str = "stable"  # "accelerating", "decelerating", "stable"
+    divergence_signal: Optional[str] = None  # "bullish_divergence", "bearish_divergence"
+    volume_confirmation: str = "confirmed"  # "confirmed", "unconfirmed", "weak"
+    buying_pressure: float = 0.0  # -1 to 1 scale
+    flow_analysis: Dict[str, Any] = field(default_factory=dict)
+    
+    def __post_init__(self):
+        """Initialize required base fields if not provided"""
+        if not hasattr(self, 'timestamp') or self.timestamp is None:
+            self.timestamp = datetime.now()
+        if not hasattr(self, 'indicator_name') or self.indicator_name is None:
+            self.indicator_name = "AccumulationDistributionLine"
+        if not hasattr(self, 'signal_type') or self.signal_type is None:
+            from engines.indicator_base import SignalType
+            self.signal_type = SignalType.NEUTRAL
 
 class AccumulationDistributionLine(TechnicalIndicator):
     """
@@ -54,6 +75,7 @@ class AccumulationDistributionLine(TechnicalIndicator):
     """
     
     def __init__(self, 
+                 config: Optional[Dict[str, Any]] = None, 
                  lookback_period: int = 20,
                  trend_confirmation_period: int = 10,
                  divergence_period: int = 15,
@@ -62,16 +84,59 @@ class AccumulationDistributionLine(TechnicalIndicator):
         Initialize A/D Line with comprehensive analysis parameters
         
         Args:
+            config: Optional configuration dictionary or IndicatorConfig object.
             lookback_period: Period for trend analysis (default 20)
             trend_confirmation_period: Periods to confirm trend changes
             divergence_period: Period for divergence analysis
             volume_threshold: Minimum volume multiplier for significance
         """
-        super().__init__()
-        self.lookback_period = lookback_period
-        self.trend_confirmation_period = trend_confirmation_period
-        self.divergence_period = divergence_period
-        self.volume_threshold = volume_threshold
+        from engines.indicator_base import IndicatorConfig, IndicatorType, TimeFrame
+
+        # If config is a dictionary, convert it to IndicatorConfig
+        if isinstance(config, dict):
+            # Ensure essential keys are present or provide defaults
+            name = config.get('name', "AccumulationDistributionLine")
+            indicator_type = config.get('indicator_type', IndicatorType.VOLUME)
+            timeframe = config.get('timeframe', TimeFrame.D1)
+            lb_periods = config.get('lookback_periods', lookback_period)
+            params = config.get('parameters', {})
+
+            # Update parameters from direct arguments if not in config dict
+            params.setdefault('lookback_period', lookback_period)
+            params.setdefault('trend_confirmation_period', trend_confirmation_period)
+            params.setdefault('divergence_period', divergence_period)
+            params.setdefault('volume_threshold', volume_threshold)
+            
+            config_obj = IndicatorConfig(
+                name=name,
+                indicator_type=indicator_type,
+                timeframe=timeframe,
+                lookback_periods=lb_periods,
+                parameters=params
+            )
+        elif isinstance(config, IndicatorConfig):
+            config_obj = config
+        else: # No config provided, create a default one
+            config_obj = IndicatorConfig(
+                name="AccumulationDistributionLine",
+                indicator_type=IndicatorType.VOLUME,
+                timeframe=TimeFrame.D1,
+                lookback_periods=lookback_period,
+                parameters={
+                    'lookback_period': lookback_period,
+                    'trend_confirmation_period': trend_confirmation_period,
+                    'divergence_period': divergence_period,
+                    'volume_threshold': volume_threshold
+                }
+            )
+        
+        super().__init__(config=config_obj) # Added super call with config
+        
+        # Assign parameters from the config_obj or defaults
+        self.lookback_period = config_obj.parameters.get('lookback_period', lookback_period)
+        self.trend_confirmation_period = config_obj.parameters.get('trend_confirmation_period', trend_confirmation_period)
+        self.divergence_period = config_obj.parameters.get('divergence_period', divergence_period)
+        self.volume_threshold = config_obj.parameters.get('volume_threshold', volume_threshold)
         
         # Historical data storage
         self.highs: List[float] = []
@@ -87,15 +152,44 @@ class AccumulationDistributionLine(TechnicalIndicator):
         self.ad_line_cumulative = 0.0
         
     def calculate(self, 
-                  high: float, 
-                  low: float, 
-                  close: float, 
-                  volume: float, 
+                  data=None,
+                  high=None, 
+                  low=None, 
+                  close=None, 
+                  volume=None, 
                   timestamp: Optional[Any] = None) -> AccumulationDistributionSignal:
         """
         Calculate A/D Line with comprehensive volume flow analysis
         """
         try:
+            # Extract required params from data if not provided separately
+            if data is not None:
+                if isinstance(data, dict):
+                    high = high if high is not None else data.get('high')
+                    low = low if low is not None else data.get('low')
+                    close = close if close is not None else data.get('close')
+                    volume = volume if volume is not None else data.get('volume')
+                elif hasattr(data, 'iloc') and len(data) >= 4:  # DataFrame-like
+                    high = high if high is not None else data.iloc[1]  # Assuming OHLCV order
+                    low = low if low is not None else data.iloc[2]
+                    close = close if close is not None else data.iloc[3]
+                    volume = volume if volume is not None else data.iloc[4]
+                elif isinstance(data, (list, tuple)) and len(data) >= 4:
+                    high = high if high is not None else data[1]  # Assuming OHLCV order
+                    low = low if low is not None else data[2]
+                    close = close if close is not None else data[3]
+                    volume = volume if volume is not None else data[4]
+            
+            # Validate required parameters
+            if any(x is None for x in [high, low, close, volume]):
+                raise ValueError("Missing required parameters: high, low, close, and volume are required")
+            
+            # Convert to float if needed
+            high = float(high)
+            low = float(low)
+            close = float(close)
+            volume = float(volume)
+            
             # Store current values
             self.highs.append(high)
             self.lows.append(low)
@@ -173,7 +267,19 @@ class AccumulationDistributionLine(TechnicalIndicator):
             volume_confirmation, buying_pressure, money_flow_multiplier
         )
         
+        # Determine signal type based on analysis
+        from engines.indicator_base import SignalType
+        if trend_direction == "accumulation" and strength > 0.6:
+            signal_type = SignalType.BUY
+        elif trend_direction == "distribution" and strength > 0.6:
+            signal_type = SignalType.SELL
+        else:
+            signal_type = SignalType.NEUTRAL
+        
         return AccumulationDistributionSignal(
+            timestamp=datetime.now(),
+            indicator_name="AccumulationDistributionLine",
+            signal_type=signal_type,
             strength=strength,
             confidence=confidence,
             ad_line_value=ad_line_value,
@@ -434,11 +540,15 @@ class AccumulationDistributionLine(TechnicalIndicator):
         
         return strength, confidence
     
-    def _create_neutral_signal(self, close: float, ad_line_value: float,
-                               money_flow_multiplier: float, 
-                               money_flow_volume: float) -> AccumulationDistributionSignal:
+    def _create_neutral_signal(self, close: float, ad_line_value: float = 0.0,
+                               money_flow_multiplier: float = 0.0, 
+                               money_flow_volume: float = 0.0) -> AccumulationDistributionSignal:
         """Create neutral signal for insufficient data"""
+        from engines.indicator_base import SignalType
         return AccumulationDistributionSignal(
+            timestamp=datetime.now(),
+            indicator_name="AccumulationDistributionLine",
+            signal_type=SignalType.NEUTRAL,
             strength=0.0,
             confidence=0.0,
             ad_line_value=ad_line_value,
@@ -456,6 +566,10 @@ class AccumulationDistributionLine(TechnicalIndicator):
                 "status": "insufficient_data"
             }
         )
+
+    def generate_signal(self, high: float, low: float, close: float, volume: float, timestamp: Optional[Any] = None) -> IndicatorSignal:
+        """Generate signal using standard interface - delegates to calculate method"""
+        return self.calculate(high, low, close, volume, timestamp)
 
 # Test function
 def test_accumulation_distribution():

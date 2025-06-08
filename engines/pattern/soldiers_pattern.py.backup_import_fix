@@ -1,0 +1,298 @@
+"""
+Three White Soldiers and Three Black Crows Pattern Detection Engine
+
+Three White Soldiers (Bullish continuation/reversal):
+- Three consecutive long bullish candles
+- Each candle opens within the previous candle's body
+- Each candle closes higher than the previous
+- Limited upper shadows
+
+Three Black Crows (Bearish continuation/reversal):
+- Three consecutive long bearish candles
+- Each candle opens within the previous candle's body
+- Each candle closes lower than the previous
+- Limited lower shadows
+"""
+
+from typing import List, Dict, Any, Optional
+from dataclasses import dataclass
+from ..base_pattern import BasePatternEngine
+from ...models.market_data import OHLCV
+from ...utils.pattern_validation import PatternValidator
+
+
+@dataclass
+class SoldiersSignal:
+    """Signal data for Three White Soldiers/Black Crows patterns"""
+    pattern_type: str  # 'three_white_soldiers' or 'three_black_crows'
+    confidence: float
+    entry_price: float
+    stop_loss: float
+    target_price: float
+    timestamp: str
+    candles_involved: List[OHLCV]
+    average_body_ratio: float
+    progression_strength: float
+    strength: str  # 'weak', 'moderate', 'strong'
+
+
+class SoldiersPatternEngine(BasePatternEngine):
+    """
+    Three White Soldiers and Three Black Crows Pattern Detection and Signal Generation Engine
+    
+    Detects both bullish and bearish three-candle continuation patterns
+    """
+    
+    def __init__(self, min_body_ratio: float = 0.6, max_shadow_ratio: float = 0.2, min_progression: float = 0.3):
+        super().__init__()
+        self.min_body_ratio = min_body_ratio  # Minimum body-to-range ratio for each candle
+        self.max_shadow_ratio = max_shadow_ratio  # Maximum shadow ratio (upper for soldiers, lower for crows)
+        self.min_progression = min_progression  # Minimum progression between candles
+        self.validator = PatternValidator()
+        
+    def detect_soldiers_pattern(self, candles: List[OHLCV]) -> Optional[Dict[str, Any]]:
+        """
+        Detect Three White Soldiers or Three Black Crows pattern in the given candles
+        
+        Args:
+            candles: List of OHLCV data (minimum 3 candles needed)
+            
+        Returns:
+            Pattern detection result or None if no pattern found
+        """
+        if len(candles) < 3:
+            return None
+            
+        # Get the last three candles
+        first_candle = candles[-3]
+        second_candle = candles[-2]
+        third_candle = candles[-1]
+        
+        # Check for three white soldiers pattern
+        soldiers_result = self._detect_three_white_soldiers(first_candle, second_candle, third_candle)
+        if soldiers_result:
+            return soldiers_result
+            
+        # Check for three black crows pattern
+        crows_result = self._detect_three_black_crows(first_candle, second_candle, third_candle)
+        if crows_result:
+            return crows_result
+            
+        return None
+        
+    def _detect_three_white_soldiers(self, first: OHLCV, second: OHLCV, third: OHLCV) -> Optional[Dict[str, Any]]:
+        """Detect three white soldiers pattern"""
+        candles = [first, second, third]
+        
+        # All candles must be bullish with substantial bodies
+        for candle in candles:
+            if not self._is_strong_bullish(candle):
+                return None
+                
+        # Check progression: each candle closes higher than the previous
+        if not (second.close > first.close and third.close > second.close):
+            return None
+            
+        # Check opening within previous body
+        if not (first.open < second.open < first.close and second.open < third.open < second.close):
+            return None
+            
+        # Check limited upper shadows
+        for candle in candles:
+            if not self._has_limited_upper_shadow(candle):
+                return None
+                
+        # Calculate progression strength
+        total_progression = third.close - first.open
+        individual_progressions = [
+            second.close - first.close,
+            third.close - second.close
+        ]
+        
+        avg_progression = sum(individual_progressions) / len(individual_progressions)
+        progression_strength = (avg_progression / first.open) * 100
+        
+        if progression_strength < self.min_progression:
+            return None
+            
+        # Calculate average body ratio
+        body_ratios = [self._get_body_ratio(candle) for candle in candles]
+        avg_body_ratio = sum(body_ratios) / len(body_ratios)
+        
+        # Calculate pattern strength
+        strength = self._calculate_pattern_strength(avg_body_ratio, progression_strength)
+        
+        return {
+            'pattern_type': 'three_white_soldiers',
+            'confidence': self._calculate_confidence(candles, avg_body_ratio, progression_strength),
+            'average_body_ratio': avg_body_ratio,
+            'progression_strength': progression_strength,
+            'strength': strength,
+            'candles': candles
+        }
+        
+    def _detect_three_black_crows(self, first: OHLCV, second: OHLCV, third: OHLCV) -> Optional[Dict[str, Any]]:
+        """Detect three black crows pattern"""
+        candles = [first, second, third]
+        
+        # All candles must be bearish with substantial bodies
+        for candle in candles:
+            if not self._is_strong_bearish(candle):
+                return None
+                
+        # Check progression: each candle closes lower than the previous
+        if not (second.close < first.close and third.close < second.close):
+            return None
+            
+        # Check opening within previous body
+        if not (first.close < second.open < first.open and second.close < third.open < second.open):
+            return None
+            
+        # Check limited lower shadows
+        for candle in candles:
+            if not self._has_limited_lower_shadow(candle):
+                return None
+                
+        # Calculate progression strength
+        total_progression = first.open - third.close
+        individual_progressions = [
+            first.close - second.close,
+            second.close - third.close
+        ]
+        
+        avg_progression = sum(individual_progressions) / len(individual_progressions)
+        progression_strength = (avg_progression / first.open) * 100
+        
+        if progression_strength < self.min_progression:
+            return None
+            
+        # Calculate average body ratio
+        body_ratios = [self._get_body_ratio(candle) for candle in candles]
+        avg_body_ratio = sum(body_ratios) / len(body_ratios)
+        
+        # Calculate pattern strength
+        strength = self._calculate_pattern_strength(avg_body_ratio, progression_strength)
+        
+        return {
+            'pattern_type': 'three_black_crows',
+            'confidence': self._calculate_confidence(candles, avg_body_ratio, progression_strength),
+            'average_body_ratio': avg_body_ratio,
+            'progression_strength': progression_strength,
+            'strength': strength,
+            'candles': candles
+        }
+        
+    def _is_strong_bullish(self, candle: OHLCV) -> bool:
+        """Check if candle is strong bullish"""
+        if candle.close <= candle.open:
+            return False
+            
+        body_ratio = self._get_body_ratio(candle)
+        return body_ratio >= self.min_body_ratio
+        
+    def _is_strong_bearish(self, candle: OHLCV) -> bool:
+        """Check if candle is strong bearish"""
+        if candle.close >= candle.open:
+            return False
+            
+        body_ratio = self._get_body_ratio(candle)
+        return body_ratio >= self.min_body_ratio
+        
+    def _get_body_ratio(self, candle: OHLCV) -> float:
+        """Get body-to-range ratio for a candle"""
+        body_size = abs(candle.close - candle.open)
+        total_range = candle.high - candle.low
+        
+        if total_range == 0:
+            return 0
+            
+        return body_size / total_range
+        
+    def _has_limited_upper_shadow(self, candle: OHLCV) -> bool:
+        """Check if candle has limited upper shadow"""
+        upper_shadow = candle.high - max(candle.open, candle.close)
+        total_range = candle.high - candle.low
+        
+        if total_range == 0:
+            return True
+            
+        shadow_ratio = upper_shadow / total_range
+        return shadow_ratio <= self.max_shadow_ratio
+        
+    def _has_limited_lower_shadow(self, candle: OHLCV) -> bool:
+        """Check if candle has limited lower shadow"""
+        lower_shadow = min(candle.open, candle.close) - candle.low
+        total_range = candle.high - candle.low
+        
+        if total_range == 0:
+            return True
+            
+        shadow_ratio = lower_shadow / total_range
+        return shadow_ratio <= self.max_shadow_ratio
+        
+    def _calculate_pattern_strength(self, avg_body_ratio: float, progression_strength: float) -> str:
+        """Calculate pattern strength based on body ratios and progression"""
+        if avg_body_ratio >= 0.8 and progression_strength >= 1.0:
+            return 'strong'
+        elif avg_body_ratio >= 0.7 and progression_strength >= 0.5:
+            return 'moderate'
+        else:
+            return 'weak'
+            
+    def _calculate_confidence(self, candles: List[OHLCV], avg_body_ratio: float, progression_strength: float) -> float:
+        """Calculate pattern confidence score"""
+        confidence = 0.6  # Base confidence
+        
+        # Add confidence based on body strength
+        if avg_body_ratio >= 0.8:
+            confidence += 0.2
+        elif avg_body_ratio >= 0.7:
+            confidence += 0.15
+        else:
+            confidence += 0.1
+            
+        # Add confidence based on progression
+        if progression_strength >= 1.0:
+            confidence += 0.15
+        elif progression_strength >= 0.5:
+            confidence += 0.1
+        else:
+            confidence += 0.05
+            
+        # Add confidence based on consistency
+        body_ratios = [self._get_body_ratio(candle) for candle in candles]
+        body_consistency = 1.0 - (max(body_ratios) - min(body_ratios))
+        confidence += body_consistency * 0.1
+        
+        return min(confidence, 0.95)  # Cap at 95%
+        
+    def generate_signal(self, pattern_data: Dict[str, Any]) -> SoldiersSignal:
+        """Generate trading signal from pattern detection"""
+        candles = pattern_data['candles']
+        third_candle = candles[-1]
+        
+        if pattern_data['pattern_type'] == 'three_white_soldiers':
+            entry_price = third_candle.close
+            stop_loss = min(candle.low for candle in candles) * 0.995  # 0.5% buffer
+            target_price = entry_price + (entry_price - stop_loss) * 2  # 2:1 R/R ratio
+        else:  # three_black_crows
+            entry_price = third_candle.close
+            stop_loss = max(candle.high for candle in candles) * 1.005  # 0.5% buffer
+            target_price = entry_price - (stop_loss - entry_price) * 2  # 2:1 R/R ratio
+            
+        return SoldiersSignal(
+            pattern_type=pattern_data['pattern_type'],
+            confidence=pattern_data['confidence'],
+            entry_price=entry_price,
+            stop_loss=stop_loss,
+            target_price=target_price,
+            timestamp=third_candle.timestamp,
+            candles_involved=candles,
+            average_body_ratio=pattern_data['average_body_ratio'],
+            progression_strength=pattern_data['progression_strength'],
+            strength=pattern_data['strength']
+        )
+        
+    def validate_pattern(self, pattern_data: Dict[str, Any]) -> bool:
+        """Validate the detected pattern"""
+        return self.validator.validate_soldiers_pattern(pattern_data)

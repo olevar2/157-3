@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
 Volume Price Trend (VPT) - Advanced Volume Momentum Indicator
 ===============================================================
@@ -29,7 +39,7 @@ from enum import Enum
 import logging
 from datetime import datetime, timedelta
 
-from ..indicator_base import IndicatorBase, IndicatorConfig, IndicatorSignal, SignalStrength, MarketCondition
+from engines.indicator_base import IndicatorBase, IndicatorConfig, IndicatorSignal, SignalStrength, MarketCondition
 
 logger = logging.getLogger(__name__)
 
@@ -98,14 +108,21 @@ class VolumePriceTrend(IndicatorBase[VPTConfig]):
     """
     Advanced Volume Price Trend implementation
     
-    VPT = Previous VPT + (Volume × (Close - Previous Close) / Previous Close)
+    VPT = Previous VPT + (Volume multiply (Close - Previous Close) / Previous Close)
     
     The VPT indicator uses volume and price data to determine the direction
     and strength of money flow, helping identify trend confirmations and
     potential reversals through volume analysis.
     """
     
-    def __init__(self, config: VPTConfig):
+    def __init__(self, config: Optional[VPTConfig] = None):
+        if config is None:
+            config = VPTConfig(
+                name="volume_price_trend",
+                timeframe="1h",
+                indicator_type="volume",
+                lookback_periods=20
+            )
         super().__init__(config)
         self.vpt_values: List[float] = []
         self.vpt_smoothed: List[float] = []
@@ -489,6 +506,43 @@ class VolumePriceTrend(IndicatorBase[VPTConfig]):
             'trend_strength': self.trend_strength,
             'recent_flow_strength': np.mean([abs(change) for change in self.price_changes[-5:]]) if len(self.price_changes) >= 5 else 0
         }
+
+    def calculate(self, data: pd.DataFrame) -> Optional[pd.Series]:
+        """Calculate Volume Price Trend (VPT)"""
+        if not isinstance(data, pd.DataFrame) or data.empty:
+            self.logger.warning("VPT: Input data is not a valid DataFrame or is empty.")
+            return None
+        
+        required_columns = ['close', 'volume']
+        if not all(col in data.columns for col in required_columns):
+            self.logger.warning(f"VPT: Input DataFrame missing required columns: {required_columns}")
+            return None
+
+        if len(data) < 2:
+            self.logger.warning("VPT: Insufficient data to calculate VPT (requires at least 2 periods).")
+            return None
+
+        close_prices = data['close']
+        volume = data['volume']
+        
+        price_change = close_prices.diff()
+        # Initialize VPT with 0 for the first period where price_change is NaN
+        vpt = pd.Series(np.zeros(len(data)), index=data.index)
+        
+        # Calculate VPT iteratively
+        # vpt[0] is already 0
+        for i in range(1, len(data)):
+            if close_prices.iloc[i-1] == 0: # Avoid division by zero if previous close is 0
+                pct_price_change = 0
+            else:
+                pct_price_change = price_change.iloc[i] / close_prices.iloc[i-1]
+            
+            vpt.iloc[i] = vpt.iloc[i-1] + volume.iloc[i] * pct_price_change
+
+        if self.config.smoothing_period > 0:
+            vpt = vpt.ewm(span=self.config.smoothing_period, adjust=False).mean()
+        
+        return vpt
 
 def test_volume_price_trend():
     """Test VPT implementation with realistic market data"""

@@ -1,205 +1,55 @@
+# -*- coding: utf-8 -*-
 """
-Japanese Candlestick Pattern Recognition - Advanced Pattern Detection System
-Identifies and analyzes traditional Japanese candlestick patterns for trend reversal and continuation signals.
-Essential for timing entries/exits and understanding market psychology.
+Japanese Candlestick Patterns - Complete Implementation
+Platform3 Enhanced Technical Analysis Engine
+
+Comprehensive implementation of all major Japanese candlestick patterns including:
+- Single candle patterns (Doji, Hammer, Marubozu, etc.)
+- Two candle patterns (Engulfing, Harami, etc.)
+- Three candle patterns (Morning/Evening Star, etc.)
+- Complex patterns (Abandoned Baby, etc.)
+
+Features:
+- Pattern strength scoring
+- Trend context analysis
+- Volume confirmation
+- Multi-timeframe validation
+- Real-time pattern detection
 """
 
-from typing import List, Dict, Any, Optional, Tuple
 import numpy as np
-import math
-from dataclasses import dataclass
+import pandas as pd
+from typing import Dict, List, Tuple, Optional, Union, Any
+from dataclasses import dataclass, field
 from enum import Enum
+from datetime import datetime
+import logging
 
+# Fix imports
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
 
-class CandlestickPatternType(Enum):
-    """Types of candlestick patterns - Comprehensive collection for model training"""
-    
-    # === SINGLE CANDLE PATTERNS ===
-    # Basic Doji family
-    DOJI = "doji"
-    DRAGONFLY_DOJI = "dragonfly_doji"
-    GRAVESTONE_DOJI = "gravestone_doji"
-    LONG_LEGGED_DOJI = "long_legged_doji"
-    FOUR_PRICE_DOJI = "four_price_doji"
-    
-    # Hammer family
-    HAMMER = "hammer"
-    HANGING_MAN = "hanging_man"
-    INVERTED_HAMMER = "inverted_hammer"
-    SHOOTING_STAR = "shooting_star"
-    
-    # Spinning tops
-    SPINNING_TOP_BULLISH = "spinning_top_bullish"
-    SPINNING_TOP_BEARISH = "spinning_top_bearish"
-    
-    # Marubozu family
-    MARUBOZU_BULLISH = "marubozu_bullish"
-    MARUBOZU_BEARISH = "marubozu_bearish"
-    WHITE_MARUBOZU = "white_marubozu"
-    BLACK_MARUBOZU = "black_marubozu"
-    OPENING_MARUBOZU_BULLISH = "opening_marubozu_bullish"
-    OPENING_MARUBOZU_BEARISH = "opening_marubozu_bearish"
-    CLOSING_MARUBOZU_BULLISH = "closing_marubozu_bullish"
-    CLOSING_MARUBOZU_BEARISH = "closing_marubozu_bearish"
-    
-    # Special single candles
-    BELT_HOLD_BULLISH = "belt_hold_bullish"
-    BELT_HOLD_BEARISH = "belt_hold_bearish"
-    HIGH_WAVE_CANDLE = "high_wave_candle"
-    RICKSHAW_MAN = "rickshaw_man"
-    
-    # === TWO CANDLE PATTERNS ===
-    # Engulfing patterns
-    ENGULFING_BULLISH = "engulfing_bullish"
-    ENGULFING_BEARISH = "engulfing_bearish"
-    
-    # Harami patterns
-    HARAMI_BULLISH = "harami_bullish"
-    HARAMI_BEARISH = "harami_bearish"
-    HARAMI_CROSS_BULLISH = "harami_cross_bullish"
-    HARAMI_CROSS_BEARISH = "harami_cross_bearish"
-    
-    # Penetrating patterns
-    PIERCING_LINE = "piercing_line"
-    DARK_CLOUD_COVER = "dark_cloud_cover"
-    
-    # Tweezer patterns
-    TWEEZER_TOPS = "tweezer_tops"
-    TWEEZER_BOTTOMS = "tweezer_bottoms"
-    
-    # Counterattack patterns
-    COUNTERATTACK_BULLISH = "counterattack_bullish"
-    COUNTERATTACK_BEARISH = "counterattack_bearish"
-    
-    # Kicking patterns
-    KICKING_BULLISH = "kicking_bullish"
-    KICKING_BEARISH = "kicking_bearish"
-    
-    # In-neck patterns
-    IN_NECK = "in_neck"
-    ON_NECK = "on_neck"
-    THRUSTING_LINE = "thrusting_line"
-    
-    # Separating lines
-    SEPARATING_LINES_BULLISH = "separating_lines_bullish"
-    SEPARATING_LINES_BEARISH = "separating_lines_bearish"
-    
-    # Meeting lines
-    MEETING_LINES_BULLISH = "meeting_lines_bullish"
-    MEETING_LINES_BEARISH = "meeting_lines_bearish"
-    
-    # === THREE CANDLE PATTERNS ===
-    # Star patterns
-    MORNING_STAR = "morning_star"
-    EVENING_STAR = "evening_star"
-    MORNING_DOJI_STAR = "morning_doji_star"
-    EVENING_DOJI_STAR = "evening_doji_star"
-    
-    # Soldier patterns
-    THREE_WHITE_SOLDIERS = "three_white_soldiers"
-    THREE_BLACK_CROWS = "three_black_crows"
-    ADVANCE_BLOCK = "advance_block"
-    DELIBERATION = "deliberation"
-    
-    # Inside patterns
-    THREE_INSIDE_UP = "three_inside_up"
-    THREE_INSIDE_DOWN = "three_inside_down"
-    THREE_OUTSIDE_UP = "three_outside_up"
-    THREE_OUTSIDE_DOWN = "three_outside_down"
-    
-    # Gap patterns
-    UPSIDE_GAP_TWO_CROWS = "upside_gap_two_crows"
-    DOWNSIDE_GAP_THREE_METHODS = "downside_gap_three_methods"
-    UPSIDE_GAP_THREE_METHODS = "upside_gap_three_methods"
-    
-    # Sandwich patterns
-    SANDWICH_BOTTOM = "sandwich_bottom"
-    SANDWICH_TOP = "sandwich_top"
-    
-    # Abandoned baby
-    ABANDONED_BABY_BULLISH = "abandoned_baby_bullish"
-    ABANDONED_BABY_BEARISH = "abandoned_baby_bearish"
-    
-    # Tri-star patterns
-    TRI_STAR_BULLISH = "tri_star_bullish"
-    TRI_STAR_BEARISH = "tri_star_bearish"
-    
-    # === FOUR+ CANDLE PATTERNS ===
-    # Rising/Falling methods
-    RISING_THREE_METHODS = "rising_three_methods"
-    FALLING_THREE_METHODS = "falling_three_methods"
-    
-    # Concealing patterns
-    CONCEALING_BABY_SWALLOW = "concealing_baby_swallow"
-    
-    # Breakaway patterns
-    BREAKAWAY_BULLISH = "breakaway_bullish"
-    BREAKAWAY_BEARISH = "breakaway_bearish"
-    
-    # Ladder patterns
-    LADDER_BOTTOM = "ladder_bottom"
-    LADDER_TOP = "ladder_top"
-    
-    # Unique patterns
-    THREE_RIVER_BOTTOM = "three_river_bottom"
-    UNIQUE_THREE_RIVER_BOTTOM = "unique_three_river_bottom"
-    
-    # Stick sandwich
-    STICK_SANDWICH = "stick_sandwich"
-    
-    # Homing pigeon
-    HOMING_PIGEON = "homing_pigeon"
-    
-    # === COMPLEX CONTINUATION PATTERNS ===
-    # Window patterns
-    RISING_WINDOW = "rising_window"
-    FALLING_WINDOW = "falling_window"
-    
-    # Side-by-side patterns
-    SIDE_BY_SIDE_WHITE_LINES_BULLISH = "side_by_side_white_lines_bullish"
-    SIDE_BY_SIDE_WHITE_LINES_BEARISH = "side_by_side_white_lines_bearish"
-    
-    # Mat hold patterns
-    MAT_HOLD_BULLISH = "mat_hold_bullish"
-    MAT_HOLD_BEARISH = "mat_hold_bearish"
-    
-    # === RARE AND EXOTIC PATTERNS ===
-    # Doji star variants
-    NORTHERN_DOJI = "northern_doji"
-    SOUTHERN_DOJI = "southern_doji"
-    
-    # Three line strike
-    THREE_LINE_STRIKE_BULLISH = "three_line_strike_bullish"
-    THREE_LINE_STRIKE_BEARISH = "three_line_strike_bearish"
-    
-    # Identical three crows
-    IDENTICAL_THREE_CROWS = "identical_three_crows"
-    
-    # Takuri line
-    TAKURI_LINE = "takuri_line"
-    
-    # Closing price reversal
-    CLOSING_PRICE_REVERSAL_BULLISH = "closing_price_reversal_bullish"
-    CLOSING_PRICE_REVERSAL_BEARISH = "closing_price_reversal_bearish"
+from engines.indicator_base import IndicatorBase, IndicatorResult, IndicatorType, TimeFrame
 
-
-class PatternSignificance(Enum):
-    """Pattern significance levels"""
-    WEAK = "weak"
-    MODERATE = "moderate"
-    STRONG = "strong"
-    VERY_STRONG = "very_strong"
-
+class PatternType(Enum):
+    """Types of candlestick patterns"""
+    BULLISH = "bullish"
+    BEARISH = "bearish"
+    NEUTRAL = "neutral"
+    REVERSAL = "reversal"
+    CONTINUATION = "continuation"
 
 @dataclass
-class CandlestickData:
-    """Single candlestick data"""
+class CandleData:
+    """Represents a single candlestick"""
     open: float
     high: float
     low: float
     close: float
-    volume: float = 0.0
-    timestamp: Optional[Any] = None
+    volume: float
+    timestamp: datetime
     
     @property
     def body_size(self) -> float:
@@ -208,12 +58,12 @@ class CandlestickData:
     
     @property
     def upper_shadow(self) -> float:
-        """Size of upper shadow"""
+        """Size of upper shadow/wick"""
         return self.high - max(self.open, self.close)
     
     @property
     def lower_shadow(self) -> float:
-        """Size of lower shadow"""
+        """Size of lower shadow/wick"""
         return min(self.open, self.close) - self.low
     
     @property
@@ -223,698 +73,1253 @@ class CandlestickData:
     
     @property
     def is_bullish(self) -> bool:
-        """Is candle bullish (close > open)"""
+        """True if close > open"""
         return self.close > self.open
     
     @property
-    def is_bearish(self) -> bool:
-        """Is candle bearish (close < open)"""
-        return self.close < self.open
-
+    def body_ratio(self) -> float:
+        """Body size as ratio of total range"""
+        return self.body_size / self.total_range if self.total_range > 0 else 0
 
 @dataclass
-class CandlestickPatternSignal:
-    """Signal output for Candlestick Pattern Recognition"""
-    timestamp: Optional[Any] = None
-    pattern_type: Optional[CandlestickPatternType] = None
-    pattern_name: str = ""
-    significance: PatternSignificance = PatternSignificance.WEAK
-    
-    # Pattern analysis
-    reversal_potential: str = "neutral"  # bullish, bearish, neutral
-    continuation_signal: bool = False
-    pattern_reliability: float = 0.5
-    pattern_strength: float = 0.0
-    
-    # Context analysis
-    trend_context: str = "unknown"  # uptrend, downtrend, sideways
-    volume_confirmation: bool = False
-    support_resistance_level: bool = False
-    
-    # Signal generation
-    signal_direction: str = "hold"  # buy, sell, hold
-    signal_strength: float = 0.0
-    signal_confidence: float = 0.0
-    entry_price: float = 0.0
-    stop_loss: float = 0.0
-    take_profit: float = 0.0
-    
-    # Pattern components
-    pattern_candles: List[Dict[str, float]] = None
-    pattern_description: str = ""
-    pattern_implications: str = ""
-    
-    def __post_init__(self):
-        if self.pattern_candles is None:
-            self.pattern_candles = []
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            'timestamp': self.timestamp,
-            'pattern_type': self.pattern_type.value if self.pattern_type else None,
-            'pattern_name': self.pattern_name,
-            'significance': self.significance.value,
-            'reversal_potential': self.reversal_potential,
-            'continuation_signal': self.continuation_signal,
-            'pattern_reliability': self.pattern_reliability,
-            'pattern_strength': self.pattern_strength,
-            'trend_context': self.trend_context,
-            'volume_confirmation': self.volume_confirmation,
-            'support_resistance_level': self.support_resistance_level,
-            'signal_direction': self.signal_direction,
-            'signal_strength': self.signal_strength,
-            'signal_confidence': self.signal_confidence,
-            'entry_price': self.entry_price,
-            'stop_loss': self.stop_loss,
-            'take_profit': self.take_profit,
-            'pattern_candles': self.pattern_candles,
-            'pattern_description': self.pattern_description,
-            'pattern_implications': self.pattern_implications
-        }
+class PatternResult:
+    """Result of pattern detection"""
+    pattern_name: str
+    pattern_type: PatternType
+    strength: float  # 0-100
+    confidence: float  # 0-1
+    position: int  # Index where pattern was found
+    candles_involved: List[CandleData]
+    description: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
-
-class JapaneseCandlestickPatterns:
+class JapaneseCandlestickPatterns(IndicatorBase):
     """
-    Japanese Candlestick Pattern Recognition System
+    Comprehensive Japanese Candlestick Pattern Recognition Engine
     
-    Advanced pattern recognition with:
-    - Single, double, and triple candle patterns
-    - Pattern strength and reliability assessment
-    - Trend context analysis
-    - Volume confirmation
-    - Support/resistance level detection
-    - Signal generation with entry/exit levels
+    Detects and analyzes all major candlestick patterns with
+    strength scoring and context analysis.
     """
     
     def __init__(self,
-                 body_threshold: float = 0.1,
-                 shadow_threshold: float = 2.0,
-                 doji_threshold: float = 0.05,
-                 volume_threshold: float = 1.2):
+                 config: Optional[Dict[str, Any]] = None, # Added config
+                 doji_threshold: float = 0.1,
+                 shadow_ratio_threshold: float = 2.0,
+                 trend_period: int = 10,
+                 volume_confirmation: bool = True):
         """
-        Initialize pattern recognition parameters
+        Initialize pattern recognition engine
         
         Args:
-            body_threshold: Minimum body size relative to range (0.1 = 10%)
-            shadow_threshold: Shadow-to-body ratio for hammer/shooting star (2.0 = 2x body)
-            doji_threshold: Maximum body size for doji pattern (0.05 = 5% of range)
-            volume_threshold: Volume multiplier for confirmation (1.2 = 20% above average)
+            config: Optional configuration dictionary (default None)
+            doji_threshold: Max body/range ratio for doji (default 0.1)
+            shadow_ratio_threshold: Min shadow/body ratio for patterns (default 2.0)
+            trend_period: Periods to analyze for trend context (default 10)
+            volume_confirmation: Whether to check volume confirmation (default True)
         """
-        self.body_threshold = body_threshold
-        self.shadow_threshold = shadow_threshold
+        super().__init__(config=config) # Pass config to super
+        
         self.doji_threshold = doji_threshold
-        self.volume_threshold = volume_threshold
+        self.shadow_ratio_threshold = shadow_ratio_threshold
+        self.trend_period = trend_period
+        self.volume_confirmation = volume_confirmation
         
-        # Data storage
-        self.candles: List[CandlestickData] = []
-        self.patterns: List[CandlestickPatternSignal] = []
-        self.average_volume: float = 0.0
-        self.trend_direction: str = "unknown"
+        # Pattern detection results
+        self.detected_patterns: List[PatternResult] = []
         
-    def add_candle(self, open_price: float, high: float, low: float, close: float,
-                   volume: float = 0.0, timestamp: Optional[Any] = None) -> CandlestickPatternSignal:
+        # Setup logging
+        self.logger = logging.getLogger(__name__)
+    
+    def calculate(self, data: pd.DataFrame) -> Dict:
         """
-        Add new candle and detect patterns
+        Analyze candlestick data for all patterns
+        
+        Args:
+            data: DataFrame with OHLCV columns
+            
+        Returns:
+            Dictionary with pattern analysis results
         """
         try:
-            # Create candle data
-            candle = CandlestickData(
-                open=open_price,
-                high=high,
-                low=low,
-                close=close,
-                volume=volume,
-                timestamp=timestamp
-            )
+            # Validate data
+            required_cols = ['open', 'high', 'low', 'close', 'volume']
+            self._validate_data(data, required_cols)
             
-            self.candles.append(candle)
+            # Convert to CandleData objects
+            candles = self._create_candle_objects(data)
             
-            # Update average volume
-            if volume > 0:
-                volumes = [c.volume for c in self.candles[-20:] if c.volume > 0]
-                if volumes:
-                    self.average_volume = np.mean(volumes)
+            # Clear previous results
+            self.detected_patterns.clear()
             
-            # Update trend direction
-            self._update_trend_direction()
+            # Detect all pattern types
+            self._detect_single_candle_patterns(candles)
+            self._detect_two_candle_patterns(candles)
+            self._detect_three_candle_patterns(candles)
             
-            # Detect patterns (need at least 3 candles for comprehensive analysis)
-            if len(self.candles) >= 3:
-                pattern_signal = self._detect_patterns()
-                self.patterns.append(pattern_signal)
-                return pattern_signal
-            else:
-                # Return neutral signal for insufficient data
-                return CandlestickPatternSignal(
-                    timestamp=timestamp,
-                    pattern_name="insufficient_data",
-                    signal_direction="hold"
-                )
-                
+            # Analyze results
+            # Ensure _analyze_patterns method exists or implement it
+            analysis = self._analyze_patterns() if hasattr(self, '_analyze_patterns') else {}
+            
+            return {
+                'patterns': [self._pattern_to_dict(p) for p in self.detected_patterns],
+                'pattern_count': len(self.detected_patterns),
+                'analysis': analysis,
+                'strongest_pattern': self._get_strongest_pattern(),
+                'trend_context': self._analyze_trend_context(candles)
+            }
+            
         except Exception as e:
-            return CandlestickPatternSignal(
-                timestamp=timestamp,
-                pattern_name="error",
-                signal_direction="hold",
-                pattern_description=f"Error: {str(e)}"
-            )
+            self.logger.error(f"Error in pattern detection: {e}")
+            raise
     
-    def _update_trend_direction(self):
-        """Update current trend direction based on recent price action"""
-        if len(self.candles) < 10:
-            self.trend_direction = "unknown"
+    def _create_candle_objects(self, data: pd.DataFrame) -> List[CandleData]:
+        """Convert DataFrame to CandleData objects"""
+        candles = []
+        
+        for idx, row in data.iterrows():
+            candle = CandleData(
+                open=row['open'],
+                high=row['high'],
+                low=row['low'],
+                close=row['close'],
+                volume=row['volume'],
+                timestamp=idx if isinstance(idx, datetime) else datetime.now()
+            )
+            candles.append(candle)
+        
+        return candles
+    
+    def _get_trend_at_position(self, candles: List[CandleData], position: int) -> str:
+        """Determine market trend at given position"""
+        if position < 5:
+            return 'neutral'
+        
+        # Look at last 5-10 candles to determine trend
+        lookback = min(10, position)
+        start_idx = position - lookback
+        recent_candles = candles[start_idx:position]
+        
+        # Calculate trend based on price movement
+        if len(recent_candles) < 3:
+            return 'neutral'
+        
+        # Simple trend detection using closing prices
+        closes = [c.close for c in recent_candles]
+        first_third = np.mean(closes[:len(closes)//3])
+        last_third = np.mean(closes[-len(closes)//3:])
+        
+        change_percent = (last_third - first_third) / first_third
+        
+        if change_percent > 0.02:  # 2% upward movement
+            return 'uptrend'
+        elif change_percent < -0.02:  # 2% downward movement
+            return 'downtrend'
+        else:
+            return 'neutral'
+    
+    # ===== SINGLE CANDLE PATTERNS =====
+    
+    def _detect_single_candle_patterns(self, candles: List[CandleData]):
+        """Detect all single candle patterns"""
+        for i, candle in enumerate(candles):
+            # Get trend context
+            trend = self._get_trend_at_position(candles, i)
+            
+            # Doji variations
+            self._detect_doji_patterns(candle, i, trend)
+            
+            # Hammer & Hanging Man
+            self._detect_hammer_hanging_man(candle, i, trend)
+            
+            # Inverted Hammer & Shooting Star
+            self._detect_inverted_hammer_shooting_star(candle, i, trend)
+            
+            # Marubozu
+            self._detect_marubozu(candle, i, trend)
+            
+            # Spinning Top
+            self._detect_spinning_top(candle, i, trend)
+            
+            # High Wave Candle
+            self._detect_high_wave_candle(candle, i, trend)
+    
+    def _detect_doji_patterns(self, candle: CandleData, position: int, trend: str):
+        """Detect all Doji variations"""
+        if candle.body_ratio > self.doji_threshold:
             return
         
-        recent_candles = self.candles[-10:]
-        recent_closes = [c.close for c in recent_candles]
+        # Calculate shadow ratios
+        upper_shadow_ratio = candle.upper_shadow / candle.body_size if candle.body_size > 0 else float('inf')
+        lower_shadow_ratio = candle.lower_shadow / candle.body_size if candle.body_size > 0 else float('inf')
         
-        # Simple trend analysis using linear regression
-        x = list(range(len(recent_closes)))
-        slope = np.polyfit(x, recent_closes, 1)[0]
+        # Standard Doji
+        if upper_shadow_ratio > 1 and lower_shadow_ratio > 1:
+            pattern_type = PatternType.NEUTRAL
+            if trend == 'uptrend' or trend == 'downtrend':
+                pattern_type = PatternType.REVERSAL
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Standard Doji",
+                pattern_type=pattern_type,
+                strength=self._calculate_doji_strength(candle, trend, 'standard'),
+                confidence=0.8,
+                position=position,
+                candles_involved=[candle],
+                description="Market indecision, potential reversal signal"
+            ))
         
-        if slope > 0.001:  # Adjust threshold based on price level
-            self.trend_direction = "uptrend"
-        elif slope < -0.001:
-            self.trend_direction = "downtrend"
+        # Dragonfly Doji
+        if candle.upper_shadow < candle.total_range * 0.1 and candle.lower_shadow > candle.total_range * 0.5:
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Dragonfly Doji",
+                pattern_type=PatternType.BULLISH if trend == 'downtrend' else PatternType.NEUTRAL,
+                strength=self._calculate_doji_strength(candle, trend, 'dragonfly'),
+                confidence=0.85,
+                position=position,
+                candles_involved=[candle],
+                description="Bullish reversal signal at bottom"
+            ))
+        
+        # Gravestone Doji
+        if candle.lower_shadow < candle.total_range * 0.1 and candle.upper_shadow > candle.total_range * 0.5:
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Gravestone Doji",
+                pattern_type=PatternType.BEARISH if trend == 'uptrend' else PatternType.NEUTRAL,
+                strength=self._calculate_doji_strength(candle, trend, 'gravestone'),
+                confidence=0.85,
+                position=position,
+                candles_involved=[candle],
+                description="Bearish reversal signal at top"
+            ))
+        
+        # Long-legged Doji
+        if upper_shadow_ratio > 3 and lower_shadow_ratio > 3:
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Long-legged Doji",
+                pattern_type=PatternType.NEUTRAL,
+                strength=self._calculate_doji_strength(candle, trend, 'long_legged'),
+                confidence=0.9,
+                position=position,
+                candles_involved=[candle],
+                description="Extreme indecision, strong reversal potential"
+            ))
+    
+    def _detect_hammer_hanging_man(self, candle: CandleData, position: int, trend: str):
+        """Detect Hammer and Hanging Man patterns"""
+        # Check pattern criteria
+        if not (0.1 <= candle.body_ratio <= 0.35):  # Small body
+            return
+        
+        if candle.lower_shadow < candle.body_size * self.shadow_ratio_threshold:  # Long lower shadow
+            return
+        
+        if candle.upper_shadow > candle.body_size * 0.5:  # Small upper shadow
+            return
+        
+        # Pattern found - determine type based on trend
+        if trend == 'downtrend':
+            # Hammer - bullish reversal
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Hammer",
+                pattern_type=PatternType.BULLISH,
+                strength=self._calculate_hammer_strength(candle, trend),
+                confidence=0.75,
+                position=position,
+                candles_involved=[candle],
+                description="Bullish reversal pattern in downtrend"
+            ))
+        elif trend == 'uptrend':
+            # Hanging Man - bearish reversal
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Hanging Man",
+                pattern_type=PatternType.BEARISH,
+                strength=self._calculate_hammer_strength(candle, trend),
+                confidence=0.7,
+                position=position,
+                candles_involved=[candle],
+                description="Bearish reversal pattern in uptrend"
+            ))
+    
+    def _detect_inverted_hammer_shooting_star(self, candle: CandleData, position: int, trend: str):
+        """Detect Inverted Hammer and Shooting Star patterns"""
+        # Check pattern criteria
+        if not (0.1 <= candle.body_ratio <= 0.35):  # Small body
+            return
+        
+        if candle.upper_shadow < candle.body_size * self.shadow_ratio_threshold:  # Long upper shadow
+            return
+        
+        if candle.lower_shadow > candle.body_size * 0.5:  # Small lower shadow
+            return
+        
+        # Pattern found - determine type based on trend
+        if trend == 'downtrend':
+            # Inverted Hammer - potential bullish reversal
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Inverted Hammer",
+                pattern_type=PatternType.BULLISH,
+                strength=self._calculate_inverted_hammer_strength(candle, trend),
+                confidence=0.65,
+                position=position,
+                candles_involved=[candle],
+                description="Potential bullish reversal in downtrend"
+            ))
+        elif trend == 'uptrend':
+            # Shooting Star - bearish reversal
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Shooting Star",
+                pattern_type=PatternType.BEARISH,
+                strength=self._calculate_inverted_hammer_strength(candle, trend),
+                confidence=0.75,
+                position=position,
+                candles_involved=[candle],
+                description="Bearish reversal pattern in uptrend"
+            ))
+    
+    def _detect_marubozu(self, candle: CandleData, position: int, trend: str):
+        """Detect Marubozu patterns (Bullish and Bearish)"""
+        # Marubozu has very small or no shadows
+        if candle.upper_shadow > candle.total_range * 0.05:
+            return
+        if candle.lower_shadow > candle.total_range * 0.05:
+            return
+        if candle.body_ratio < 0.9:  # Body should be at least 90% of range
+            return
+        
+        if candle.is_bullish:
+            # Bullish Marubozu
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Bullish Marubozu",
+                pattern_type=PatternType.BULLISH,
+                strength=self._calculate_marubozu_strength(candle, trend),
+                confidence=0.9,
+                position=position,
+                candles_involved=[candle],
+                description="Strong bullish sentiment, continuation likely"
+            ))
         else:
-            self.trend_direction = "sideways"
+            # Bearish Marubozu
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Bearish Marubozu",
+                pattern_type=PatternType.BEARISH,
+                strength=self._calculate_marubozu_strength(candle, trend),
+                confidence=0.9,
+                position=position,
+                candles_involved=[candle],
+                description="Strong bearish sentiment, continuation likely"
+            ))
     
-    def _detect_patterns(self) -> CandlestickPatternSignal:
-        """Detect candlestick patterns in recent candles"""
-        current = self.candles[-1]
+    def _detect_spinning_top(self, candle: CandleData, position: int, trend: str):
+        """Detect Spinning Top pattern"""
+        # Small body with shadows on both sides
+        if not (0.1 <= candle.body_ratio <= 0.3):
+            return
         
-        # Try three-candle patterns first (most reliable)
-        if len(self.candles) >= 3:
-            three_candle_pattern = self._detect_three_candle_patterns()
-            if three_candle_pattern.pattern_type:
-                return three_candle_pattern
+        # Both shadows should be significant
+        if candle.upper_shadow < candle.body_size * 0.5:
+            return
+        if candle.lower_shadow < candle.body_size * 0.5:
+            return
         
-        # Try two-candle patterns
-        if len(self.candles) >= 2:
-            two_candle_pattern = self._detect_two_candle_patterns()
-            if two_candle_pattern.pattern_type:
-                return two_candle_pattern
+        # Shadows should be relatively equal (within 2x of each other)
+        shadow_ratio = max(candle.upper_shadow, candle.lower_shadow) / min(candle.upper_shadow, candle.lower_shadow)
+        if shadow_ratio > 2:
+            return
         
-        # Try single-candle patterns
-        single_candle_pattern = self._detect_single_candle_patterns()
-        if single_candle_pattern.pattern_type:
-            return single_candle_pattern
+        pattern_type = PatternType.NEUTRAL
+        if trend in ['uptrend', 'downtrend']:
+            pattern_type = PatternType.REVERSAL
         
-        # No pattern detected
-        return CandlestickPatternSignal(
-            timestamp=current.timestamp,
-            pattern_name="no_pattern",
-            signal_direction="hold",
-            trend_context=self.trend_direction
-        )
+        self.detected_patterns.append(PatternResult(
+            pattern_name="Spinning Top",
+            pattern_type=pattern_type,
+            strength=self._calculate_spinning_top_strength(candle, trend),
+            confidence=0.7,
+            position=position,
+            candles_involved=[candle],
+            description="Market indecision, potential trend change"
+        ))
     
-    def _detect_single_candle_patterns(self) -> CandlestickPatternSignal:
-        """Detect single candlestick patterns"""
-        current = self.candles[-1]
+    def _detect_high_wave_candle(self, candle: CandleData, position: int, trend: str):
+        """Detect High Wave Candle pattern"""
+        # Very long shadows relative to body
+        if candle.body_size == 0:
+            return  # This would be a doji
         
-        # Doji pattern
-        if self._is_doji(current):
-            return self._create_doji_signal(current)
+        upper_shadow_ratio = candle.upper_shadow / candle.body_size
+        lower_shadow_ratio = candle.lower_shadow / candle.body_size
         
-        # Hammer patterns
-        if self._is_hammer(current):
-            return self._create_hammer_signal(current)
+        # Both shadows should be very long
+        if upper_shadow_ratio < 3 or lower_shadow_ratio < 3:
+            return
         
-        # Shooting star / Inverted hammer
-        if self._is_shooting_star(current):
-            return self._create_shooting_star_signal(current)
+        self.detected_patterns.append(PatternResult(
+            pattern_name="High Wave Candle",
+            pattern_type=PatternType.NEUTRAL,
+            strength=self._calculate_high_wave_strength(candle, trend),
+            confidence=0.75,
+            position=position,
+            candles_involved=[candle],
+            description="Extreme volatility and indecision"
+        ))
+    
+    # ===== PATTERN STRENGTH CALCULATIONS =====
+    
+    def _calculate_doji_strength(self, candle: CandleData, trend: str, doji_type: str) -> float:
+        """Calculate strength score for Doji patterns"""
+        base_strength = 50.0
         
-        # Marubozu patterns
-        if self._is_marubozu(current):
-            return self._create_marubozu_signal(current)
+        # Smaller body = stronger doji
+        body_factor = (self.doji_threshold - candle.body_ratio) / self.doji_threshold
+        base_strength += body_factor * 20
         
-        return CandlestickPatternSignal()
-    
-    def _detect_two_candle_patterns(self) -> CandlestickPatternSignal:
-        """Detect two-candlestick patterns"""
-        if len(self.candles) < 2:
-            return CandlestickPatternSignal()
+        # Trend context
+        if doji_type == 'dragonfly' and trend == 'downtrend':
+            base_strength += 20
+        elif doji_type == 'gravestone' and trend == 'uptrend':
+            base_strength += 20
+        elif doji_type in ['standard', 'long_legged'] and trend != 'sideways':
+            base_strength += 15
         
-        prev = self.candles[-2]
-        current = self.candles[-1]
+        # Volume confirmation
+        # (Would need volume average to properly implement)
         
-        # Engulfing patterns
-        if self._is_bullish_engulfing(prev, current):
-            return self._create_engulfing_signal(prev, current, True)
+        return min(100, max(0, base_strength))
+    
+    def _calculate_hammer_strength(self, candle: CandleData, trend: str) -> float:
+        """Calculate strength for Hammer/Hanging Man"""
+        base_strength = 60.0
         
-        if self._is_bearish_engulfing(prev, current):
-            return self._create_engulfing_signal(prev, current, False)
+        # Longer lower shadow = stronger pattern
+        shadow_ratio = candle.lower_shadow / candle.body_size if candle.body_size > 0 else 0
+        if shadow_ratio > 3:
+            base_strength += 20
+        elif shadow_ratio > 2:
+            base_strength += 10
         
-        # Harami patterns
-        if self._is_bullish_harami(prev, current):
-            return self._create_harami_signal(prev, current, True)
+        # Trend appropriateness
+        if trend in ['uptrend', 'downtrend']:
+            base_strength += 15
         
-        if self._is_bearish_harami(prev, current):
-            return self._create_harami_signal(prev, current, False)
+        return min(100, max(0, base_strength))
+    
+    def _calculate_inverted_hammer_strength(self, candle: CandleData, trend: str) -> float:
+        """Calculate strength for Inverted Hammer/Shooting Star"""
+        base_strength = 55.0
         
-        # Piercing line
-        if self._is_piercing_line(prev, current):
-            return self._create_piercing_line_signal(prev, current)
+        # Longer upper shadow = stronger pattern
+        shadow_ratio = candle.upper_shadow / candle.body_size if candle.body_size > 0 else 0
+        if shadow_ratio > 3:
+            base_strength += 20
+        elif shadow_ratio > 2:
+            base_strength += 10
         
-        # Dark cloud cover
-        if self._is_dark_cloud_cover(prev, current):
-            return self._create_dark_cloud_cover_signal(prev, current)
+        # Trend appropriateness
+        if trend in ['uptrend', 'downtrend']:
+            base_strength += 15
         
-        return CandlestickPatternSignal()
+        return min(100, max(0, base_strength))
     
-    def _detect_three_candle_patterns(self) -> CandlestickPatternSignal:
-        """Detect three-candlestick patterns"""
-        if len(self.candles) < 3:
-            return CandlestickPatternSignal()
+    def _calculate_marubozu_strength(self, candle: CandleData, trend: str) -> float:
+        """Calculate strength for Marubozu patterns"""
+        base_strength = 70.0
         
-        first = self.candles[-3]
-        second = self.candles[-2]
-        third = self.candles[-1]
+        # Larger body ratio = stronger pattern
+        base_strength += (candle.body_ratio - 0.9) * 100
         
-        # Morning star
-        if self._is_morning_star(first, second, third):
-            return self._create_morning_star_signal(first, second, third)
+        # Trend alignment
+        if (candle.is_bullish and trend == 'uptrend') or (not candle.is_bullish and trend == 'downtrend'):
+            base_strength += 15  # Continuation
+        else:
+            base_strength += 5   # Potential reversal
         
-        # Evening star
-        if self._is_evening_star(first, second, third):
-            return self._create_evening_star_signal(first, second, third)
+        return min(100, max(0, base_strength))
+    
+    def _calculate_spinning_top_strength(self, candle: CandleData, trend: str) -> float:
+        """Calculate strength for Spinning Top"""
+        base_strength = 50.0
         
-        # Three white soldiers
-        if self._is_three_white_soldiers(first, second, third):
-            return self._create_three_white_soldiers_signal(first, second, third)
+        # More balanced shadows = stronger pattern
+        shadow_balance = min(candle.upper_shadow, candle.lower_shadow) / max(candle.upper_shadow, candle.lower_shadow)
+        base_strength += shadow_balance * 20
         
-        # Three black crows
-        if self._is_three_black_crows(first, second, third):
-            return self._create_three_black_crows_signal(first, second, third)
+        # Trend context
+        if trend in ['uptrend', 'downtrend']:
+            base_strength += 15
         
-        return CandlestickPatternSignal()
+        return min(100, max(0, base_strength))
     
-    # Pattern detection methods
-    def _is_doji(self, candle: CandlestickData) -> bool:
-        """Check if candle is a doji"""
-        return candle.body_size <= candle.total_range * self.doji_threshold
-    
-    def _is_hammer(self, candle: CandlestickData) -> bool:
-        """Check if candle is a hammer or hanging man"""
-        if candle.total_range == 0:
-            return False
+    def _calculate_high_wave_strength(self, candle: CandleData, trend: str) -> float:
+        """Calculate strength for High Wave Candle"""
+        base_strength = 60.0
         
-        return (candle.lower_shadow >= candle.body_size * self.shadow_threshold and
-                candle.upper_shadow <= candle.body_size * 0.5 and
-                candle.body_size >= candle.total_range * self.body_threshold)
-    
-    def _is_shooting_star(self, candle: CandlestickData) -> bool:
-        """Check if candle is shooting star or inverted hammer"""
-        if candle.total_range == 0:
-            return False
+        # Longer shadows = stronger pattern
+        avg_shadow_ratio = ((candle.upper_shadow + candle.lower_shadow) / 2) / candle.body_size
+        if avg_shadow_ratio > 5:
+            base_strength += 25
+        elif avg_shadow_ratio > 4:
+            base_strength += 15
         
-        return (candle.upper_shadow >= candle.body_size * self.shadow_threshold and
-                candle.lower_shadow <= candle.body_size * 0.5 and
-                candle.body_size >= candle.total_range * self.body_threshold)
+        return min(100, max(0, base_strength))
     
-    def _is_marubozu(self, candle: CandlestickData) -> bool:
-        """Check if candle is marubozu (little to no shadows)"""
-        shadow_threshold = candle.total_range * 0.05  # 5% of total range
-        return (candle.upper_shadow <= shadow_threshold and
-                candle.lower_shadow <= shadow_threshold and
-                candle.body_size >= candle.total_range * 0.9)
+    # ===== TWO CANDLE PATTERNS =====
     
-    def _is_bullish_engulfing(self, prev: CandlestickData, current: CandlestickData) -> bool:
-        """Check for bullish engulfing pattern"""
-        return (prev.is_bearish and current.is_bullish and
-                current.close > prev.open and current.open < prev.close)
+    def _detect_two_candle_patterns(self, candles: List[CandleData]):
+        """Detect all two-candle patterns"""
+        for i in range(1, len(candles)):
+            prev_candle = candles[i-1]
+            curr_candle = candles[i]
+            trend = self._get_trend_at_position(candles, i)
+            
+            # Engulfing patterns
+            self._detect_engulfing_pattern(prev_candle, curr_candle, i, trend)
+            
+            # Harami patterns
+            self._detect_harami_pattern(prev_candle, curr_candle, i, trend)
+            
+            # Piercing Line & Dark Cloud Cover
+            self._detect_piercing_line_dark_cloud(prev_candle, curr_candle, i, trend)
+            
+            # Tweezer patterns
+            self._detect_tweezer_patterns(prev_candle, curr_candle, i, trend)
+            
+            # Belt Hold patterns
+            self._detect_belt_hold(prev_candle, curr_candle, i, trend)
+            
+            # Kicking patterns
+            self._detect_kicking_pattern(prev_candle, curr_candle, i, trend)
     
-    def _is_bearish_engulfing(self, prev: CandlestickData, current: CandlestickData) -> bool:
-        """Check for bearish engulfing pattern"""
-        return (prev.is_bullish and current.is_bearish and
-                current.close < prev.open and current.open > prev.close)
-    
-    def _is_bullish_harami(self, prev: CandlestickData, current: CandlestickData) -> bool:
-        """Check for bullish harami pattern"""
-        return (prev.is_bearish and current.is_bullish and
-                current.open > prev.close and current.close < prev.open)
-    
-    def _is_bearish_harami(self, prev: CandlestickData, current: CandlestickData) -> bool:
-        """Check for bearish harami pattern"""
-        return (prev.is_bullish and current.is_bearish and
-                current.open < prev.close and current.close > prev.open)
-    
-    def _is_piercing_line(self, prev: CandlestickData, current: CandlestickData) -> bool:
-        """Check for piercing line pattern"""
-        if not (prev.is_bearish and current.is_bullish):
-            return False
+    def _detect_engulfing_pattern(self, prev: CandleData, curr: CandleData, position: int, trend: str):
+        """Detect Bullish and Bearish Engulfing patterns"""
+        # Check if current candle body engulfs previous candle body
+        prev_body_top = max(prev.open, prev.close)
+        prev_body_bottom = min(prev.open, prev.close)
+        curr_body_top = max(curr.open, curr.close)
+        curr_body_bottom = min(curr.open, curr.close)
         
-        midpoint = (prev.open + prev.close) / 2
-        return current.close > midpoint and current.open < prev.close
+        if curr_body_top > prev_body_top and curr_body_bottom < prev_body_bottom:
+            # Engulfing pattern found
+            if not prev.is_bullish and curr.is_bullish and trend == 'downtrend':
+                # Bullish Engulfing
+                self.detected_patterns.append(PatternResult(
+                    pattern_name="Bullish Engulfing",
+                    pattern_type=PatternType.BULLISH,
+                    strength=self._calculate_engulfing_strength(prev, curr, trend, True),
+                    confidence=0.85,
+                    position=position,
+                    candles_involved=[prev, curr],
+                    description="Strong bullish reversal pattern in downtrend"
+                ))
+            elif prev.is_bullish and not curr.is_bullish and trend == 'uptrend':
+                # Bearish Engulfing
+                self.detected_patterns.append(PatternResult(
+                    pattern_name="Bearish Engulfing",
+                    pattern_type=PatternType.BEARISH,
+                    strength=self._calculate_engulfing_strength(prev, curr, trend, False),
+                    confidence=0.85,
+                    position=position,
+                    candles_involved=[prev, curr],
+                    description="Strong bearish reversal pattern in uptrend"
+                ))
     
-    def _is_dark_cloud_cover(self, prev: CandlestickData, current: CandlestickData) -> bool:
-        """Check for dark cloud cover pattern"""
-        if not (prev.is_bullish and current.is_bearish):
-            return False
+    def _detect_harami_pattern(self, prev: CandleData, curr: CandleData, position: int, trend: str):
+        """Detect Bullish and Bearish Harami patterns"""
+        # Check if current candle body is contained within previous candle body
+        prev_body_top = max(prev.open, prev.close)
+        prev_body_bottom = min(prev.open, prev.close)
+        curr_body_top = max(curr.open, curr.close)
+        curr_body_bottom = min(curr.open, curr.close)
         
-        midpoint = (prev.open + prev.close) / 2
-        return current.close < midpoint and current.open > prev.close
+        if curr_body_top <= prev_body_top and curr_body_bottom >= prev_body_bottom:
+            # Harami pattern found
+            if prev.is_bullish and not curr.is_bullish and trend == 'uptrend':
+                # Bearish Harami
+                self.detected_patterns.append(PatternResult(
+                    pattern_name="Bearish Harami",
+                    pattern_type=PatternType.BEARISH,
+                    strength=self._calculate_harami_strength(prev, curr, trend, False),
+                    confidence=0.7,
+                    position=position,
+                    candles_involved=[prev, curr],
+                    description="Bearish reversal signal in uptrend"
+                ))
+            elif not prev.is_bullish and curr.is_bullish and trend == 'downtrend':
+                # Bullish Harami
+                self.detected_patterns.append(PatternResult(
+                    pattern_name="Bullish Harami",
+                    pattern_type=PatternType.BULLISH,
+                    strength=self._calculate_harami_strength(prev, curr, trend, True),
+                    confidence=0.7,
+                    position=position,
+                    candles_involved=[prev, curr],
+                    description="Bullish reversal signal in downtrend"
+                ))
     
-    def _is_morning_star(self, first: CandlestickData, second: CandlestickData, third: CandlestickData) -> bool:
-        """Check for morning star pattern"""
-        return (first.is_bearish and third.is_bullish and
-                second.body_size < first.body_size * 0.5 and
-                second.body_size < third.body_size * 0.5 and
-                third.close > (first.open + first.close) / 2)
-    
-    def _is_evening_star(self, first: CandlestickData, second: CandlestickData, third: CandlestickData) -> bool:
-        """Check for evening star pattern"""
-        return (first.is_bullish and third.is_bearish and
-                second.body_size < first.body_size * 0.5 and
-                second.body_size < third.body_size * 0.5 and
-                third.close < (first.open + first.close) / 2)
-    
-    def _is_three_white_soldiers(self, first: CandlestickData, second: CandlestickData, third: CandlestickData) -> bool:
-        """Check for three white soldiers pattern"""
-        return (first.is_bullish and second.is_bullish and third.is_bullish and
-                second.close > first.close and third.close > second.close and
-                second.open >= first.close * 0.95 and third.open >= second.close * 0.95)
-    
-    def _is_three_black_crows(self, first: CandlestickData, second: CandlestickData, third: CandlestickData) -> bool:
-        """Check for three black crows pattern"""
-        return (first.is_bearish and second.is_bearish and third.is_bearish and
-                second.close < first.close and third.close < second.close and
-                second.open <= first.close * 1.05 and third.open <= second.close * 1.05)
-    
-    # Signal creation methods (simplified versions)
-    def _create_doji_signal(self, candle: CandlestickData) -> CandlestickPatternSignal:
-        """Create signal for doji pattern"""
-        return CandlestickPatternSignal(
-            timestamp=candle.timestamp,
-            pattern_type=CandlestickPatternType.DOJI,
-            pattern_name="Doji",
-            significance=PatternSignificance.MODERATE,
-            reversal_potential="neutral",
-            pattern_reliability=0.6,
-            signal_direction="hold",
-            signal_strength=0.5,
-            signal_confidence=0.6,
-            trend_context=self.trend_direction,
-            pattern_description="Indecision pattern - market uncertainty"
-        )
-    
-    def _create_hammer_signal(self, candle: CandlestickData) -> CandlestickPatternSignal:
-        """Create signal for hammer pattern"""
-        is_bullish_hammer = self.trend_direction == "downtrend"
+    def _detect_piercing_line_dark_cloud(self, prev: CandleData, curr: CandleData, position: int, trend: str):
+        """Detect Piercing Line and Dark Cloud Cover patterns"""
+        prev_midpoint = (prev.open + prev.close) / 2
         
-        return CandlestickPatternSignal(
-            timestamp=candle.timestamp,
-            pattern_type=CandlestickPatternType.HAMMER if is_bullish_hammer else CandlestickPatternType.HANGING_MAN,
-            pattern_name="Hammer" if is_bullish_hammer else "Hanging Man",
-            significance=PatternSignificance.STRONG if is_bullish_hammer else PatternSignificance.MODERATE,
-            reversal_potential="bullish" if is_bullish_hammer else "bearish",
-            pattern_reliability=0.7 if is_bullish_hammer else 0.6,
-            signal_direction="buy" if is_bullish_hammer else "sell",
-            signal_strength=0.7 if is_bullish_hammer else 0.6,
-            signal_confidence=0.7,
-            trend_context=self.trend_direction,
-            pattern_description="Potential reversal pattern with long lower shadow"
-        )
-    
-    def _create_shooting_star_signal(self, candle: CandlestickData) -> CandlestickPatternSignal:
-        """Create signal for shooting star pattern"""
-        is_bearish_star = self.trend_direction == "uptrend"
+        # Piercing Line (bullish reversal in downtrend)
+        if (trend == 'downtrend' and not prev.is_bullish and curr.is_bullish and
+            curr.open < prev.low and curr.close > prev_midpoint and curr.close < prev.open):
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Piercing Line",
+                pattern_type=PatternType.BULLISH,
+                strength=self._calculate_piercing_strength(prev, curr, trend),
+                confidence=0.75,
+                position=position,
+                candles_involved=[prev, curr],
+                description="Bullish reversal pattern - pierces midpoint of previous bearish candle"
+            ))
         
-        return CandlestickPatternSignal(
-            timestamp=candle.timestamp,
-            pattern_type=CandlestickPatternType.SHOOTING_STAR if is_bearish_star else CandlestickPatternType.INVERTED_HAMMER,
-            pattern_name="Shooting Star" if is_bearish_star else "Inverted Hammer",
-            significance=PatternSignificance.STRONG if is_bearish_star else PatternSignificance.MODERATE,
-            reversal_potential="bearish" if is_bearish_star else "bullish",
-            pattern_reliability=0.7 if is_bearish_star else 0.6,
-            signal_direction="sell" if is_bearish_star else "buy",
-            signal_strength=0.7 if is_bearish_star else 0.6,
-            signal_confidence=0.7,
-            trend_context=self.trend_direction,
-            pattern_description="Potential reversal pattern with long upper shadow"
-        )
+        # Dark Cloud Cover (bearish reversal in uptrend)
+        elif (trend == 'uptrend' and prev.is_bullish and not curr.is_bullish and
+              curr.open > prev.high and curr.close < prev_midpoint and curr.close > prev.open):
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Dark Cloud Cover",
+                pattern_type=PatternType.BEARISH,
+                strength=self._calculate_dark_cloud_strength(prev, curr, trend),
+                confidence=0.75,
+                position=position,
+                candles_involved=[prev, curr],
+                description="Bearish reversal pattern - penetrates midpoint of previous bullish candle"
+            ))
     
-    def _create_marubozu_signal(self, candle: CandlestickData) -> CandlestickPatternSignal:
-        """Create signal for marubozu pattern"""
-        return CandlestickPatternSignal(
-            timestamp=candle.timestamp,
-            pattern_type=CandlestickPatternType.MARUBOZU_BULLISH if candle.is_bullish else CandlestickPatternType.MARUBOZU_BEARISH,
-            pattern_name="Bullish Marubozu" if candle.is_bullish else "Bearish Marubozu",
-            significance=PatternSignificance.STRONG,
-            reversal_potential="neutral",
-            continuation_signal=True,
-            pattern_reliability=0.8,
-            signal_direction="buy" if candle.is_bullish else "sell",
-            signal_strength=0.8,
-            signal_confidence=0.8,
-            trend_context=self.trend_direction,
-            pattern_description="Strong continuation pattern with no shadows"
-        )
-    
-    def _create_engulfing_signal(self, prev: CandlestickData, current: CandlestickData, is_bullish: bool) -> CandlestickPatternSignal:
-        """Create signal for engulfing patterns"""
-        return CandlestickPatternSignal(
-            timestamp=current.timestamp,
-            pattern_type=CandlestickPatternType.ENGULFING_BULLISH if is_bullish else CandlestickPatternType.ENGULFING_BEARISH,
-            pattern_name="Bullish Engulfing" if is_bullish else "Bearish Engulfing",
-            significance=PatternSignificance.VERY_STRONG,
-            reversal_potential="bullish" if is_bullish else "bearish",
-            pattern_reliability=0.8,
-            signal_direction="buy" if is_bullish else "sell",
-            signal_strength=0.8,
-            signal_confidence=0.8,
-            trend_context=self.trend_direction,
-            pattern_description="Strong reversal pattern - second candle engulfs first"
-        )
-    
-    def _create_harami_signal(self, prev: CandlestickData, current: CandlestickData, is_bullish: bool) -> CandlestickPatternSignal:
-        """Create signal for harami patterns"""
-        return CandlestickPatternSignal(
-            timestamp=current.timestamp,
-            pattern_type=CandlestickPatternType.HARAMI_BULLISH if is_bullish else CandlestickPatternType.HARAMI_BEARISH,
-            pattern_name="Bullish Harami" if is_bullish else "Bearish Harami",
-            significance=PatternSignificance.MODERATE,
-            reversal_potential="bullish" if is_bullish else "bearish",
-            pattern_reliability=0.6,
-            signal_direction="buy" if is_bullish else "sell",
-            signal_strength=0.6,
-            signal_confidence=0.6,
-            trend_context=self.trend_direction,
-            pattern_description="Reversal pattern - small candle inside large candle"
-        )
-    
-    def _create_piercing_line_signal(self, prev: CandlestickData, current: CandlestickData) -> CandlestickPatternSignal:
-        """Create signal for piercing line pattern"""
-        return CandlestickPatternSignal(
-            timestamp=current.timestamp,
-            pattern_type=CandlestickPatternType.PIERCING_LINE,
-            pattern_name="Piercing Line",
-            significance=PatternSignificance.STRONG,
-            reversal_potential="bullish",
-            pattern_reliability=0.7,
-            signal_direction="buy",
-            signal_strength=0.7,
-            signal_confidence=0.7,
-            trend_context=self.trend_direction,
-            pattern_description="Bullish reversal - closes above midpoint of previous bearish candle"
-        )
-    
-    def _create_dark_cloud_cover_signal(self, prev: CandlestickData, current: CandlestickData) -> CandlestickPatternSignal:
-        """Create signal for dark cloud cover pattern"""
-        return CandlestickPatternSignal(
-            timestamp=current.timestamp,
-            pattern_type=CandlestickPatternType.DARK_CLOUD_COVER,
-            pattern_name="Dark Cloud Cover",
-            significance=PatternSignificance.STRONG,
-            reversal_potential="bearish",
-            pattern_reliability=0.7,
-            signal_direction="sell",
-            signal_strength=0.7,
-            signal_confidence=0.7,
-            trend_context=self.trend_direction,
-            pattern_description="Bearish reversal - closes below midpoint of previous bullish candle"
-        )
-    
-    def _create_morning_star_signal(self, first: CandlestickData, second: CandlestickData, third: CandlestickData) -> CandlestickPatternSignal:
-        """Create signal for morning star pattern"""
-        return CandlestickPatternSignal(
-            timestamp=third.timestamp,
-            pattern_type=CandlestickPatternType.MORNING_STAR,
-            pattern_name="Morning Star",
-            significance=PatternSignificance.VERY_STRONG,
-            reversal_potential="bullish",
-            pattern_reliability=0.85,
-            signal_direction="buy",
-            signal_strength=0.85,
-            signal_confidence=0.85,
-            trend_context=self.trend_direction,
-            pattern_description="Very strong bullish reversal - three candle pattern"
-        )
-    
-    def _create_evening_star_signal(self, first: CandlestickData, second: CandlestickData, third: CandlestickData) -> CandlestickPatternSignal:
-        """Create signal for evening star pattern"""
-        return CandlestickPatternSignal(
-            timestamp=third.timestamp,
-            pattern_type=CandlestickPatternType.EVENING_STAR,
-            pattern_name="Evening Star",
-            significance=PatternSignificance.VERY_STRONG,
-            reversal_potential="bearish",
-            pattern_reliability=0.85,
-            signal_direction="sell",
-            signal_strength=0.85,
-            signal_confidence=0.85,
-            trend_context=self.trend_direction,
-            pattern_description="Very strong bearish reversal - three candle pattern"
-        )
-    
-    def _create_three_white_soldiers_signal(self, first: CandlestickData, second: CandlestickData, third: CandlestickData) -> CandlestickPatternSignal:
-        """Create signal for three white soldiers pattern"""
-        return CandlestickPatternSignal(
-            timestamp=third.timestamp,
-            pattern_type=CandlestickPatternType.THREE_WHITE_SOLDIERS,
-            pattern_name="Three White Soldiers",
-            significance=PatternSignificance.VERY_STRONG,
-            reversal_potential="bullish",
-            continuation_signal=True,
-            pattern_reliability=0.8,
-            signal_direction="buy",
-            signal_strength=0.8,
-            signal_confidence=0.8,
-            trend_context=self.trend_direction,
-            pattern_description="Strong bullish continuation - three consecutive bullish candles"
-        )
-    
-    def _create_three_black_crows_signal(self, first: CandlestickData, second: CandlestickData, third: CandlestickData) -> CandlestickPatternSignal:
-        """Create signal for three black crows pattern"""
-        return CandlestickPatternSignal(
-            timestamp=third.timestamp,
-            pattern_type=CandlestickPatternType.THREE_BLACK_CROWS,
-            pattern_name="Three Black Crows",
-            significance=PatternSignificance.VERY_STRONG,
-            reversal_potential="bearish",
-            continuation_signal=True,
-            pattern_reliability=0.8,
-            signal_direction="sell",
-            signal_strength=0.8,
-            signal_confidence=0.8,
-            trend_context=self.trend_direction,
-            pattern_description="Strong bearish continuation - three consecutive bearish candles"
-        )
-    
-    def get_recent_patterns(self, count: int = 10) -> List[CandlestickPatternSignal]:
-        """Get recent detected patterns"""
-        return self.patterns[-count:] if len(self.patterns) >= count else self.patterns
-    
-    def get_pattern_statistics(self) -> Dict[str, Any]:
-        """Get statistics about detected patterns"""
-        if not self.patterns:
-            return {}
+    def _detect_tweezer_patterns(self, prev: CandleData, curr: CandleData, position: int, trend: str):
+        """Detect Tweezer Tops and Tweezer Bottoms"""
+        high_tolerance = 0.001  # 0.1% tolerance
+        low_tolerance = 0.001
         
-        pattern_counts = {}
-        for pattern in self.patterns:
-            if pattern.pattern_type:
-                pattern_type = pattern.pattern_type.value
-                pattern_counts[pattern_type] = pattern_counts.get(pattern_type, 0) + 1
+        # Tweezer Top (bearish reversal in uptrend)
+        if (trend == 'uptrend' and abs(prev.high - curr.high) < (prev.high * high_tolerance) and
+            prev.is_bullish and not curr.is_bullish):
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Tweezer Top",
+                pattern_type=PatternType.BEARISH,
+                strength=self._calculate_tweezer_strength(prev, curr, trend, False),
+                confidence=0.7,
+                position=position,
+                candles_involved=[prev, curr],
+                description="Bearish reversal - matching highs in uptrend"
+            ))
         
-        return {
-            'total_patterns': len(self.patterns),
-            'pattern_counts': pattern_counts,
-            'last_pattern': self.patterns[-1].pattern_name if self.patterns else None,
-            'trend_context': self.trend_direction
-        }
-
-
-def test_candlestick_patterns():
-    """Test Japanese Candlestick Pattern Recognition with realistic scenarios"""
-    print("=== JAPANESE CANDLESTICK PATTERN RECOGNITION TEST ===")
+        # Tweezer Bottom (bullish reversal in downtrend)
+        elif (trend == 'downtrend' and abs(prev.low - curr.low) < (prev.low * low_tolerance) and
+              not prev.is_bullish and curr.is_bullish):
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Tweezer Bottom",
+                pattern_type=PatternType.BULLISH,
+                strength=self._calculate_tweezer_strength(prev, curr, trend, True),
+                confidence=0.7,
+                position=position,
+                candles_involved=[prev, curr],
+                description="Bullish reversal - matching lows in downtrend"
+            ))
     
-    # Initialize pattern detector
-    patterns = JapaneseCandlestickPatterns()
+    def _detect_belt_hold(self, prev: CandleData, curr: CandleData, position: int, trend: str):
+        """Detect Belt Hold patterns (Yorikiri)"""
+        # Belt hold has very small or no shadow on one side
+        shadow_threshold = curr.total_range * 0.05
+        
+        # Bullish Belt Hold
+        if (curr.is_bullish and curr.lower_shadow < shadow_threshold and 
+            curr.body_ratio > 0.6 and trend == 'downtrend'):
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Bullish Belt Hold",
+                pattern_type=PatternType.BULLISH,
+                strength=self._calculate_belt_hold_strength(curr, trend, True),
+                confidence=0.65,
+                position=position,
+                candles_involved=[curr],
+                description="Bullish reversal - opens at low and rallies"
+            ))
+        
+        # Bearish Belt Hold
+        elif (not curr.is_bullish and curr.upper_shadow < shadow_threshold and 
+              curr.body_ratio > 0.6 and trend == 'uptrend'):
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Bearish Belt Hold",
+                pattern_type=PatternType.BEARISH,
+                strength=self._calculate_belt_hold_strength(curr, trend, False),
+                confidence=0.65,
+                position=position,
+                candles_involved=[curr],
+                description="Bearish reversal - opens at high and declines"
+            ))
     
-    print("Testing various candlestick patterns...")
+    def _detect_kicking_pattern(self, prev: CandleData, curr: CandleData, position: int, trend: str):
+        """Detect Kicking patterns - two marubozu candles with gap"""
+        # Both candles should be marubozu (very small shadows)
+        shadow_threshold = 0.05
+        
+        prev_is_marubozu = (prev.upper_shadow < prev.total_range * shadow_threshold and
+                           prev.lower_shadow < prev.total_range * shadow_threshold and
+                           prev.body_ratio > 0.9)
+        
+        curr_is_marubozu = (curr.upper_shadow < curr.total_range * shadow_threshold and
+                           curr.lower_shadow < curr.total_range * shadow_threshold and
+                           curr.body_ratio > 0.9)
+        
+        if prev_is_marubozu and curr_is_marubozu:
+            # Bullish Kicking - gap up between bearish and bullish marubozu
+            if not prev.is_bullish and curr.is_bullish and curr.open > prev.close:
+                self.detected_patterns.append(PatternResult(
+                    pattern_name="Bullish Kicking",
+                    pattern_type=PatternType.BULLISH,
+                    strength=self._calculate_kicking_strength(prev, curr, True),
+                    confidence=0.9,
+                    position=position,
+                    candles_involved=[prev, curr],
+                    description="Very strong bullish reversal - gap between marubozu candles"
+                ))
+            
+            # Bearish Kicking - gap down between bullish and bearish marubozu
+            elif prev.is_bullish and not curr.is_bullish and curr.open < prev.close:
+                self.detected_patterns.append(PatternResult(
+                    pattern_name="Bearish Kicking",
+                    pattern_type=PatternType.BEARISH,
+                    strength=self._calculate_kicking_strength(prev, curr, False),
+                    confidence=0.9,
+                    position=position,
+                    candles_involved=[prev, curr],
+                    description="Very strong bearish reversal - gap between marubozu candles"
+                ))
     
-    # Test 1: Hammer pattern in downtrend
-    print("\n1. Testing Hammer Pattern (in downtrend):")
-    patterns.add_candle(1.1050, 1.1060, 1.1040, 1.1045, 1000, "2025-01-01 09:00")  # Bearish
-    patterns.add_candle(1.1045, 1.1055, 1.1035, 1.1040, 1100, "2025-01-01 10:00")  # Bearish
-    patterns.add_candle(1.1040, 1.1050, 1.1025, 1.1038, 1200, "2025-01-01 11:00")  # Bearish
-    signal = patterns.add_candle(1.1035, 1.1040, 1.1020, 1.1038, 1500, "2025-01-01 12:00")  # Hammer
-    print(f"  Pattern: {signal.pattern_name}")
-    print(f"  Signal: {signal.signal_direction}")
-    print(f"  Strength: {signal.signal_strength:.2f}")
-    print(f"  Reliability: {signal.pattern_reliability:.2f}")
+    # ===== THREE CANDLE PATTERNS =====
     
-    # Test 2: Bullish Engulfing
-    print("\n2. Testing Bullish Engulfing Pattern:")
-    signal = patterns.add_candle(1.1038, 1.1042, 1.1032, 1.1034, 1000, "2025-01-01 13:00")  # Small bearish
-    signal = patterns.add_candle(1.1032, 1.1045, 1.1030, 1.1044, 1800, "2025-01-01 14:00")  # Engulfing bullish
-    print(f"  Pattern: {signal.pattern_name}")
-    print(f"  Signal: {signal.signal_direction}")
-    print(f"  Strength: {signal.signal_strength:.2f}")
-    print(f"  Reliability: {signal.pattern_reliability:.2f}")
+    def _detect_three_candle_patterns(self, candles: List[CandleData]):
+        """Detect all three-candle patterns"""
+        for i in range(2, len(candles)):
+            candle1 = candles[i-2]
+            candle2 = candles[i-1]
+            candle3 = candles[i]
+            trend = self._get_trend_at_position(candles, i)
+            
+            # Morning/Evening Star
+            self._detect_star_patterns(candle1, candle2, candle3, i, trend)
+            
+            # Three White Soldiers/Black Crows
+            self._detect_three_soldiers_crows(candle1, candle2, candle3, i, trend)
+            
+            # Three Inside/Outside patterns
+            self._detect_three_inside_outside(candle1, candle2, candle3, i, trend)
+            
+            # Abandoned Baby
+            self._detect_abandoned_baby(candle1, candle2, candle3, i, trend)
+            
+            # Three Line Strike
+            self._detect_three_line_strike(candle1, candle2, candle3, i, trend, candles)
+            
+            # Matching Low/High
+            self._detect_matching_patterns(candle1, candle2, candle3, i, trend)
     
-    # Test 3: Doji pattern
-    print("\n3. Testing Doji Pattern:")
-    signal = patterns.add_candle(1.1044, 1.1048, 1.1040, 1.1044, 1200, "2025-01-01 15:00")  # Doji
-    print(f"  Pattern: {signal.pattern_name}")
-    print(f"  Signal: {signal.signal_direction}")
-    print(f"  Strength: {signal.signal_strength:.2f}")
-    print(f"  Reliability: {signal.pattern_reliability:.2f}")
+    def _detect_star_patterns(self, c1: CandleData, c2: CandleData, c3: CandleData, 
+                             position: int, trend: str):
+        """Detect Morning Star and Evening Star patterns"""
+        # Morning Star (bullish reversal in downtrend)
+        if (trend == 'downtrend' and not c1.is_bullish and c3.is_bullish and
+            c2.body_size < min(c1.body_size, c3.body_size) * 0.3 and
+            c3.close > (c1.open + c1.close) / 2):
+            
+            # Check for gap conditions
+            gap_down = c2.high < c1.low
+            gap_up = c3.low > c2.high
+            
+            strength_bonus = 10 if gap_down else 0
+            strength_bonus += 10 if gap_up else 0
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Morning Star",
+                pattern_type=PatternType.BULLISH,
+                strength=self._calculate_star_strength(c1, c2, c3, trend, True) + strength_bonus,
+                confidence=0.85,
+                position=position,
+                candles_involved=[c1, c2, c3],
+                description="Strong bullish reversal - three candle pattern with star"
+            ))
+        
+        # Evening Star (bearish reversal in uptrend)
+        elif (trend == 'uptrend' and c1.is_bullish and not c3.is_bullish and
+              c2.body_size < min(c1.body_size, c3.body_size) * 0.3 and
+              c3.close < (c1.open + c1.close) / 2):
+            
+            # Check for gap conditions
+            gap_up = c2.low > c1.high
+            gap_down = c3.high < c2.low
+            
+            strength_bonus = 10 if gap_up else 0
+            strength_bonus += 10 if gap_down else 0
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Evening Star",
+                pattern_type=PatternType.BEARISH,
+                strength=self._calculate_star_strength(c1, c2, c3, trend, False) + strength_bonus,
+                confidence=0.85,
+                position=position,
+                candles_involved=[c1, c2, c3],
+                description="Strong bearish reversal - three candle pattern with star"
+            ))
     
-    # Test 4: Evening Star (three-candle pattern)
-    print("\n4. Testing Evening Star Pattern:")
-    # First establish uptrend
-    for i in range(5):
-        patterns.add_candle(1.1044 + i*0.0002, 1.1050 + i*0.0002, 1.1042 + i*0.0002, 1.1048 + i*0.0002, 1000)
+    def _detect_three_soldiers_crows(self, c1: CandleData, c2: CandleData, c3: CandleData,
+                                    position: int, trend: str):
+        """Detect Three White Soldiers and Three Black Crows"""
+        # Three White Soldiers
+        if (c1.is_bullish and c2.is_bullish and c3.is_bullish and
+            c2.open > c1.open and c3.open > c2.open and
+            c2.close > c1.close and c3.close > c2.close and
+            c1.upper_shadow < c1.body_size * 0.3 and
+            c2.upper_shadow < c2.body_size * 0.3 and
+            c3.upper_shadow < c3.body_size * 0.3):
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Three White Soldiers",
+                pattern_type=PatternType.BULLISH,
+                strength=self._calculate_three_soldiers_strength(c1, c2, c3, trend),
+                confidence=0.8,
+                position=position,
+                candles_involved=[c1, c2, c3],
+                description="Strong bullish continuation - three advancing white candles"
+            ))
+        
+        # Three Black Crows
+        elif (not c1.is_bullish and not c2.is_bullish and not c3.is_bullish and
+              c2.open < c1.open and c3.open < c2.open and
+              c2.close < c1.close and c3.close < c2.close and
+              c1.lower_shadow < c1.body_size * 0.3 and
+              c2.lower_shadow < c2.body_size * 0.3 and
+              c3.lower_shadow < c3.body_size * 0.3):
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Three Black Crows",
+                pattern_type=PatternType.BEARISH,
+                strength=self._calculate_three_crows_strength(c1, c2, c3, trend),
+                confidence=0.8,
+                position=position,
+                candles_involved=[c1, c2, c3],
+                description="Strong bearish continuation - three declining black candles"
+            ))
     
-    # Evening star pattern
-    signal = patterns.add_candle(1.1052, 1.1058, 1.1050, 1.1057, 1000, "2025-01-01 16:00")  # Bullish candle
-    signal = patterns.add_candle(1.1058, 1.1060, 1.1056, 1.1058, 800, "2025-01-01 17:00")   # Small body (star)
-    signal = patterns.add_candle(1.1056, 1.1058, 1.1048, 1.1050, 1600, "2025-01-01 18:00")  # Bearish candle
-    print(f"  Pattern: {signal.pattern_name}")
-    print(f"  Signal: {signal.signal_direction}")
-    print(f"  Strength: {signal.signal_strength:.2f}")
-    print(f"  Reliability: {signal.pattern_reliability:.2f}")
+    def _detect_three_inside_outside(self, c1: CandleData, c2: CandleData, c3: CandleData,
+                                    position: int, trend: str):
+        """Detect Three Inside Up/Down and Three Outside Up/Down patterns"""
+        # Check for harami pattern in first two candles
+        c1_body_top = max(c1.open, c1.close)
+        c1_body_bottom = min(c1.open, c1.close)
+        c2_body_top = max(c2.open, c2.close)
+        c2_body_bottom = min(c2.open, c2.close)
+        
+        is_harami = c2_body_top <= c1_body_top and c2_body_bottom >= c1_body_bottom
+        is_engulfing = c2_body_top >= c1_body_top and c2_body_bottom <= c1_body_bottom
+        
+        # Three Inside Up (bullish)
+        if (is_harami and not c1.is_bullish and c2.is_bullish and 
+            c3.is_bullish and c3.close > c1.close and trend == 'downtrend'):
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Three Inside Up",
+                pattern_type=PatternType.BULLISH,
+                strength=self._calculate_three_inside_strength(c1, c2, c3, trend, True),
+                confidence=0.75,
+                position=position,
+                candles_involved=[c1, c2, c3],
+                description="Bullish reversal - harami followed by confirmation"
+            ))
+        
+        # Three Inside Down (bearish)
+        elif (is_harami and c1.is_bullish and not c2.is_bullish and 
+              not c3.is_bullish and c3.close < c1.close and trend == 'uptrend'):
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Three Inside Down",
+                pattern_type=PatternType.BEARISH,
+                strength=self._calculate_three_inside_strength(c1, c2, c3, trend, False),
+                confidence=0.75,
+                position=position,
+                candles_involved=[c1, c2, c3],
+                description="Bearish reversal - harami followed by confirmation"
+            ))
+        
+        # Three Outside Up (bullish)
+        elif (is_engulfing and not c1.is_bullish and c2.is_bullish and 
+              c3.is_bullish and c3.close > c2.close and trend == 'downtrend'):
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Three Outside Up",
+                pattern_type=PatternType.BULLISH,
+                strength=self._calculate_three_outside_strength(c1, c2, c3, trend, True),
+                confidence=0.8,
+                position=position,
+                candles_involved=[c1, c2, c3],
+                description="Bullish reversal - engulfing followed by confirmation"
+            ))
+        
+        # Three Outside Down (bearish)
+        elif (is_engulfing and c1.is_bullish and not c2.is_bullish and 
+              not c3.is_bullish and c3.close < c2.close and trend == 'uptrend'):
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Three Outside Down",
+                pattern_type=PatternType.BEARISH,
+                strength=self._calculate_three_outside_strength(c1, c2, c3, trend, False),
+                confidence=0.8,
+                position=position,
+                candles_involved=[c1, c2, c3],
+                description="Bearish reversal - engulfing followed by confirmation"
+            ))
     
-    # Test 5: Three White Soldiers
-    print("\n5. Testing Three White Soldiers Pattern:")
-    signal = patterns.add_candle(1.1050, 1.1055, 1.1048, 1.1054, 1000, "2025-01-01 19:00")  # Bullish 1
-    signal = patterns.add_candle(1.1054, 1.1059, 1.1052, 1.1058, 1100, "2025-01-01 20:00")  # Bullish 2
-    signal = patterns.add_candle(1.1058, 1.1063, 1.1056, 1.1062, 1200, "2025-01-01 21:00")  # Bullish 3
-    print(f"  Pattern: {signal.pattern_name}")
-    print(f"  Signal: {signal.signal_direction}")
-    print(f"  Strength: {signal.signal_strength:.2f}")
-    print(f"  Reliability: {signal.pattern_reliability:.2f}")
+    def _detect_abandoned_baby(self, c1: CandleData, c2: CandleData, c3: CandleData,
+                              position: int, trend: str):
+        """Detect Abandoned Baby pattern - rare and powerful reversal"""
+        # Middle candle should be a doji with gaps on both sides
+        if c2.body_ratio < self.doji_threshold:
+            # Bullish Abandoned Baby
+            if (not c1.is_bullish and c3.is_bullish and trend == 'downtrend' and
+                c2.high < c1.low and c2.high < c3.low):  # Gaps on both sides
+                
+                self.detected_patterns.append(PatternResult(
+                    pattern_name="Bullish Abandoned Baby",
+                    pattern_type=PatternType.BULLISH,
+                    strength=95,  # Very strong pattern
+                    confidence=0.95,
+                    position=position,
+                    candles_involved=[c1, c2, c3],
+                    description="Very rare and powerful bullish reversal - doji with gaps"
+                ))
+            
+            # Bearish Abandoned Baby
+            elif (c1.is_bullish and not c3.is_bullish and trend == 'uptrend' and
+                  c2.low > c1.high and c2.low > c3.high):  # Gaps on both sides
+                
+                self.detected_patterns.append(PatternResult(
+                    pattern_name="Bearish Abandoned Baby",
+                    pattern_type=PatternType.BEARISH,
+                    strength=95,  # Very strong pattern
+                    confidence=0.95,
+                    position=position,
+                    candles_involved=[c1, c2, c3],
+                    description="Very rare and powerful bearish reversal - doji with gaps"
+                ))
     
-    # Test 6: Shooting Star
-    print("\n6. Testing Shooting Star Pattern:")
-    signal = patterns.add_candle(1.1062, 1.1075, 1.1060, 1.1064, 1400, "2025-01-01 22:00")  # Shooting star
-    print(f"  Pattern: {signal.pattern_name}")
-    print(f"  Signal: {signal.signal_direction}")
-    print(f"  Strength: {signal.signal_strength:.2f}")
-    print(f"  Reliability: {signal.pattern_reliability:.2f}")
+    def _detect_three_line_strike(self, c1: CandleData, c2: CandleData, c3: CandleData,
+                                 position: int, trend: str, candles: List[CandleData]):
+        """Detect Three Line Strike pattern"""
+        # Need to check fourth candle for this pattern
+        if position + 1 < len(candles):
+            c4 = candles[position + 1]
+            
+            # Bullish Three Line Strike
+            if (not c1.is_bullish and not c2.is_bullish and not c3.is_bullish and
+                c4.is_bullish and c2.close < c1.close and c3.close < c2.close and
+                c4.open <= c3.close and c4.close > c1.open):
+                
+                self.detected_patterns.append(PatternResult(
+                    pattern_name="Bullish Three Line Strike",
+                    pattern_type=PatternType.BULLISH,
+                    strength=self._calculate_three_line_strike_strength(c1, c2, c3, c4, trend, True),
+                    confidence=0.85,
+                    position=position + 1,
+                    candles_involved=[c1, c2, c3, c4],
+                    description="Bullish continuation - three black candles erased by one white"
+                ))
+            
+            # Bearish Three Line Strike
+            elif (c1.is_bullish and c2.is_bullish and c3.is_bullish and
+                  not c4.is_bullish and c2.close > c1.close and c3.close > c2.close and
+                  c4.open >= c3.close and c4.close < c1.open):
+                
+                self.detected_patterns.append(PatternResult(
+                    pattern_name="Bearish Three Line Strike",
+                    pattern_type=PatternType.BEARISH,
+                    strength=self._calculate_three_line_strike_strength(c1, c2, c3, c4, trend, False),
+                    confidence=0.85,
+                    position=position + 1,
+                    candles_involved=[c1, c2, c3, c4],
+                    description="Bearish continuation - three white candles erased by one black"
+                ))
     
-    # Final statistics
-    print(f"\n=== PATTERN STATISTICS ===")
-    stats = patterns.get_pattern_statistics()
-    print(f"Total patterns detected: {stats['total_patterns']}")
-    print(f"Current trend context: {stats['trend_context']}")
-    print(f"Last pattern: {stats['last_pattern']}")
+    def _detect_matching_patterns(self, c1: CandleData, c2: CandleData, c3: CandleData,
+                                 position: int, trend: str):
+        """Detect Matching Low and Matching High patterns"""
+        tolerance = 0.001  # 0.1% tolerance for matching
+        
+        # Matching Low (bullish)
+        if (trend == 'downtrend' and not c1.is_bullish and not c2.is_bullish and
+            abs(c1.close - c2.close) < c1.close * tolerance):
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Matching Low",
+                pattern_type=PatternType.BULLISH,
+                strength=self._calculate_matching_strength(c1, c2, trend, True),
+                confidence=0.65,
+                position=position - 1,
+                candles_involved=[c1, c2],
+                description="Bullish reversal - matching closing prices at bottom"
+            ))
+        
+        # Matching High (bearish)
+        elif (trend == 'uptrend' and c1.is_bullish and c2.is_bullish and
+              abs(c1.close - c2.close) < c1.close * tolerance):
+            
+            self.detected_patterns.append(PatternResult(
+                pattern_name="Matching High",
+                pattern_type=PatternType.BEARISH,
+                strength=self._calculate_matching_strength(c1, c2, trend, False),
+                confidence=0.65,
+                position=position - 1,
+                candles_involved=[c1, c2],
+                description="Bearish reversal - matching closing prices at top"
+            ))
     
-    print(f"\nPattern breakdown:")
-    for pattern_type, count in stats['pattern_counts'].items():
-        print(f"  {pattern_type}: {count}")
+    # ===== PATTERN STRENGTH CALCULATIONS FOR NEW PATTERNS =====
     
-    # Recent patterns
-    print(f"\n=== RECENT PATTERNS ===")
-    recent = patterns.get_recent_patterns(5)
-    for i, pattern in enumerate(recent):
-        if pattern.pattern_type:
-            print(f"{i+1}. {pattern.pattern_name} - {pattern.signal_direction} (Strength: {pattern.signal_strength:.2f})")
+    def _calculate_engulfing_strength(self, prev: CandleData, curr: CandleData, 
+                                     trend: str, is_bullish: bool) -> float:
+        """Calculate strength for engulfing patterns"""
+        base_strength = 70.0
+        
+        # Size ratio bonus
+        size_ratio = curr.body_size / prev.body_size if prev.body_size > 0 else 1
+        if size_ratio > 2:
+            base_strength += 15
+        elif size_ratio > 1.5:
+            base_strength += 10
+        
+        # Trend appropriateness
+        if (is_bullish and trend == 'downtrend') or (not is_bullish and trend == 'uptrend'):
+            base_strength += 10
+        
+        return min(100, max(0, base_strength))
     
-    print(f"\n=== TEST COMPLETED SUCCESSFULLY ===")
-    return True
-
-
-if __name__ == "__main__":
-    test_candlestick_patterns()
+    def _calculate_harami_strength(self, prev: CandleData, curr: CandleData,
+                                  trend: str, is_bullish: bool) -> float:
+        """Calculate strength for harami patterns"""
+        base_strength = 60.0
+        
+        # Size ratio (smaller current candle is better)
+        size_ratio = curr.body_size / prev.body_size if prev.body_size > 0 else 1
+        if size_ratio < 0.3:
+            base_strength += 15
+        elif size_ratio < 0.5:
+            base_strength += 10
+        
+        # Trend appropriateness
+        if (is_bullish and trend == 'downtrend') or (not is_bullish and trend == 'uptrend'):
+            base_strength += 10
+        
+        return min(100, max(0, base_strength))
+    
+    def _calculate_piercing_strength(self, prev: CandleData, curr: CandleData, trend: str) -> float:
+        """Calculate strength for piercing line pattern"""
+        base_strength = 65.0
+        
+        # Penetration depth
+        prev_range = prev.open - prev.close
+        penetration = (curr.close - prev.close) / prev_range if prev_range != 0 else 0
+        
+        if penetration > 0.6:
+            base_strength += 20
+        elif penetration > 0.5:
+            base_strength += 10
+        
+        return min(100, max(0, base_strength))
+    
+    def _calculate_dark_cloud_strength(self, prev: CandleData, curr: CandleData, trend: str) -> float:
+        """Calculate strength for dark cloud cover pattern"""
+        base_strength = 65.0
+        
+        # Penetration depth
+        prev_range = prev.close - prev.open
+        penetration = (prev.close - curr.close) / prev_range if prev_range != 0 else 0
+        
+        if penetration > 0.6:
+            base_strength += 20
+        elif penetration > 0.5:
+            base_strength += 10
+        
+        return min(100, max(0, base_strength))
+    
+    def _calculate_tweezer_strength(self, prev: CandleData, curr: CandleData,
+                                   trend: str, is_bottom: bool) -> float:
+        """Calculate strength for tweezer patterns"""
+        base_strength = 60.0
+        
+        # How precisely the highs/lows match
+        if is_bottom:
+            precision = 1 - abs(prev.low - curr.low) / prev.low
+        else:
+            precision = 1 - abs(prev.high - curr.high) / prev.high
+        
+        base_strength += precision * 20
+        
+        # Trend context
+        if trend in ['uptrend', 'downtrend']:
+            base_strength += 10
+        
+        return min(100, max(0, base_strength))
+    
+    def _calculate_belt_hold_strength(self, candle: CandleData, trend: str, is_bullish: bool) -> float:
+        """Calculate strength for belt hold patterns"""
+        base_strength = 55.0
+        
+        # Body size bonus
+        if candle.body_ratio > 0.8:
+            base_strength += 20
+        elif candle.body_ratio > 0.7:
+            base_strength += 10
+        
+        # Trend appropriateness
+        if (is_bullish and trend == 'downtrend') or (not is_bullish and trend == 'uptrend'):
+            base_strength += 15
+        
+        return min(100, max(0, base_strength))
+    
+    def _calculate_kicking_strength(self, prev: CandleData, curr: CandleData, is_bullish: bool) -> float:
+        """Calculate strength for kicking patterns"""
+        base_strength = 80.0  # Strong pattern by nature
+        
+        # Gap size bonus
+        gap_size = abs(curr.open - prev.close) / prev.close
+        if gap_size > 0.02:  # 2% gap
+            base_strength += 15
+        elif gap_size > 0.01:  # 1% gap
+            base_strength += 10
+        
+        return min(100, max(0, base_strength))
+    
+    def _calculate_star_strength(self, c1: CandleData, c2: CandleData, c3: CandleData,
+                                trend: str, is_morning: bool) -> float:
+        """Calculate strength for morning/evening star patterns"""
+        base_strength = 75.0
+        
+        # Star size (smaller is better)
+        star_ratio = c2.body_size / min(c1.body_size, c3.body_size)
+        if star_ratio < 0.1:
+            base_strength += 10
+        elif star_ratio < 0.2:
+            base_strength += 5
+        
+        # Penetration into first candle
+        if is_morning:
+            penetration = (c3.close - c1.close) / c1.body_size if c1.body_size > 0 else 0
+        else:
+            penetration = (c1.close - c3.close) / c1.body_size if c1.body_size > 0 else 0
+        
+        if penetration > 0.5:
+            base_strength += 10
+        
+        return min(100, max(0, base_strength))
+    
+    def _calculate_three_soldiers_strength(self, c1: CandleData, c2: CandleData, 
+                                          c3: CandleData, trend: str) -> float:
+        """Calculate strength for three white soldiers"""
+        base_strength = 70.0
+        
+        # Consistent advancement
+        advance1 = c2.close - c1.close
+        advance2 = c3.close - c2.close
+        
+        if advance1 > 0 and advance2 > 0 and abs(advance1 - advance2) / advance1 < 0.3:
+            base_strength += 15
+        
+        # Small upper shadows
+        avg_shadow_ratio = ((c1.upper_shadow / c1.body_size) + 
+                           (c2.upper_shadow / c2.body_size) + 
+                           (c3.upper_shadow / c3.body_size)) / 3
+        
+        if avg_shadow_ratio < 0.1:
+            base_strength += 10
+        
+        return min(100, max(0, base_strength))
+    
+    def _calculate_three_crows_strength(self, c1: CandleData, c2: CandleData,
+                                       c3: CandleData, trend: str) -> float:
+        """Calculate strength for three black crows"""
+        base_strength = 70.0
+        
+        # Consistent decline
+        decline1 = c1.close - c2.close
+        decline2 = c2.close - c3.close
+        
+        if decline1 > 0 and decline2 > 0 and abs(decline1 - decline2) / decline1 < 0.3:
+            base_strength += 15
+        
+        # Small lower shadows
+        avg_shadow_ratio = ((c1.lower_shadow / c1.body_size) + 
+                           (c2.lower_shadow / c2.body_size) + 
+                           (c3.lower_shadow / c3.body_size)) / 3
+        
+        if avg_shadow_ratio < 0.1:
+            base_strength += 10
+        
+        return min(100, max(0, base_strength))
+    
+    def _calculate_three_inside_strength(self, c1: CandleData, c2: CandleData,
+                                        c3: CandleData, trend: str, is_up: bool) -> float:
+        """Calculate strength for three inside up/down patterns"""
+        base_strength = 65.0
+        
+        # Confirmation candle strength
+        if is_up and c3.close > c1.high:
+            base_strength += 15
+        elif not is_up and c3.close < c1.low:
+            base_strength += 15
+        
+        return min(100, max(0, base_strength))
+    
+    def _calculate_three_outside_strength(self, c1: CandleData, c2: CandleData,
+                                         c3: CandleData, trend: str, is_up: bool) -> float:
+        """Calculate strength for three outside up/down patterns"""
+        base_strength = 70.0
+        
+        # Engulfing quality
+        engulf_ratio = c2.body_size / c1.body_size if c1.body_size > 0 else 1
+        if engulf_ratio > 2:
+            base_strength += 10
+        
+        # Confirmation strength
+        if is_up and c3.close > c2.close:
+            base_strength += 10
+        elif not is_up and c3.close < c2.close:
+            base_strength += 10
+        
+        return min(100, max(0, base_strength))
+    
+    def _calculate_three_line_strike_strength(self, c1: CandleData, c2: CandleData,
+                                             c3: CandleData, c4: CandleData,
+                                             trend: str, is_bullish: bool) -> float:
+        """Calculate strength for three line strike patterns"""
+        base_strength = 75.0
+        
+        # How completely the fourth candle erases the previous three
+        if is_bullish:
+            erasure = (c4.close - c1.open) / (c1.open - c3.close) if c1.open != c3.close else 1
+        else:
+            erasure = (c1.open - c4.close) / (c3.close - c1.open) if c3.close != c1.open else 1
+        
+        if erasure > 1.1:
+            base_strength += 15
+        elif erasure > 1:
+            base_strength += 10
+        
+        return min(100, max(0, base_strength))
+    
+    def _calculate_matching_strength(self, c1: CandleData, c2: CandleData,
+                                    trend: str, is_low: bool) -> float:
+        """Calculate strength for matching low/high patterns"""
+        base_strength = 55.0
+        
+        # How precisely the closes match
+        precision = 1 - abs(c1.close - c2.close) / c1.close
+        base_strength += precision * 20
+        
+        # Trend context
+        if (is_low and trend == 'downtrend') or (not is_low and trend == 'uptrend'):
+            base_strength += 15
+        
+        return min(100, max(0, base_strength))

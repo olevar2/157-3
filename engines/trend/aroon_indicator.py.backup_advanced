@@ -1,0 +1,673 @@
+"""
+Aroon Indicator - Trend Identification and Strength Measurement
+Developed by Tushar Chande, the Aroon indicator consists of:
+- Aroon Up: measures time since highest high
+- Aroon Down: measures time since lowest low
+- Aroon Oscillator: Aroon Up - Aroon Down
+Used to identify trend changes and measure trend strength.
+"""
+
+from typing import List, Dict, Any, Optional, Tuple
+import numpy as np
+import pandas as pd
+from dataclasses import dataclass
+from ..indicator_base import BaseIndicator, IndicatorResult, IndicatorSignal, SignalType, IndicatorType, MarketData
+
+# Platform3 Winston-style Logging Integration
+import sys
+import os
+
+# Platform3 Error Handling Integration
+from shared.error_handling.platform3_error_system import ServiceError, EventEmitter, CircuitBreaker, ErrorSeverity, ErrorCategory
+from shared.error_handling.base_service import BaseService
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+from logging.platform3_logger import Platform3Logger, log_performance, LogMetadata
+
+
+@dataclass
+class AroonConfig(BaseService):
+    """Configuration for Aroon Indicator"""
+    period: int = 25
+    strong_threshold: float = 70.0     # Above this = strong trend signal
+    weak_threshold: float = 30.0       # Below this = weak trend
+    oscillator_threshold: float = 50.0 # Oscillator above/below for trend signals
+    consolidation_range: float = 20.0  # Range for consolidation detection
+
+
+class AroonIndicator(BaseIndicator):
+    """
+    Aroon Indicator Implementation
+    
+    Aroon Up = ((period - periods since highest high) / period) * 100
+    Aroon Down = ((period - periods since lowest low) / period) * 100
+    Aroon Oscillator = Aroon Up - Aroon Down
+    
+    Interpretation:
+    - Aroon Up > 70 and Aroon Down < 30 = Strong uptrend
+    - Aroon Down > 70 and Aroon Up < 30 = Strong downtrend  
+    - Both between 30-70 = Consolidation/sideways market
+    - Aroon Oscillator > 0 = Bullish bias
+    - Aroon Oscillator < 0 = Bearish bias
+    """
+    
+    def __init__(self, config: Optional[AroonConfig] = None):
+        super().__init__(IndicatorType.TREND)
+        self.config = config or AroonConfig()
+        self.aroon_up: List[float] = []
+        self.aroon_down: List[float] = []
+        self.aroon_oscillator: List[float] = []
+        self.periods_since_high: List[int] = []
+        self.periods_since_low: List[int] = []
+        
+    def calculate(self, data: List[MarketData]) -> IndicatorResult:
+        try:
+        """Calculate Aroon Indicator values"""
+        try:
+            if len(data) < self.config.period + 1:
+                return IndicatorResult(
+                    success=False,
+                    error=f"Insufficient data: need {self.config.period + 1}, got {len(data)}"
+                )
+            
+            # Calculate Aroon Up, Aroon Down, and Oscillator
+            aroon_up, aroon_down, periods_high, periods_low = self._calculate_aroon_values(data)
+            
+            # Calculate Aroon Oscillator
+            aroon_oscillator = [up - down for up, down in zip(aroon_up, aroon_down)]
+            
+            # Store values for signal generation
+            self.aroon_up = aroon_up
+            self.aroon_down = aroon_down
+            self.aroon_oscillator = aroon_oscillator
+            self.periods_since_high = periods_high
+            self.periods_since_low = periods_low
+            
+            # Generate signals
+            signals = self._generate_signals(data, aroon_up, aroon_down, aroon_oscillator)
+            
+            # Analyze trend characteristics
+            trend_analysis = self._analyze_trend_characteristics(aroon_up, aroon_down, aroon_oscillator)
+            
+            return IndicatorResult(
+                success=True,
+                values={
+                    'aroon_up': aroon_up,
+                    'aroon_down': aroon_down,
+                    'aroon_oscillator': aroon_oscillator,
+                    'periods_since_high': periods_high,
+                    'periods_since_low': periods_low
+                },
+                signals=signals,
+                metadata={
+                    'period': self.config.period,
+                    'current_aroon_up': aroon_up[-1] if aroon_up else 0,
+                    'current_aroon_down': aroon_down[-1] if aroon_down else 0,
+                    'current_oscillator': aroon_oscillator[-1] if aroon_oscillator else 0,
+                    'trend_state': self._classify_trend_state(aroon_up[-1] if aroon_up else 0, 
+                                                            aroon_down[-1] if aroon_down else 0),
+                    'trend_strength': self._calculate_trend_strength(aroon_up, aroon_down),
+                    **trend_analysis
+                }
+            )
+            
+        except Exception as e:
+            return IndicatorResult(
+                success=False,
+                error=f"Aroon calculation failed: {str(e)}"
+            )
+    
+    def _calculate_aroon_values(self, data: List[MarketData]) -> Tuple[List[float], List[float], List[int], List[int]]:
+        try:
+        """Calculate Aroon Up, Aroon Down, and periods since high/low"""
+        aroon_up = []
+        aroon_down = []
+        periods_since_high = []
+        periods_since_low = []
+        
+        for i in range(self.config.period, len(data)):
+            # Get the subset of data for this period
+            period_data = data[i - self.config.period:i + 1]
+            
+            # Find highest high and lowest low positions
+            highs = [candle.high for candle in period_data]
+            lows = [candle.low for candle in period_data]
+            
+            highest_high = max(highs)
+            lowest_low = min(lows)
+            
+            # Find the most recent occurrence of highest high and lowest low
+            # (searching from the end for most recent)
+            periods_since_highest = 0
+            periods_since_lowest = 0
+            
+            for j in range(len(highs) - 1, -1, -1):
+                if highs[j] == highest_high and periods_since_highest == 0:
+                    periods_since_highest = len(highs) - 1 - j
+                if lows[j] == lowest_low and periods_since_lowest == 0:
+                    periods_since_lowest = len(lows) - 1 - j
+                
+                # Break if we found both
+                if periods_since_highest > 0 and periods_since_lowest > 0:
+                    break
+            
+            # Calculate Aroon values
+            aroon_up_value = ((self.config.period - periods_since_highest) / self.config.period) * 100
+            aroon_down_value = ((self.config.period - periods_since_lowest) / self.config.period) * 100
+            
+            aroon_up.append(aroon_up_value)
+            aroon_down.append(aroon_down_value)
+            periods_since_high.append(periods_since_highest)
+            periods_since_low.append(periods_since_lowest)
+        
+        return aroon_up, aroon_down, periods_since_high, periods_since_low
+    
+    def _classify_trend_state(self, aroon_up: float, aroon_down: float) -> str:
+        try:
+        """Classify current trend state based on Aroon values"""
+        if aroon_up >= self.config.strong_threshold and aroon_down <= self.config.weak_threshold:
+            return 'strong_uptrend'
+        elif aroon_down >= self.config.strong_threshold and aroon_up <= self.config.weak_threshold:
+            return 'strong_downtrend'
+        elif aroon_up >= self.config.strong_threshold and aroon_down >= self.config.strong_threshold:
+            return 'volatile_trending'
+        elif (abs(aroon_up - aroon_down) <= self.config.consolidation_range and 
+              aroon_up >= self.config.weak_threshold and aroon_down >= self.config.weak_threshold):
+            return 'consolidation'
+        elif aroon_up > aroon_down:
+            return 'weak_uptrend'
+        elif aroon_down > aroon_up:
+            return 'weak_downtrend'
+        else:
+            return 'neutral'
+    
+    def _calculate_trend_strength(self, aroon_up: List[float], aroon_down: List[float]) -> float:
+        try:
+        """Calculate overall trend strength"""
+        if not aroon_up or not aroon_down:
+            return 0.0
+        
+        current_up = aroon_up[-1]
+        current_down = aroon_down[-1]
+        
+        # Trend strength based on separation and absolute values
+        separation = abs(current_up - current_down)
+        max_value = max(current_up, current_down)
+        
+        # Normalize to 0-1 scale
+        strength = (separation / 100.0) * (max_value / 100.0)
+        return min(strength, 1.0)
+    
+    def _analyze_trend_characteristics(self, aroon_up: List[float], aroon_down: List[float], 
+        try:
+                                     aroon_oscillator: List[float]) -> Dict[str, Any]:
+        """Analyze trend characteristics and patterns"""
+        if len(aroon_up) < 5:
+            return {}
+        
+        # Recent trend consistency
+        recent_periods = min(10, len(aroon_up))
+        recent_up = aroon_up[-recent_periods:]
+        recent_down = aroon_down[-recent_periods:]
+        recent_osc = aroon_oscillator[-recent_periods:]
+        
+        # Calculate trend consistency
+        up_trend_periods = sum(1 for i in range(1, len(recent_up)) if recent_up[i] >= recent_up[i-1])
+        down_trend_periods = sum(1 for i in range(1, len(recent_down)) if recent_down[i] >= recent_down[i-1])
+        
+        # Oscillator momentum
+        osc_momentum = self._calculate_momentum(recent_osc)
+        
+        # Volatility in Aroon values
+        up_volatility = np.std(recent_up) if len(recent_up) > 1 else 0
+        down_volatility = np.std(recent_down) if len(recent_down) > 1 else 0
+        
+        # Trend persistence
+        persistence_score = self._calculate_trend_persistence(recent_up, recent_down)
+        
+        return {
+            'up_consistency': up_trend_periods / (recent_periods - 1) if recent_periods > 1 else 0,
+            'down_consistency': down_trend_periods / (recent_periods - 1) if recent_periods > 1 else 0,
+            'oscillator_momentum': osc_momentum,
+            'up_volatility': up_volatility,
+            'down_volatility': down_volatility,
+            'trend_persistence': persistence_score,
+            'market_phase': self._identify_market_phase(recent_up, recent_down, recent_osc)
+        }
+    
+    def _calculate_momentum(self, values: List[float]) -> str:
+        try:
+        """Calculate momentum direction of values"""
+        if len(values) < 3:
+            return 'neutral'
+        
+        recent = values[-3:]
+        if all(recent[i] >= recent[i-1] for i in range(1, len(recent))):
+            return 'accelerating'
+        elif all(recent[i] <= recent[i-1] for i in range(1, len(recent))):
+            return 'decelerating'
+        elif recent[-1] > recent[0]:
+            return 'increasing'
+        elif recent[-1] < recent[0]:
+            return 'decreasing'
+        else:
+            return 'neutral'
+    
+    def _calculate_trend_persistence(self, aroon_up: List[float], aroon_down: List[float]) -> float:
+        try:
+        """Calculate how persistent the current trend has been"""
+        if len(aroon_up) < 3 or len(aroon_down) < 3:
+            return 0.0
+        
+        # Count periods where trend direction remained consistent
+        consistent_periods = 0
+        current_trend = 'up' if aroon_up[-1] > aroon_down[-1] else 'down'
+        
+        for i in range(len(aroon_up)):
+            period_trend = 'up' if aroon_up[i] > aroon_down[i] else 'down'
+            if period_trend == current_trend:
+                consistent_periods += 1
+        
+        return consistent_periods / len(aroon_up)
+    
+    def _identify_market_phase(self, aroon_up: List[float], aroon_down: List[float], 
+        try:
+                             aroon_osc: List[float]) -> str:
+        """Identify current market phase"""
+        if not aroon_up or not aroon_down or not aroon_osc:
+            return 'unknown'
+        
+        current_up = aroon_up[-1]
+        current_down = aroon_down[-1]
+        current_osc = aroon_osc[-1]
+        
+        # Strong trending phases
+        if current_up >= 70 and current_down <= 30:
+            return 'strong_bull_trend'
+        elif current_down >= 70 and current_up <= 30:
+            return 'strong_bear_trend'
+        
+        # Consolidation phases
+        elif abs(current_up - current_down) <= 20 and min(current_up, current_down) >= 30:
+            return 'consolidation'
+        
+        # Transition phases
+        elif abs(current_osc) <= 25:
+            return 'transition'
+        
+        # Weak trending phases
+        elif current_osc > 0:
+            return 'weak_bull_trend'
+        else:
+            return 'weak_bear_trend'
+    
+    def _generate_signals(self, data: List[MarketData], aroon_up: List[float], 
+        try:
+                         aroon_down: List[float], aroon_oscillator: List[float]) -> List[IndicatorSignal]:
+        """Generate trading signals based on Aroon analysis"""
+        signals = []
+        
+        if len(aroon_up) < 3 or len(aroon_down) < 3:
+            return signals
+        
+        # Aroon crossover signals
+        self._detect_aroon_crossover(aroon_up, aroon_down, signals)
+        
+        # Strong trend emergence signals
+        self._detect_strong_trend_emergence(aroon_up, aroon_down, signals)
+        
+        # Trend weakening signals
+        self._detect_trend_weakening(aroon_up, aroon_down, signals)
+        
+        # Oscillator zero line signals
+        self._detect_oscillator_signals(aroon_oscillator, signals)
+        
+        # Consolidation breakout signals
+        self._detect_consolidation_breakout(aroon_up, aroon_down, signals)
+        
+        return signals
+    
+    def _detect_aroon_crossover(self, aroon_up: List[float], aroon_down: List[float], 
+        try:
+                              signals: List[IndicatorSignal]):
+        """Detect Aroon Up/Down crossover signals"""
+        if len(aroon_up) < 2 or len(aroon_down) < 2:
+            return
+        
+        current_up = aroon_up[-1]
+        previous_up = aroon_up[-2]
+        current_down = aroon_down[-1]
+        previous_down = aroon_down[-2]
+        
+        # Bullish crossover (Aroon Up crosses above Aroon Down)
+        if previous_up <= previous_down and current_up > current_down:
+            crossover_strength = current_up - current_down
+            strength = min(crossover_strength / 100.0, 1.0)
+            confidence = 0.7 if current_up >= self.config.strong_threshold else 0.6
+            
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.BUY,
+                strength=strength,
+                confidence=confidence,
+                metadata={
+                    'pattern': 'aroon_crossover_bullish',
+                    'aroon_up': current_up,
+                    'aroon_down': current_down,
+                    'crossover_strength': crossover_strength
+                }
+            ))
+        
+        # Bearish crossover (Aroon Down crosses above Aroon Up)
+        elif previous_down <= previous_up and current_down > current_up:
+            crossover_strength = current_down - current_up
+            strength = min(crossover_strength / 100.0, 1.0)
+            confidence = 0.7 if current_down >= self.config.strong_threshold else 0.6
+            
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.SELL,
+                strength=strength,
+                confidence=confidence,
+                metadata={
+                    'pattern': 'aroon_crossover_bearish',
+                    'aroon_up': current_up,
+                    'aroon_down': current_down,
+                    'crossover_strength': crossover_strength
+                }
+            ))
+    
+    def _detect_strong_trend_emergence(self, aroon_up: List[float], aroon_down: List[float], 
+        try:
+                                     signals: List[IndicatorSignal]):
+        """Detect emergence of strong trend signals"""
+        if len(aroon_up) < 2 or len(aroon_down) < 2:
+            return
+        
+        current_up = aroon_up[-1]
+        previous_up = aroon_up[-2]
+        current_down = aroon_down[-1]
+        previous_down = aroon_down[-2]
+        
+        # Strong bullish trend emergence
+        if (previous_up < self.config.strong_threshold and current_up >= self.config.strong_threshold and
+            current_down <= self.config.weak_threshold):
+            
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.BUY,
+                strength=0.8,
+                confidence=0.8,
+                metadata={
+                    'pattern': 'strong_uptrend_emergence',
+                    'aroon_up': current_up,
+                    'aroon_down': current_down,
+                    'trend_strength': 'strong'
+                }
+            ))
+        
+        # Strong bearish trend emergence
+        elif (previous_down < self.config.strong_threshold and current_down >= self.config.strong_threshold and
+              current_up <= self.config.weak_threshold):
+            
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.SELL,
+                strength=0.8,
+                confidence=0.8,
+                metadata={
+                    'pattern': 'strong_downtrend_emergence',
+                    'aroon_up': current_up,
+                    'aroon_down': current_down,
+                    'trend_strength': 'strong'
+                }
+            ))
+    
+    def _detect_trend_weakening(self, aroon_up: List[float], aroon_down: List[float], 
+        try:
+                              signals: List[IndicatorSignal]):
+        """Detect trend weakening signals"""
+        if len(aroon_up) < 3 or len(aroon_down) < 3:
+            return
+        
+        current_up = aroon_up[-1]
+        current_down = aroon_down[-1]
+        
+        # Check for declining dominant Aroon
+        recent_up = aroon_up[-3:]
+        recent_down = aroon_down[-3:]
+        
+        # Uptrend weakening
+        if (current_up > current_down and current_up >= self.config.strong_threshold and
+            all(recent_up[i] <= recent_up[i-1] for i in range(1, len(recent_up)))):
+            
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.NEUTRAL,
+                strength=0.6,
+                confidence=0.7,
+                metadata={
+                    'pattern': 'uptrend_weakening',
+                    'aroon_up': current_up,
+                    'trading_advice': 'consider_profit_taking'
+                }
+            ))
+        
+        # Downtrend weakening
+        elif (current_down > current_up and current_down >= self.config.strong_threshold and
+              all(recent_down[i] <= recent_down[i-1] for i in range(1, len(recent_down)))):
+            
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.NEUTRAL,
+                strength=0.6,
+                confidence=0.7,
+                metadata={
+                    'pattern': 'downtrend_weakening',
+                    'aroon_down': current_down,
+                    'trading_advice': 'consider_covering_shorts'
+                }
+            ))
+    
+    def _detect_oscillator_signals(self, aroon_oscillator: List[float], signals: List[IndicatorSignal]):
+        try:
+        """Detect Aroon Oscillator zero-line signals"""
+        if len(aroon_oscillator) < 2:
+            return
+        
+        current_osc = aroon_oscillator[-1]
+        previous_osc = aroon_oscillator[-2]
+        
+        # Bullish zero-line crossover
+        if previous_osc <= 0 < current_osc and abs(current_osc) >= 10:
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.BUY,
+                strength=0.6,
+                confidence=0.65,
+                metadata={
+                    'pattern': 'oscillator_bullish_crossover',
+                    'oscillator_value': current_osc,
+                    'momentum_shift': 'positive'
+                }
+            ))
+        
+        # Bearish zero-line crossover
+        elif previous_osc >= 0 > current_osc and abs(current_osc) >= 10:
+            signals.append(IndicatorSignal(
+                signal_type=SignalType.SELL,
+                strength=0.6,
+                confidence=0.65,
+                metadata={
+                    'pattern': 'oscillator_bearish_crossover',
+                    'oscillator_value': current_osc,
+                    'momentum_shift': 'negative'
+                }
+            ))
+    
+    def _detect_consolidation_breakout(self, aroon_up: List[float], aroon_down: List[float], 
+        try:
+                                     signals: List[IndicatorSignal]):
+        """Detect breakout from consolidation patterns"""
+        if len(aroon_up) < 5 or len(aroon_down) < 5:
+            return
+        
+        current_up = aroon_up[-1]
+        current_down = aroon_down[-1]
+        
+        # Check if we were in consolidation recently
+        recent_up = aroon_up[-5:-1]  # Exclude current value
+        recent_down = aroon_down[-5:-1]
+        
+        was_consolidating = all(
+            abs(up - down) <= self.config.consolidation_range and 
+            min(up, down) >= self.config.weak_threshold
+            for up, down in zip(recent_up, recent_down)
+        )
+        
+        if was_consolidating:
+            # Bullish breakout from consolidation
+            if current_up >= self.config.strong_threshold and current_down <= self.config.weak_threshold:
+                signals.append(IndicatorSignal(
+                    signal_type=SignalType.BUY,
+                    strength=0.75,
+                    confidence=0.75,
+                    metadata={
+                        'pattern': 'consolidation_breakout_bullish',
+                        'aroon_up': current_up,
+                        'aroon_down': current_down,
+                        'breakout_strength': current_up - current_down
+                    }
+                ))
+            
+            # Bearish breakout from consolidation
+            elif current_down >= self.config.strong_threshold and current_up <= self.config.weak_threshold:
+                signals.append(IndicatorSignal(
+                    signal_type=SignalType.SELL,
+                    strength=0.75,
+                    confidence=0.75,
+                    metadata={
+                        'pattern': 'consolidation_breakout_bearish',
+                        'aroon_up': current_up,
+                        'aroon_down': current_down,
+                        'breakout_strength': current_down - current_up
+                    }
+                ))
+
+
+
+    def handle_service_error(self, error: Exception, context: Dict[str, Any] = None) -> None:
+        """Handle service errors with proper event emission and logging"""
+        try:
+            service_error = ServiceError(
+                message=str(error),
+                code=f"{self.__class__.__name__.upper()}_ERROR",
+                metadata={
+                    "file_path": "engines/trend/aroon_indicator.py",
+                    "context": context or {},
+                    "timestamp": pd.Timestamp.now().isoformat(),
+                    "service_name": self.__class__.__name__
+                }
+            )
+            
+            # Emit error event for monitoring
+            self.emit('error', service_error)
+            
+            # Log error with correlation context
+            if hasattr(self, 'logger'):
+                self.logger.error(f"Service error in {self.__class__.__name__}: {str(error)}", extra={
+                        "error_code": service_error.code,
+                        "error_severity": service_error.severity.value,
+                        "error_category": service_error.category.value,
+                        "context": context
+                    })
+        except Exception as handling_error:
+            # Fallback error handling
+            print(f"Critical error in error handling: {handling_error}")
+    
+    def implement_circuit_breaker(self, service_name: str, failure_threshold: int = 5) -> CircuitBreaker:
+        """Implement circuit breaker for external service calls"""
+        return CircuitBreaker(
+            service_name=service_name,
+            failure_threshold=failure_threshold,
+            recovery_timeout=30,
+            on_failure=lambda error: self.emit('circuit_breaker_open', {'service': service_name, 'error': error})
+        )
+    
+    def graceful_degradation(self, primary_function, fallback_function, context: str = "operation"):
+        """Implement graceful degradation pattern"""
+        try:
+            return primary_function()
+        except Exception as error:
+            self.handle_service_error(error, {"context": context, "degradation": "fallback_used"})
+            
+            # Emit degradation event
+            self.emit('service_degradation', {
+                'context': context,
+                'primary_error': str(error),
+                'fallback_activated': True
+            })
+            
+            return fallback_function()
+
+def test_aroon_indicator():
+    """Test the Aroon Indicator implementation"""
+    # Create test data with distinct trend phases
+    np.random.seed(42)
+    test_data = []
+    base_price = 100.0
+    
+    for i in range(80):
+        # Generate data with clear trend patterns
+        if i < 25:
+            trend = 0.4  # Strong uptrend
+        elif i < 45:
+            trend = 0.0  # Consolidation
+        elif i < 65:
+            trend = -0.3  # Downtrend
+        else:
+            trend = 0.2  # Recovery uptrend
+        
+        noise = np.random.normal(0, 0.3)
+        close_price = base_price + trend + noise
+        open_price = close_price + np.random.normal(0, 0.2)
+        high_price = max(open_price, close_price) + abs(np.random.normal(0, 0.3))
+        low_price = min(open_price, close_price) - abs(np.random.normal(0, 0.3))
+        volume = 1000 + np.random.randint(0, 500)
+        
+        test_data.append(MarketData(
+            timestamp=i,
+            open=open_price,
+            high=high_price,
+            low=low_price,
+            close=close_price,
+            volume=volume
+        ))
+        
+        base_price = close_price
+    
+    # Test Aroon Indicator
+    aroon = AroonIndicator()
+    result = aroon.calculate(test_data)
+    
+    print("=== AROON INDICATOR TEST ===")
+    print(f"Success: {result.success}")
+    if result.success:
+        aroon_up = result.values['aroon_up']
+        aroon_down = result.values['aroon_down']
+        aroon_osc = result.values['aroon_oscillator']
+        
+        print(f"Aroon Up (last 5): {[round(v, 1) for v in aroon_up[-5:]]}")
+        print(f"Aroon Down (last 5): {[round(v, 1) for v in aroon_down[-5:]]}")
+        print(f"Aroon Oscillator (last 5): {[round(v, 1) for v in aroon_osc[-5:]]}")
+        print(f"Current Aroon Up: {round(aroon_up[-1], 1)}")
+        print(f"Current Aroon Down: {round(aroon_down[-1], 1)}")
+        print(f"Current Oscillator: {round(aroon_osc[-1], 1)}")
+        print(f"Trend State: {result.metadata['trend_state']}")
+        print(f"Market Phase: {result.metadata['market_phase']}")
+        print(f"Trend Strength: {round(result.metadata['trend_strength'], 3)}")
+        print(f"Number of signals: {len(result.signals)}")
+        
+        for i, signal in enumerate(result.signals[-3:]):  # Show last 3 signals
+            print(f"Signal {i+1}: {signal.signal_type.value} - Strength: {signal.strength:.2f} - {signal.metadata.get('pattern', 'N/A')}")
+    else:
+        print(f"Error: {result.error}")
+    
+    return result.success
+
+
+if __name__ == "__main__":
+    test_aroon_indicator()

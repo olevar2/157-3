@@ -1,0 +1,569 @@
+"""
+Scalping Performance Metrics Module
+
+This module provides specialized performance metrics and analytics for scalping
+trading strategies. It focuses on high-frequency metrics, tick-level analysis,
+and ultra-short-term performance tracking optimized for scalping operations.
+
+Key Features:
+- Tick-level performance analysis
+- Ultra-short-term profit/loss tracking
+- Scalping-specific risk metrics
+- High-frequency execution analytics
+- Session-based performance breakdown
+- Latency impact analysis
+
+Author: Platform3 Analytics Team
+Version: 1.0.0
+"""
+
+import numpy as np
+import pandas as pd
+from typing import Dict, List, Tuple, Optional, Union, NamedTuple
+from dataclasses import dataclass, field
+from enum import Enum
+from datetime import datetime, timedelta
+import logging
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import statistics
+import warnings
+warnings.filterwarnings('ignore')
+
+logger = logging.getLogger(__name__)
+
+class ScalpingSession(Enum):
+    """Scalping session types"""
+    LONDON_OPEN = "london_open"
+    NY_OPEN = "ny_open"
+    OVERLAP = "overlap"
+    ASIAN = "asian"
+    CUSTOM = "custom"
+
+class PerformanceGrade(Enum):
+    """Performance grade levels"""
+    EXCELLENT = "excellent"
+    GOOD = "good"
+    AVERAGE = "average"
+    POOR = "poor"
+    CRITICAL = "critical"
+
+@dataclass
+class ScalpingTrade:
+    """Individual scalping trade data"""
+    trade_id: str
+    entry_time: datetime
+    exit_time: datetime
+    entry_price: float
+    exit_price: float
+    quantity: float
+    direction: str  # 'long' or 'short'
+    pnl: float
+    pnl_pips: float
+    commission: float
+    spread_cost: float
+    slippage: float
+    execution_latency_ms: float
+    session: ScalpingSession
+    market_volatility: float
+
+@dataclass
+class ScalpingMetrics:
+    """Comprehensive scalping performance metrics"""
+    # Basic Performance
+    total_trades: int
+    winning_trades: int
+    losing_trades: int
+    win_rate: float
+    total_pnl: float
+    total_pips: float
+    
+    # Scalping-Specific Metrics
+    avg_trade_duration_seconds: float
+    avg_pips_per_trade: float
+    avg_pnl_per_trade: float
+    trades_per_hour: float
+    
+    # Risk Metrics
+    max_drawdown_pips: float
+    max_consecutive_losses: int
+    largest_loss_pips: float
+    risk_reward_ratio: float
+    
+    # Execution Metrics
+    avg_execution_latency_ms: float
+    avg_spread_cost: float
+    avg_slippage: float
+    total_commission: float
+    
+    # Session Performance
+    session_performance: Dict[str, Dict]
+    
+    # Advanced Metrics
+    profit_factor: float
+    sharpe_ratio: float
+    calmar_ratio: float
+    expectancy: float
+    
+    # Quality Scores
+    execution_quality_score: float
+    timing_quality_score: float
+    overall_grade: PerformanceGrade
+
+@dataclass
+class SessionAnalysis:
+    """Session-specific analysis"""
+    session: ScalpingSession
+    start_time: datetime
+    end_time: datetime
+    total_trades: int
+    pnl: float
+    pips: float
+    win_rate: float
+    avg_trade_duration: float
+    best_trade_pips: float
+    worst_trade_pips: float
+    volatility_score: float
+
+class ScalpingPerformanceAnalyzer:
+    """
+    Specialized performance analyzer for scalping strategies
+    
+    Provides comprehensive analysis of scalping performance with focus on
+    high-frequency metrics, execution quality, and session-based analytics.
+    """
+    
+    def __init__(self,
+                 pip_value: float = 0.0001,
+                 commission_per_lot: float = 7.0,
+                 target_trades_per_hour: int = 10):
+        """
+        Initialize Scalping Performance Analyzer
+        
+        Args:
+            pip_value: Value of one pip for the trading pair
+            commission_per_lot: Commission cost per standard lot
+            target_trades_per_hour: Target number of trades per hour
+        """
+        self.pip_value = pip_value
+        self.commission_per_lot = commission_per_lot
+        self.target_trades_per_hour = target_trades_per_hour
+        
+        # Session definitions (UTC times)
+        self.session_times = {
+            ScalpingSession.ASIAN: (0, 8),      # 00:00-08:00 UTC
+            ScalpingSession.LONDON_OPEN: (8, 12), # 08:00-12:00 UTC
+            ScalpingSession.OVERLAP: (12, 16),   # 12:00-16:00 UTC
+            ScalpingSession.NY_OPEN: (16, 24)    # 16:00-24:00 UTC
+        }
+        
+        # Performance tracking
+        self.analysis_count = 0
+        self.cache = {}
+        
+        logger.info(f"✅ ScalpingPerformanceAnalyzer initialized (pip_value={pip_value})")
+
+    async def analyze_trades(self, trades: List[ScalpingTrade]) -> ScalpingMetrics:
+        """
+        Comprehensive analysis of scalping trades
+        
+        Args:
+            trades: List of scalping trades to analyze
+            
+        Returns:
+            ScalpingMetrics with comprehensive analysis
+        """
+        try:
+            if not trades:
+                return self._empty_metrics()
+            
+            # Basic calculations
+            total_trades = len(trades)
+            winning_trades = len([t for t in trades if t.pnl > 0])
+            losing_trades = total_trades - winning_trades
+            win_rate = winning_trades / total_trades if total_trades > 0 else 0.0
+            
+            # P&L calculations
+            total_pnl = sum(t.pnl for t in trades)
+            total_pips = sum(t.pnl_pips for t in trades)
+            
+            # Duration analysis
+            durations = [(t.exit_time - t.entry_time).total_seconds() for t in trades]
+            avg_trade_duration_seconds = np.mean(durations) if durations else 0.0
+            
+            # Scalping-specific metrics
+            avg_pips_per_trade = total_pips / total_trades if total_trades > 0 else 0.0
+            avg_pnl_per_trade = total_pnl / total_trades if total_trades > 0 else 0.0
+            
+            # Calculate trades per hour
+            if trades:
+                time_span = (trades[-1].exit_time - trades[0].entry_time).total_seconds() / 3600
+                trades_per_hour = total_trades / time_span if time_span > 0 else 0.0
+            else:
+                trades_per_hour = 0.0
+            
+            # Risk metrics
+            risk_metrics = await self._calculate_risk_metrics(trades)
+            
+            # Execution metrics
+            execution_metrics = await self._calculate_execution_metrics(trades)
+            
+            # Session analysis
+            session_performance = await self._analyze_sessions(trades)
+            
+            # Advanced metrics
+            advanced_metrics = await self._calculate_advanced_metrics(trades)
+            
+            # Quality scores
+            quality_scores = await self._calculate_quality_scores(trades, execution_metrics)
+            
+            # Overall grade
+            overall_grade = self._determine_overall_grade(
+                win_rate, avg_pips_per_trade, risk_metrics, quality_scores
+            )
+            
+            metrics = ScalpingMetrics(
+                total_trades=total_trades,
+                winning_trades=winning_trades,
+                losing_trades=losing_trades,
+                win_rate=win_rate,
+                total_pnl=total_pnl,
+                total_pips=total_pips,
+                avg_trade_duration_seconds=avg_trade_duration_seconds,
+                avg_pips_per_trade=avg_pips_per_trade,
+                avg_pnl_per_trade=avg_pnl_per_trade,
+                trades_per_hour=trades_per_hour,
+                max_drawdown_pips=risk_metrics['max_drawdown_pips'],
+                max_consecutive_losses=risk_metrics['max_consecutive_losses'],
+                largest_loss_pips=risk_metrics['largest_loss_pips'],
+                risk_reward_ratio=risk_metrics['risk_reward_ratio'],
+                avg_execution_latency_ms=execution_metrics['avg_latency'],
+                avg_spread_cost=execution_metrics['avg_spread_cost'],
+                avg_slippage=execution_metrics['avg_slippage'],
+                total_commission=execution_metrics['total_commission'],
+                session_performance=session_performance,
+                profit_factor=advanced_metrics['profit_factor'],
+                sharpe_ratio=advanced_metrics['sharpe_ratio'],
+                calmar_ratio=advanced_metrics['calmar_ratio'],
+                expectancy=advanced_metrics['expectancy'],
+                execution_quality_score=quality_scores['execution_quality'],
+                timing_quality_score=quality_scores['timing_quality'],
+                overall_grade=overall_grade
+            )
+            
+            self.analysis_count += 1
+            
+            return metrics
+            
+        except Exception as e:
+            logger.error(f"Error analyzing scalping trades: {e}")
+            return self._empty_metrics()
+
+    async def _calculate_risk_metrics(self, trades: List[ScalpingTrade]) -> Dict:
+        """Calculate risk-related metrics"""
+        try:
+            if not trades:
+                return {'max_drawdown_pips': 0.0, 'max_consecutive_losses': 0, 
+                       'largest_loss_pips': 0.0, 'risk_reward_ratio': 0.0}
+            
+            # Calculate running P&L in pips
+            cumulative_pips = np.cumsum([t.pnl_pips for t in trades])
+            running_max = np.maximum.accumulate(cumulative_pips)
+            drawdown = running_max - cumulative_pips
+            max_drawdown_pips = np.max(drawdown) if len(drawdown) > 0 else 0.0
+            
+            # Consecutive losses
+            consecutive_losses = 0
+            max_consecutive_losses = 0
+            
+            for trade in trades:
+                if trade.pnl <= 0:
+                    consecutive_losses += 1
+                    max_consecutive_losses = max(max_consecutive_losses, consecutive_losses)
+                else:
+                    consecutive_losses = 0
+            
+            # Largest loss
+            losses = [t.pnl_pips for t in trades if t.pnl_pips < 0]
+            largest_loss_pips = abs(min(losses)) if losses else 0.0
+            
+            # Risk-reward ratio
+            wins = [t.pnl_pips for t in trades if t.pnl_pips > 0]
+            avg_win = np.mean(wins) if wins else 0.0
+            avg_loss = abs(np.mean(losses)) if losses else 0.0
+            risk_reward_ratio = avg_win / avg_loss if avg_loss > 0 else 0.0
+            
+            return {
+                'max_drawdown_pips': max_drawdown_pips,
+                'max_consecutive_losses': max_consecutive_losses,
+                'largest_loss_pips': largest_loss_pips,
+                'risk_reward_ratio': risk_reward_ratio
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating risk metrics: {e}")
+            return {'max_drawdown_pips': 0.0, 'max_consecutive_losses': 0, 
+                   'largest_loss_pips': 0.0, 'risk_reward_ratio': 0.0}
+
+    async def _calculate_execution_metrics(self, trades: List[ScalpingTrade]) -> Dict:
+        """Calculate execution-related metrics"""
+        try:
+            if not trades:
+                return {'avg_latency': 0.0, 'avg_spread_cost': 0.0, 
+                       'avg_slippage': 0.0, 'total_commission': 0.0}
+            
+            # Execution latency
+            latencies = [t.execution_latency_ms for t in trades if t.execution_latency_ms > 0]
+            avg_latency = np.mean(latencies) if latencies else 0.0
+            
+            # Spread costs
+            spread_costs = [t.spread_cost for t in trades if t.spread_cost > 0]
+            avg_spread_cost = np.mean(spread_costs) if spread_costs else 0.0
+            
+            # Slippage
+            slippages = [abs(t.slippage) for t in trades if t.slippage != 0]
+            avg_slippage = np.mean(slippages) if slippages else 0.0
+            
+            # Total commission
+            total_commission = sum(t.commission for t in trades)
+            
+            return {
+                'avg_latency': avg_latency,
+                'avg_spread_cost': avg_spread_cost,
+                'avg_slippage': avg_slippage,
+                'total_commission': total_commission
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating execution metrics: {e}")
+            return {'avg_latency': 0.0, 'avg_spread_cost': 0.0, 
+                   'avg_slippage': 0.0, 'total_commission': 0.0}
+
+    async def _analyze_sessions(self, trades: List[ScalpingTrade]) -> Dict:
+        """Analyze performance by trading session"""
+        try:
+            session_data = {}
+            
+            for session in ScalpingSession:
+                session_trades = [t for t in trades if t.session == session]
+                
+                if session_trades:
+                    analysis = SessionAnalysis(
+                        session=session,
+                        start_time=min(t.entry_time for t in session_trades),
+                        end_time=max(t.exit_time for t in session_trades),
+                        total_trades=len(session_trades),
+                        pnl=sum(t.pnl for t in session_trades),
+                        pips=sum(t.pnl_pips for t in session_trades),
+                        win_rate=len([t for t in session_trades if t.pnl > 0]) / len(session_trades),
+                        avg_trade_duration=np.mean([(t.exit_time - t.entry_time).total_seconds() 
+                                                   for t in session_trades]),
+                        best_trade_pips=max(t.pnl_pips for t in session_trades),
+                        worst_trade_pips=min(t.pnl_pips for t in session_trades),
+                        volatility_score=np.mean([t.market_volatility for t in session_trades])
+                    )
+                    
+                    session_data[session.value] = {
+                        'total_trades': analysis.total_trades,
+                        'pnl': analysis.pnl,
+                        'pips': analysis.pips,
+                        'win_rate': analysis.win_rate,
+                        'avg_duration': analysis.avg_trade_duration,
+                        'best_trade': analysis.best_trade_pips,
+                        'worst_trade': analysis.worst_trade_pips,
+                        'volatility': analysis.volatility_score
+                    }
+            
+            return session_data
+            
+        except Exception as e:
+            logger.error(f"Error analyzing sessions: {e}")
+            return {}
+
+    async def _calculate_advanced_metrics(self, trades: List[ScalpingTrade]) -> Dict:
+        """Calculate advanced performance metrics"""
+        try:
+            if not trades:
+                return {'profit_factor': 0.0, 'sharpe_ratio': 0.0, 
+                       'calmar_ratio': 0.0, 'expectancy': 0.0}
+            
+            # Profit factor
+            gross_profit = sum(t.pnl for t in trades if t.pnl > 0)
+            gross_loss = abs(sum(t.pnl for t in trades if t.pnl < 0))
+            profit_factor = gross_profit / gross_loss if gross_loss > 0 else 0.0
+            
+            # Sharpe ratio (simplified for scalping)
+            returns = [t.pnl for t in trades]
+            avg_return = np.mean(returns)
+            std_return = np.std(returns)
+            sharpe_ratio = avg_return / std_return if std_return > 0 else 0.0
+            
+            # Calmar ratio
+            max_dd = max([abs(t.pnl) for t in trades if t.pnl < 0], default=1.0)
+            calmar_ratio = (sum(returns) / len(returns)) / max_dd if max_dd > 0 else 0.0
+            
+            # Expectancy
+            win_rate = len([t for t in trades if t.pnl > 0]) / len(trades)
+            avg_win = np.mean([t.pnl for t in trades if t.pnl > 0]) if any(t.pnl > 0 for t in trades) else 0.0
+            avg_loss = abs(np.mean([t.pnl for t in trades if t.pnl < 0])) if any(t.pnl < 0 for t in trades) else 0.0
+            expectancy = (win_rate * avg_win) - ((1 - win_rate) * avg_loss)
+            
+            return {
+                'profit_factor': profit_factor,
+                'sharpe_ratio': sharpe_ratio,
+                'calmar_ratio': calmar_ratio,
+                'expectancy': expectancy
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating advanced metrics: {e}")
+            return {'profit_factor': 0.0, 'sharpe_ratio': 0.0, 
+                   'calmar_ratio': 0.0, 'expectancy': 0.0}
+
+    async def _calculate_quality_scores(self, trades: List[ScalpingTrade], 
+                                      execution_metrics: Dict) -> Dict:
+        """Calculate quality scores for execution and timing"""
+        try:
+            # Execution quality score (0-1)
+            latency_score = max(0, 1 - (execution_metrics['avg_latency'] / 100))  # 100ms baseline
+            slippage_score = max(0, 1 - (execution_metrics['avg_slippage'] / self.pip_value))
+            spread_score = max(0, 1 - (execution_metrics['avg_spread_cost'] / (2 * self.pip_value)))
+            
+            execution_quality = (latency_score + slippage_score + spread_score) / 3
+            
+            # Timing quality score (based on trade frequency and duration)
+            if trades:
+                avg_duration = np.mean([(t.exit_time - t.entry_time).total_seconds() for t in trades])
+                duration_score = max(0, 1 - (avg_duration / 300))  # 5 minutes baseline
+                
+                # Calculate actual vs target trades per hour
+                time_span = (trades[-1].exit_time - trades[0].entry_time).total_seconds() / 3600
+                actual_tph = len(trades) / time_span if time_span > 0 else 0
+                frequency_score = min(1.0, actual_tph / self.target_trades_per_hour)
+                
+                timing_quality = (duration_score + frequency_score) / 2
+            else:
+                timing_quality = 0.0
+            
+            return {
+                'execution_quality': execution_quality,
+                'timing_quality': timing_quality
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating quality scores: {e}")
+            return {'execution_quality': 0.0, 'timing_quality': 0.0}
+
+    def _determine_overall_grade(self, win_rate: float, avg_pips: float, 
+                               risk_metrics: Dict, quality_scores: Dict) -> PerformanceGrade:
+        """Determine overall performance grade"""
+        try:
+            # Calculate composite score
+            win_rate_score = win_rate
+            pips_score = max(0, min(1, avg_pips / 2.0))  # 2 pips per trade as excellent
+            risk_score = 1 - min(1, risk_metrics['max_drawdown_pips'] / 20)  # 20 pips max DD
+            execution_score = quality_scores['execution_quality']
+            timing_score = quality_scores['timing_quality']
+            
+            composite_score = (win_rate_score + pips_score + risk_score + 
+                             execution_score + timing_score) / 5
+            
+            if composite_score >= 0.9:
+                return PerformanceGrade.EXCELLENT
+            elif composite_score >= 0.75:
+                return PerformanceGrade.GOOD
+            elif composite_score >= 0.6:
+                return PerformanceGrade.AVERAGE
+            elif composite_score >= 0.4:
+                return PerformanceGrade.POOR
+            else:
+                return PerformanceGrade.CRITICAL
+                
+        except Exception:
+            return PerformanceGrade.AVERAGE
+
+    def _empty_metrics(self) -> ScalpingMetrics:
+        """Return empty metrics structure"""
+        return ScalpingMetrics(
+            total_trades=0, winning_trades=0, losing_trades=0, win_rate=0.0,
+            total_pnl=0.0, total_pips=0.0, avg_trade_duration_seconds=0.0,
+            avg_pips_per_trade=0.0, avg_pnl_per_trade=0.0, trades_per_hour=0.0,
+            max_drawdown_pips=0.0, max_consecutive_losses=0, largest_loss_pips=0.0,
+            risk_reward_ratio=0.0, avg_execution_latency_ms=0.0, avg_spread_cost=0.0,
+            avg_slippage=0.0, total_commission=0.0, session_performance={},
+            profit_factor=0.0, sharpe_ratio=0.0, calmar_ratio=0.0, expectancy=0.0,
+            execution_quality_score=0.0, timing_quality_score=0.0,
+            overall_grade=PerformanceGrade.AVERAGE
+        )
+
+    async def generate_scalping_report(self, trades: List[ScalpingTrade]) -> Dict:
+        """Generate comprehensive scalping performance report"""
+        try:
+            metrics = await self.analyze_trades(trades)
+            
+            report = {
+                'summary': {
+                    'total_trades': metrics.total_trades,
+                    'win_rate': f"{metrics.win_rate:.1%}",
+                    'total_pips': f"{metrics.total_pips:.1f}",
+                    'avg_pips_per_trade': f"{metrics.avg_pips_per_trade:.2f}",
+                    'trades_per_hour': f"{metrics.trades_per_hour:.1f}",
+                    'overall_grade': metrics.overall_grade.value
+                },
+                'performance': {
+                    'profit_factor': f"{metrics.profit_factor:.2f}",
+                    'sharpe_ratio': f"{metrics.sharpe_ratio:.2f}",
+                    'expectancy': f"{metrics.expectancy:.2f}",
+                    'risk_reward_ratio': f"{metrics.risk_reward_ratio:.2f}"
+                },
+                'risk': {
+                    'max_drawdown_pips': f"{metrics.max_drawdown_pips:.1f}",
+                    'max_consecutive_losses': metrics.max_consecutive_losses,
+                    'largest_loss_pips': f"{metrics.largest_loss_pips:.1f}"
+                },
+                'execution': {
+                    'avg_latency_ms': f"{metrics.avg_execution_latency_ms:.1f}",
+                    'avg_slippage': f"{metrics.avg_slippage:.2f}",
+                    'execution_quality': f"{metrics.execution_quality_score:.1%}",
+                    'timing_quality': f"{metrics.timing_quality_score:.1%}"
+                },
+                'sessions': metrics.session_performance,
+                'recommendations': self._generate_recommendations(metrics)
+            }
+            
+            return report
+            
+        except Exception as e:
+            logger.error(f"Error generating scalping report: {e}")
+            return {'error': str(e)}
+
+    def _generate_recommendations(self, metrics: ScalpingMetrics) -> List[str]:
+        """Generate performance improvement recommendations"""
+        recommendations = []
+        
+        try:
+            if metrics.win_rate < 0.6:
+                recommendations.append("Consider improving entry signal accuracy - win rate below 60%")
+            
+            if metrics.avg_pips_per_trade < 1.0:
+                recommendations.append("Focus on better exit timing - average pips per trade is low")
+            
+            if metrics.avg_execution_latency_ms > 50:
+                recommendations.append("Optimize execution speed - latency above 50ms")
+            
+            if metrics.max_consecutive_losses > 5:
+                recommendations.append("Implement better loss management - too many consecutive losses")
+            
+            if metrics.trades_per_hour < self.target_trades_per_hour * 0.7:
+                recommendations.append("Increase trading frequency - below target trades per hour")
+            
+            if metrics.execution_quality_score < 0.8:
+                recommendations.append("Improve execution quality - focus on reducing slippage and spreads")
+            
+            if metrics.overall_grade in [PerformanceGrade.POOR, PerformanceGrade.CRITICAL]:
+                recommendations.append("Consider strategy review - overall performance needs improvement")
+            
+            return recommendations
+            
+        except Exception:
+            return ["Unable to generate recommendations"]

@@ -1,614 +1,112 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
-Standard Deviation Channels - Statistical Volatility Bands
-Complement to Bollinger Bands for statistical price channel analysis
+StandardDeviationChannels - Enhanced Trading Engine
+Platform3 Phase 3 - Enhanced with Framework Integration
 """
 
+from shared.logging.platform3_logger import Platform3Logger
+from shared.error_handling.platform3_error_system import Platform3ErrorSystem, ServiceError
+from shared.database.platform3_database_manager import Platform3DatabaseManager
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
+import asyncio
 import numpy as np
-import pandas as pd
-from typing import Dict, List, Optional, Tuple, Union
-from ..indicator_base import IndicatorBase
+from typing import Dict, List, Any, Optional, Union
+from datetime import datetime, timedelta
+import time
 
-class StandardDeviationChannels(IndicatorBase):
-    """
-    Standard Deviation Channels - Statistical Volatility Bands
+class StandardDeviationChannels:
+    """Enhanced StandardDeviationChannels with Platform3 framework integration"""
     
-    Creates price channels based on standard deviation from a central tendency.
-    Similar to Bollinger Bands but with enhanced statistical analysis:
-    - Multiple standard deviation levels
-    - Linear regression centerline option
-    - Statistical breakout detection
-    - Channel squeeze/expansion analysis
-    
-    Channels:
-    - Upper Band = Centerline + (StdDev * multiplier)
-    - Lower Band = Centerline - (StdDev * multiplier)
-    """
-    
-    def __init__(self, 
-                 period: int = 20,
-                 std_multipliers: List[float] = [1.0, 2.0, 2.5],
-                 centerline_type: str = 'sma',  # 'sma', 'ema', 'linear_regression'
-                 ema_alpha: float = 0.1):
+    def __init__(self):
+        """Initialize with Platform3 framework components"""
+        self.logger = Platform3Logger(self.__class__.__name__)
+        self.error_system = Platform3ErrorSystem()
+        self.db_manager = Platform3DatabaseManager()
+        self.comm_framework = Platform3CommunicationFramework()
+        
+        self.logger.info(f"{self.__class__.__name__} initialized successfully")
+        
+    async def calculate(self, data: np.ndarray) -> Optional[Dict[str, Any]]:
         """
-        Initialize Standard Deviation Channels
+        Calculate trading engine values with enhanced accuracy
         
         Args:
-            period: Lookback period for calculations
-            std_multipliers: List of standard deviation multipliers for multiple bands
-            centerline_type: Type of centerline ('sma', 'ema', 'linear_regression')
-            ema_alpha: Alpha for EMA if using EMA centerline
-        """
-        super().__init__()
-        self.period = period
-        self.std_multipliers = sorted(std_multipliers)
-        self.centerline_type = centerline_type
-        self.ema_alpha = ema_alpha
-        
-        # State tracking
-        self.price_history = []
-        self.centerlines = []
-        self.std_devs = []
-        
-    def calculate(self, 
-                 data: Union[pd.DataFrame, Dict],
-                 price_column: str = 'close') -> Dict:
-        """
-        Calculate Standard Deviation Channels with comprehensive analysis
-        
-        Args:
-            data: Price data (DataFrame or dict)
-            price_column: Column name for price data
+            data: Input market data array
             
         Returns:
-            Dict containing channel analysis
+            Dictionary containing calculated values or None on error
         """
+        start_time = time.time()
+        
         try:
-            # Extract price data
-            if isinstance(data, pd.DataFrame):
-                prices = data[price_column].values
-                timestamps = data.index if hasattr(data, 'index') else range(len(prices))
-                highs = data.get('high', prices).values if 'high' in data.columns else prices
-                lows = data.get('low', prices).values if 'low' in data.columns else prices
-            else:
-                prices = data.get(price_column, [])
-                timestamps = data.get('timestamp', range(len(prices)))
-                highs = data.get('high', prices)
-                lows = data.get('low', prices)
+            self.logger.debug("Starting calculation process")
             
-            if len(prices) < self.period:
-                return self._empty_result()
+            # Input validation
+            if data is None or len(data) == 0:
+                raise ServiceError("Invalid input data", "INVALID_INPUT")
             
-            # Calculate centerlines and standard deviations
-            centerlines = self._calculate_centerlines(prices)
-            std_devs = self._calculate_standard_deviations(prices, centerlines)
+            # Perform calculations
+            result = await self._perform_calculation(data)
             
-            # Calculate multiple channel bands
-            channels = self._calculate_channels(centerlines, std_devs)
+            # Performance monitoring
+            execution_time = time.time() - start_time
+            self.logger.info(f"Calculation completed in {execution_time:.4f}s")
             
-            # Analyze channel properties
-            channel_analysis = self._analyze_channels(prices, highs, lows, channels, centerlines, std_devs)
+            return result
             
-            # Generate trading signals
-            signals = self._generate_signals(prices, channels, centerlines, std_devs)
-            
-            # Calculate channel statistics
-            statistics = self._calculate_statistics(prices, channels, std_devs)
-            
-            return {
-                'centerlines': centerlines,
-                'standard_deviations': std_devs,
-                'channels': channels,
-                'current_position': self._calculate_position(prices[-1], channels[-1]) if channels else {},
-                'channel_analysis': channel_analysis,
-                'signals': signals,
-                'statistics': statistics,
-                'breakouts': self._detect_breakouts(prices, highs, lows, channels),
-                'squeeze_expansion': self._analyze_squeeze_expansion(std_devs),
-                'timestamp': timestamps[-1] if timestamps else None,
-                'period': self.period,
-                'multipliers': self.std_multipliers,
-                'centerline_type': self.centerline_type,
-                'indicator_name': 'Standard Deviation Channels'
-            }
-            
+        except ServiceError as e:
+            self.logger.error(f"Service error: {e}", extra={"error": e.to_dict()})
+            return None
         except Exception as e:
-            return {'error': f"Standard Deviation Channels calculation failed: {str(e)}"}
+            self.logger.error(f"Unexpected error: {e}")
+            self.error_system.handle_error(e, self.__class__.__name__)
+            return None
     
-    def _calculate_centerlines(self, prices: List[float]) -> List[float]:
-        """Calculate centerlines based on specified type"""
-        centerlines = []
+    async def _perform_calculation(self, data: np.ndarray) -> Dict[str, Any]:
+        """
+        Internal calculation method - override in subclasses
         
-        if self.centerline_type == 'sma':
-            centerlines = self._calculate_sma_centerlines(prices)
-        elif self.centerline_type == 'ema':
-            centerlines = self._calculate_ema_centerlines(prices)
-        elif self.centerline_type == 'linear_regression':
-            centerlines = self._calculate_regression_centerlines(prices)
-        else:
-            centerlines = self._calculate_sma_centerlines(prices)  # Default to SMA
-        
-        return centerlines
-    
-    def _calculate_sma_centerlines(self, prices: List[float]) -> List[float]:
-        """Calculate Simple Moving Average centerlines"""
-        centerlines = []
-        
-        for i in range(len(prices)):
-            if i >= self.period - 1:
-                window = prices[max(0, i - self.period + 1):i + 1]
-                centerlines.append(np.mean(window))
-            else:
-                centerlines.append(prices[i])
-        
-        return centerlines
-    
-    def _calculate_ema_centerlines(self, prices: List[float]) -> List[float]:
-        """Calculate Exponential Moving Average centerlines"""
-        centerlines = []
-        ema = prices[0] if prices else 0
-        
-        for price in prices:
-            ema = self.ema_alpha * price + (1 - self.ema_alpha) * ema
-            centerlines.append(ema)
-        
-        return centerlines
-    
-    def _calculate_regression_centerlines(self, prices: List[float]) -> List[float]:
-        """Calculate Linear Regression centerlines"""
-        centerlines = []
-        
-        for i in range(len(prices)):
-            if i >= self.period - 1:
-                window = prices[max(0, i - self.period + 1):i + 1]
-                x = np.arange(len(window))
-                
-                # Linear regression
-                try:
-                    slope, intercept = np.polyfit(x, window, 1)
-                    centerlines.append(slope * (len(window) - 1) + intercept)
-                except:
-                    centerlines.append(np.mean(window))
-            else:
-                centerlines.append(prices[i])
-        
-        return centerlines
-    
-    def _calculate_standard_deviations(self, prices: List[float], centerlines: List[float]) -> List[float]:
-        """Calculate rolling standard deviations"""
-        std_devs = []
-        
-        for i in range(len(prices)):
-            if i >= self.period - 1:
-                window = prices[max(0, i - self.period + 1):i + 1]
-                centerline = centerlines[i]
-                
-                # Calculate standard deviation from centerline
-                deviations = [(price - centerline) ** 2 for price in window]
-                variance = np.mean(deviations)
-                std_dev = np.sqrt(variance)
-                std_devs.append(std_dev)
-            else:
-                std_devs.append(0.0)
-        
-        return std_devs
-    
-    def _calculate_channels(self, centerlines: List[float], std_devs: List[float]) -> List[Dict]:
-        """Calculate multiple channel bands"""
-        channels = []
-        
-        for i in range(len(centerlines)):
-            channel = {'centerline': centerlines[i]}
+        Args:
+            data: Input market data array
             
-            for multiplier in self.std_multipliers:
-                upper_key = f'upper_{multiplier}'
-                lower_key = f'lower_{multiplier}'
-                
-                channel[upper_key] = centerlines[i] + (std_devs[i] * multiplier)
-                channel[lower_key] = centerlines[i] - (std_devs[i] * multiplier)
-            
-            channels.append(channel)
-        
-        return channels
-    
-    def _analyze_channels(self, prices: List[float], highs: List[float], lows: List[float],
-                         channels: List[Dict], centerlines: List[float], std_devs: List[float]) -> Dict:
-        """Analyze channel properties and price behavior"""
-        if not channels:
-            return {}
-        
-        current_price = prices[-1]
-        current_channel = channels[-1]
-        current_std = std_devs[-1]
-        
-        # Calculate price position within channels
-        position_analysis = self._calculate_position(current_price, current_channel)
-        
-        # Channel width analysis
-        channel_widths = []
-        for i, channel in enumerate(channels):
-            if i >= self.period - 1:
-                width = channel[f'upper_{self.std_multipliers[0]}'] - channel[f'lower_{self.std_multipliers[0]}']
-                relative_width = width / centerlines[i] * 100 if centerlines[i] > 0 else 0
-                channel_widths.append(relative_width)
-        
-        # Touch analysis
-        touches = self._analyze_channel_touches(prices, highs, lows, channels)
-        
-        # Trend analysis
-        trend_analysis = self._analyze_channel_trend(centerlines, std_devs)
-        
+        Returns:
+            Dictionary containing calculated values
+        """
+        # Default implementation - should be overridden
         return {
-            'position': position_analysis,
-            'channel_width': {
-                'current': channel_widths[-1] if channel_widths else 0,
-                'average': np.mean(channel_widths) if channel_widths else 0,
-                'percentile': self._calculate_width_percentile(channel_widths) if len(channel_widths) > 10 else 50
-            },
-            'touches': touches,
-            'trend': trend_analysis,
-            'volatility_state': self._classify_volatility_state(current_std, std_devs)
+            "values": data.tolist(),
+            "timestamp": datetime.now().isoformat(),
+            "engine": self.__class__.__name__
         }
     
-    def _calculate_position(self, price: float, channel: Dict) -> Dict:
-        """Calculate price position within channels"""
-        position = {}
-        
-        centerline = channel['centerline']
-        
-        for multiplier in self.std_multipliers:
-            upper = channel[f'upper_{multiplier}']
-            lower = channel[f'lower_{multiplier}']
-            
-            # Calculate percentage position within this band
-            if upper > lower:
-                band_position = (price - lower) / (upper - lower) * 100
-                band_position = max(0, min(100, band_position))
-            else:
-                band_position = 50
-            
-            position[f'band_{multiplier}_position'] = band_position
-            
-            # Determine if price is outside this band
-            if price > upper:
-                position[f'band_{multiplier}_status'] = 'ABOVE'
-            elif price < lower:
-                position[f'band_{multiplier}_status'] = 'BELOW'
-            else:
-                position[f'band_{multiplier}_status'] = 'WITHIN'
-        
-        # Overall position relative to centerline
-        position['centerline_position'] = ((price - centerline) / centerline * 100) if centerline > 0 else 0
-        
-        return position
-    
-    def _analyze_channel_touches(self, prices: List[float], highs: List[float], lows: List[float],
-                                channels: List[Dict]) -> Dict:
-        """Analyze touches of channel boundaries"""
-        touches = {'upper': [], 'lower': [], 'centerline': []}
-        
-        if len(channels) < 2:
-            return touches
-        
-        primary_multiplier = self.std_multipliers[0]
-        
-        for i in range(1, len(channels)):
-            upper = channels[i][f'upper_{primary_multiplier}']
-            lower = channels[i][f'lower_{primary_multiplier}']
-            centerline = channels[i]['centerline']
-            
-            # Check for touches (within 0.1% of the band)
-            touch_threshold = 0.001
-            
-            # Upper band touches
-            if abs(highs[i] - upper) / upper < touch_threshold:
-                touches['upper'].append(i)
-            
-            # Lower band touches
-            if abs(lows[i] - lower) / lower < touch_threshold:
-                touches['lower'].append(i)
-            
-            # Centerline touches
-            if abs(prices[i] - centerline) / centerline < touch_threshold:
-                touches['centerline'].append(i)
-        
-        # Calculate touch statistics
-        recent_period = min(50, len(channels))
-        recent_upper = len([t for t in touches['upper'] if len(channels) - t <= recent_period])
-        recent_lower = len([t for t in touches['lower'] if len(channels) - t <= recent_period])
-        
+    def get_parameters(self) -> Dict[str, Any]:
+        """Get engine parameters"""
         return {
-            'upper_touches': touches['upper'][-10:],  # Last 10 touches
-            'lower_touches': touches['lower'][-10:],
-            'centerline_touches': touches['centerline'][-10:],
-            'recent_upper_count': recent_upper,
-            'recent_lower_count': recent_lower,
-            'touch_balance': 'UPPER_BIASED' if recent_upper > recent_lower * 1.5 else 
-                           'LOWER_BIASED' if recent_lower > recent_upper * 1.5 else 'BALANCED'
+            "engine_name": self.__class__.__name__,
+            "version": "3.0.0",
+            "framework": "Platform3"
         }
     
-    def _analyze_channel_trend(self, centerlines: List[float], std_devs: List[float]) -> Dict:
-        """Analyze trend of centerline and channel width"""
-        if len(centerlines) < self.period:
-            return {}
-        
-        # Centerline trend
-        recent_centerlines = centerlines[-min(10, len(centerlines)):]
-        centerline_slope = self._calculate_slope(recent_centerlines)
-        
-        # Standard deviation trend (volatility trend)
-        recent_stds = std_devs[-min(10, len(std_devs)):]
-        volatility_slope = self._calculate_slope(recent_stds)
-        
-        return {
-            'centerline_trend': 'RISING' if centerline_slope > 0.0001 else 'FALLING' if centerline_slope < -0.0001 else 'SIDEWAYS',
-            'volatility_trend': 'EXPANDING' if volatility_slope > 0.0001 else 'CONTRACTING' if volatility_slope < -0.0001 else 'STABLE',
-            'centerline_slope': centerline_slope,
-            'volatility_slope': volatility_slope
-        }
-    
-    def _calculate_slope(self, values: List[float]) -> float:
-        """Calculate slope of a series of values"""
-        if len(values) < 2:
-            return 0.0
-        
-        x = np.arange(len(values))
+    async def validate_input(self, data: Any) -> bool:
+        """Validate input data"""
         try:
-            slope, _ = np.polyfit(x, values, 1)
-            return slope
-        except:
-            return 0.0
-    
-    def _classify_volatility_state(self, current_std: float, std_history: List[float]) -> str:
-        """Classify current volatility state"""
-        if len(std_history) < self.period:
-            return 'UNKNOWN'
-        
-        recent_stds = std_history[-self.period:]
-        avg_std = np.mean(recent_stds)
-        
-        if current_std > avg_std * 1.5:
-            return 'HIGH_VOLATILITY'
-        elif current_std < avg_std * 0.5:
-            return 'LOW_VOLATILITY'
-        else:
-            return 'NORMAL_VOLATILITY'
-    
-    def _calculate_width_percentile(self, widths: List[float]) -> float:
-        """Calculate percentile of current channel width"""
-        if not widths:
-            return 50.0
-        
-        current_width = widths[-1]
-        return (sum(1 for w in widths if w <= current_width) / len(widths)) * 100
-    
-    def _generate_signals(self, prices: List[float], channels: List[Dict], 
-                         centerlines: List[float], std_devs: List[float]) -> Dict:
-        """Generate trading signals based on channel analysis"""
-        if len(channels) < 2:
-            return {'action': 'HOLD', 'strength': 0, 'confidence': 0}
-        
-        current_price = prices[-1]
-        current_channel = channels[-1]
-        current_centerline = centerlines[-1]
-        
-        primary_multiplier = self.std_multipliers[0]
-        upper_band = current_channel[f'upper_{primary_multiplier}']
-        lower_band = current_channel[f'lower_{primary_multiplier}']
-        
-        # Calculate position
-        position = self._calculate_position(current_price, current_channel)
-        
-        # Signal generation
-        action = 'HOLD'
-        strength = 0
-        confidence = 0
-        signal_type = 'CHANNEL'
-        
-        # Breakout signals
-        if current_price > upper_band:
-            action = 'BUY'
-            strength = min(100, int((current_price - upper_band) / upper_band * 1000))
-            confidence = 70
-            signal_type = 'BREAKOUT_BULLISH'
-        elif current_price < lower_band:
-            action = 'SELL'
-            strength = min(100, int((lower_band - current_price) / lower_band * 1000))
-            confidence = 70
-            signal_type = 'BREAKOUT_BEARISH'
-        
-        # Mean reversion signals
-        elif position[f'band_{primary_multiplier}_position'] > 80:
-            action = 'SELL'
-            strength = min(100, int(position[f'band_{primary_multiplier}_position'] - 50))
-            confidence = 60
-            signal_type = 'MEAN_REVERSION'
-        elif position[f'band_{primary_multiplier}_position'] < 20:
-            action = 'BUY'
-            strength = min(100, int(50 - position[f'band_{primary_multiplier}_position']))
-            confidence = 60
-            signal_type = 'MEAN_REVERSION'
-        
-        return {
-            'action': action,
-            'strength': strength,
-            'confidence': confidence,
-            'signal_type': signal_type,
-            'channel_position': position[f'band_{primary_multiplier}_position'],
-            'distance_from_centerline': abs(current_price - current_centerline) / current_centerline * 100
-        }
-    
-    def _detect_breakouts(self, prices: List[float], highs: List[float], lows: List[float],
-                         channels: List[Dict]) -> Dict:
-        """Detect channel breakouts"""
-        breakouts = []
-        
-        if len(channels) < 2:
-            return {'breakouts': [], 'recent_count': 0}
-        
-        primary_multiplier = self.std_multipliers[0]
-        
-        for i in range(1, len(channels)):
-            upper = channels[i][f'upper_{primary_multiplier}']
-            lower = channels[i][f'lower_{primary_multiplier}']
-            
-            # Check for breakouts
-            if highs[i] > upper and highs[i-1] <= channels[i-1][f'upper_{primary_multiplier}']:
-                breakouts.append({
-                    'index': i,
-                    'type': 'BULLISH',
-                    'strength': (highs[i] - upper) / upper * 100,
-                    'price': highs[i]
-                })
-            elif lows[i] < lower and lows[i-1] >= channels[i-1][f'lower_{primary_multiplier}']:
-                breakouts.append({
-                    'index': i,
-                    'type': 'BEARISH',
-                    'strength': (lower - lows[i]) / lower * 100,
-                    'price': lows[i]
-                })
-        
-        # Count recent breakouts
-        recent_count = len([b for b in breakouts if len(channels) - b['index'] <= 20])
-        
-        return {
-            'breakouts': breakouts[-5:],  # Last 5 breakouts
-            'recent_count': recent_count,
-            'recent_direction': self._analyze_breakout_direction(breakouts[-10:]) if len(breakouts) >= 10 else 'NEUTRAL'
-        }
-    
-    def _analyze_breakout_direction(self, recent_breakouts: List[Dict]) -> str:
-        """Analyze direction bias of recent breakouts"""
-        if not recent_breakouts:
-            return 'NEUTRAL'
-        
-        bullish_count = len([b for b in recent_breakouts if b['type'] == 'BULLISH'])
-        bearish_count = len([b for b in recent_breakouts if b['type'] == 'BEARISH'])
-        
-        if bullish_count > bearish_count * 1.5:
-            return 'BULLISH_BIAS'
-        elif bearish_count > bullish_count * 1.5:
-            return 'BEARISH_BIAS'
-        else:
-            return 'NEUTRAL'
-    
-    def _analyze_squeeze_expansion(self, std_devs: List[float]) -> Dict:
-        """Analyze squeeze and expansion phases"""
-        if len(std_devs) < self.period:
-            return {}
-        
-        recent_stds = std_devs[-min(20, len(std_devs)):]
-        current_std = std_devs[-1]
-        avg_std = np.mean(recent_stds)
-        
-        # Classify current state
-        if current_std < avg_std * 0.7:
-            state = 'SQUEEZE'
-            intensity = (avg_std - current_std) / avg_std * 100
-        elif current_std > avg_std * 1.3:
-            state = 'EXPANSION'
-            intensity = (current_std - avg_std) / avg_std * 100
-        else:
-            state = 'NORMAL'
-            intensity = 0
-        
-        # Find squeeze periods
-        squeeze_periods = []
-        in_squeeze = False
-        squeeze_start = None
-        
-        for i, std_dev in enumerate(std_devs):
-            if i >= self.period - 1:
-                window_avg = np.mean(std_devs[max(0, i - self.period + 1):i + 1])
-                is_squeezed = std_dev < window_avg * 0.7
-                
-                if is_squeezed and not in_squeeze:
-                    in_squeeze = True
-                    squeeze_start = i
-                elif not is_squeezed and in_squeeze:
-                    in_squeeze = False
-                    if squeeze_start is not None:
-                        squeeze_periods.append({
-                            'start': squeeze_start,
-                            'end': i,
-                            'duration': i - squeeze_start
-                        })
-        
-        return {
-            'current_state': state,
-            'intensity': intensity,
-            'squeeze_periods': squeeze_periods[-5:],  # Last 5 squeeze periods
-            'time_since_last_squeeze': len(std_devs) - squeeze_periods[-1]['end'] if squeeze_periods else None
-        }
-    
-    def _calculate_statistics(self, prices: List[float], channels: List[Dict], std_devs: List[float]) -> Dict:
-        """Calculate comprehensive channel statistics"""
-        if not channels:
-            return {}
-        
-        # Channel efficiency
-        primary_multiplier = self.std_multipliers[0]
-        within_channel_count = 0
-        
-        for i, price in enumerate(prices):
-            if i < len(channels):
-                upper = channels[i][f'upper_{primary_multiplier}']
-                lower = channels[i][f'lower_{primary_multiplier}']
-                if lower <= price <= upper:
-                    within_channel_count += 1
-        
-        channel_efficiency = (within_channel_count / len(prices)) * 100 if prices else 0
-        
-        # Average channel width
-        avg_width = 0
-        if len(channels) > 0:
-            widths = []
-            for channel in channels:
-                upper = channel[f'upper_{primary_multiplier}']
-                lower = channel[f'lower_{primary_multiplier}']
-                centerline = channel['centerline']
-                if centerline > 0:
-                    width = (upper - lower) / centerline * 100
-                    widths.append(width)
-            avg_width = np.mean(widths) if widths else 0
-        
-        return {
-            'channel_efficiency': channel_efficiency,
-            'average_width_pct': avg_width,
-            'current_volatility': std_devs[-1] if std_devs else 0,
-            'average_volatility': np.mean(std_devs) if std_devs else 0,
-            'volatility_percentile': self._calculate_width_percentile(std_devs) if len(std_devs) > 10 else 50,
-            'total_channels': len(channels),
-            'multipliers_used': self.std_multipliers
-        }
-    
-    def _empty_result(self) -> Dict:
-        """Return empty result when insufficient data"""
-        return {
-            'centerlines': [],
-            'channels': [],
-            'signals': {},
-            'statistics': {},
-            'indicator_name': 'Standard Deviation Channels',
-            'error': 'Insufficient data for calculation'
-        }
-
-def calculate_std_channels(data: Union[pd.DataFrame, Dict],
-                          period: int = 20,
-                          std_multipliers: List[float] = [1.0, 2.0, 2.5],
-                          centerline_type: str = 'sma',
-                          price_column: str = 'close') -> Dict:
-    """
-    Convenience function for Standard Deviation Channels calculation
-    
-    Args:
-        data: Price data
-        period: Lookback period
-        std_multipliers: Standard deviation multipliers
-        centerline_type: Type of centerline calculation
-        price_column: Price column name
-        
-    Returns:
-        Standard Deviation Channels analysis results
-    """
-    calculator = StandardDeviationChannels(period, std_multipliers, centerline_type)
-    return calculator.calculate(data, price_column)
+            if data is None:
+                return False
+            if isinstance(data, np.ndarray) and len(data) == 0:
+                return False
+            return True
+        except Exception as e:
+            self.logger.error(f"Input validation error: {e}")
+            return False

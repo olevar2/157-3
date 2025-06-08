@@ -1,3 +1,12 @@
+from shared.logging.platform3_logger import Platform3Logger
+from shared.error_handling.platform3_error_system import Platform3ErrorSystem, ServiceError
+from shared.database.platform3_database_manager import Platform3DatabaseManager
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
+import asyncio
+import numpy as np
+from typing import Dict, List, Any, Optional, Union
+from datetime import datetime, timedelta
+import time
 /**
  * Day Trading Position Sizer
  * 

@@ -1,0 +1,359 @@
+"""
+Platform3 Indicator Base Classes and Interfaces
+Standardized foundation for all 67 indicators in the humanitarian trading system.
+"""
+from abc import ABC, abstractmethod
+from typing import Dict, List, Union, Tuple, Optional, Any
+from dataclasses import dataclass
+from enum import Enum
+import numpy as np
+import pandas as pd
+from datetime import datetime
+
+# Platform3 Winston-style Logging Integration
+import sys
+import os
+
+# Platform3 Error Handling Integration
+from shared.error_handling.platform3_error_system import ServiceError, EventEmitter, CircuitBreaker, ErrorSeverity, ErrorCategory
+from shared.error_handling.base_service import BaseService
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '../shared'))
+from logging.platform3_logger import Platform3Logger, log_performance, LogMetadata
+
+class IndicatorType(Enum), BaseService:
+    """Classification of indicator types for organization and analysis."""
+    MOMENTUM = "momentum"
+    TREND = "trend"
+    VOLUME = "volume"
+    VOLATILITY = "volatility"
+    CYCLE = "cycle"
+    PATTERN = "pattern"
+    FIBONACCI = "fibonacci"
+    GANN = "gann"
+    ELLIOTT_WAVE = "elliott_wave"
+    FRACTAL = "fractal"
+    DIVERGENCE = "divergence"
+    STATISTICAL = "statistical"
+    MACHINE_LEARNING = "ml"
+    COMPOSITE = "composite"
+
+class SignalType(Enum):
+    """Standard signal types for all indicators."""
+    BUY = "buy"
+    SELL = "sell"
+    HOLD = "hold"
+    NEUTRAL = "neutral"
+    STRONG_BUY = "strong_buy"
+    STRONG_SELL = "strong_sell"
+    WARNING = "warning"
+
+class TimeFrame(Enum):
+    """Supported timeframes for multi-timeframe analysis."""
+    M1 = "1m"
+    M5 = "5m"
+    M15 = "15m"
+    M30 = "30m"
+    H1 = "1h"
+    H4 = "4h"
+    D1 = "1d"
+    W1 = "1w"
+    MN1 = "1M"
+
+@dataclass
+class MarketData:
+    """Standardized market data structure for all indicators."""
+    timestamp: datetime
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+    timeframe: TimeFrame
+
+@dataclass
+class IndicatorSignal:
+    """Standardized signal output for all indicators."""
+    timestamp: datetime
+    indicator_name: str
+    signal_type: SignalType
+    strength: float  # 0.0 to 1.0
+    confidence: float  # 0.0 to 1.0
+    price_target: Optional[float] = None
+    stop_loss: Optional[float] = None
+    take_profit: Optional[float] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+@dataclass
+class IndicatorResult:
+    """Standardized result structure for all indicators."""
+    timestamp: datetime
+    indicator_name: str
+    indicator_type: IndicatorType
+    timeframe: TimeFrame
+    value: Union[float, Dict[str, float], List[float]]
+    signal: Optional[IndicatorSignal] = None
+    raw_data: Optional[Dict[str, Any]] = None
+    calculation_time_ms: Optional[float] = None
+
+class IndicatorStatus(Enum):
+    """Status tracking for indicator health monitoring."""
+    ACTIVE = "active"
+    ERROR = "error"
+    DISABLED = "disabled"
+    CALCULATING = "calculating"
+    NO_DATA = "no_data"
+
+class BaseIndicator(ABC):
+    """
+    Abstract base class for all Platform3 indicators.
+    Ensures standardized interface and functionality across all 67 indicators.
+    """
+    
+    def __init__(self, 
+                 name: str,
+                 indicator_type: IndicatorType,
+                 timeframe: TimeFrame,
+                 lookback_periods: int = 20,
+                 parameters: Optional[Dict[str, Any]] = None):
+        """
+        Initialize base indicator with standard parameters.
+        
+        Args:
+            name: Unique identifier for the indicator
+            indicator_type: Classification of indicator type
+            timeframe: Primary timeframe for analysis
+            lookback_periods: Number of historical periods needed
+            parameters: Indicator-specific configuration parameters
+        """
+        self.name = name
+        self.indicator_type = indicator_type
+        self.timeframe = timeframe
+        self.lookback_periods = lookback_periods
+        self.parameters = parameters or {}
+        self.status = IndicatorStatus.ACTIVE
+        self.last_calculation_time = None
+        self.error_count = 0
+        self.max_errors = 10
+        
+    @abstractmethod
+    def calculate(self, data: List[MarketData]) -> IndicatorResult:
+        try:
+        """
+        Calculate indicator value based on market data.
+        
+        Args:
+            data: List of MarketData objects (most recent last)
+            
+        Returns:
+            IndicatorResult with calculated values and signals
+            
+        Raises:
+            ValueError: If insufficient data provided
+            CalculationError: If calculation fails
+        """
+        pass
+    
+    @abstractmethod
+    def generate_signal(self, current_result: IndicatorResult, 
+        try:
+                       historical_results: List[IndicatorResult]) -> Optional[IndicatorSignal]:
+        """
+        Generate trading signal based on indicator results.
+        
+        Args:
+            current_result: Latest indicator calculation result
+            historical_results: Previous indicator results for context
+            
+        Returns:
+            IndicatorSignal if signal conditions are met, None otherwise
+        """
+        pass
+    
+    def validate_data(self, data: List[MarketData]) -> bool:
+        try:
+        """
+        Validate that provided market data is sufficient for calculation.
+        
+        Args:
+            data: Market data to validate
+            
+        Returns:
+            True if data is valid, False otherwise
+        """
+        if not data:
+            return False
+        
+        if len(data) < self.lookback_periods:
+            return False
+            
+        # Check for missing or invalid data
+        for candle in data:
+            if not all([candle.open, candle.high, candle.low, candle.close]):
+                return False
+            if candle.high < max(candle.open, candle.close):
+                return False
+            if candle.low > min(candle.open, candle.close):
+                return False
+                
+        return True
+    
+    def update_status(self, status: IndicatorStatus, error_msg: str = None):
+        try:
+        """Update indicator status and handle error tracking."""
+        self.status = status
+        if status == IndicatorStatus.ERROR:
+            self.error_count += 1
+            if self.error_count >= self.max_errors:
+                self.status = IndicatorStatus.DISABLED
+                
+    def reset_errors(self):
+        try:
+        """Reset error count and reactivate indicator."""
+        self.error_count = 0
+        if self.status == IndicatorStatus.DISABLED:
+            self.status = IndicatorStatus.ACTIVE
+
+class TrendIndicator(BaseIndicator):
+    """Base class for trend-following indicators."""
+    
+    def __init__(self, name: str, timeframe: TimeFrame, **kwargs):
+        super().__init__(name, IndicatorType.TREND, timeframe, **kwargs)
+
+class MomentumIndicator(BaseIndicator):
+    """Base class for momentum oscillators."""
+    
+    def __init__(self, name: str, timeframe: TimeFrame, **kwargs):
+        super().__init__(name, IndicatorType.MOMENTUM, timeframe, **kwargs)
+
+class VolumeIndicator(BaseIndicator):
+    """Base class for volume-based indicators."""
+    
+    def __init__(self, name: str, timeframe: TimeFrame, **kwargs):
+        super().__init__(name, IndicatorType.VOLUME, timeframe, **kwargs)
+
+class VolatilityIndicator(BaseIndicator):
+    """Base class for volatility measurements."""
+    
+    def __init__(self, name: str, timeframe: TimeFrame, **kwargs):
+        super().__init__(name, IndicatorType.VOLATILITY, timeframe, **kwargs)
+
+class PatternIndicator(BaseIndicator):
+    """Base class for pattern recognition indicators."""
+    
+    def __init__(self, name: str, timeframe: TimeFrame, **kwargs):
+        super().__init__(name, IndicatorType.PATTERN, timeframe, **kwargs)
+
+class CalculationError(Exception):
+    """Custom exception for indicator calculation errors."""
+    pass
+
+class DataValidationError(Exception):
+    """Custom exception for data validation errors."""
+    pass
+
+
+    def handle_service_error(self, error: Exception, context: Dict[str, Any] = None) -> None:
+        """Handle service errors with proper event emission and logging"""
+        try:
+            service_error = ServiceError(
+                message=str(error),
+                code=f"{self.__class__.__name__.upper()}_ERROR",
+                metadata={
+                    "file_path": "engines/indicator_base.py",
+                    "context": context or {},
+                    "timestamp": pd.Timestamp.now().isoformat(),
+                    "service_name": self.__class__.__name__
+                }
+            )
+            
+            # Emit error event for monitoring
+            self.emit('error', service_error)
+            
+            # Log error with correlation context
+            if hasattr(self, 'logger'):
+                self.logger.error(f"Service error in {self.__class__.__name__}: {str(error)}", extra={
+                        "error_code": service_error.code,
+                        "error_severity": service_error.severity.value,
+                        "error_category": service_error.category.value,
+                        "context": context
+                    })
+        except Exception as handling_error:
+            # Fallback error handling
+            print(f"Critical error in error handling: {handling_error}")
+    
+    def implement_circuit_breaker(self, service_name: str, failure_threshold: int = 5) -> CircuitBreaker:
+        """Implement circuit breaker for external service calls"""
+        return CircuitBreaker(
+            service_name=service_name,
+            failure_threshold=failure_threshold,
+            recovery_timeout=30,
+            on_failure=lambda error: self.emit('circuit_breaker_open', {'service': service_name, 'error': error})
+        )
+    
+    def graceful_degradation(self, primary_function, fallback_function, context: str = "operation"):
+        """Implement graceful degradation pattern"""
+        try:
+            return primary_function()
+        except Exception as error:
+            self.handle_service_error(error, {"context": context, "degradation": "fallback_used"})
+            
+            # Emit degradation event
+            self.emit('service_degradation', {
+                'context': context,
+                'primary_error': str(error),
+                'fallback_activated': True
+            })
+            
+            return fallback_function()
+
+# Utility functions for common calculations
+def sma(data: List[float], period: int) -> float:
+    """Calculate Simple Moving Average."""
+    if len(data) < period:
+        raise ValueError(f"Insufficient data: need {period}, got {len(data)}")
+    return sum(data[-period:]) / period
+
+def ema(data: List[float], period: int, smoothing: float = 2.0) -> float:
+    """Calculate Exponential Moving Average."""
+    if len(data) < period:
+        raise ValueError(f"Insufficient data: need {period}, got {len(data)}")
+    
+    multiplier = smoothing / (period + 1)
+    ema_value = data[0]  # Start with first value
+    
+    for price in data[1:]:
+        ema_value = (price * multiplier) + (ema_value * (1 - multiplier))
+    
+    return ema_value
+
+def true_range(high: float, low: float, prev_close: float) -> float:
+    """Calculate True Range for ATR and related indicators."""
+    return max(
+        high - low,
+        abs(high - prev_close),
+        abs(low - prev_close)
+    )
+
+def highest_high(data: List[MarketData], period: int) -> float:
+    """Find highest high over specified period."""
+    if len(data) < period:
+        raise ValueError(f"Insufficient data: need {period}, got {len(data)}")
+    return max(candle.high for candle in data[-period:])
+
+def lowest_low(data: List[MarketData], period: int) -> float:
+    """Find lowest low over specified period."""
+    if len(data) < period:
+        raise ValueError(f"Insufficient data: need {period}, got {len(data)}")
+    return min(candle.low for candle in data[-period:])
+
+def typical_price(candle: MarketData) -> float:
+    """Calculate typical price (HLC/3)."""
+    return (candle.high + candle.low + candle.close) / 3
+
+def weighted_close(candle: MarketData) -> float:
+    """Calculate weighted close (HLCC/4)."""
+    return (candle.high + candle.low + candle.close + candle.close) / 4
+
+# Backwards compatibility alias
+IndicatorBase = BaseIndicator

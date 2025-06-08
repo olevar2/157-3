@@ -1,510 +1,229 @@
 """
-Percentage Price Oscillator (PPO) - Momentum Indicator
-Shows the percentage difference between two moving averages.
-Similar to MACD but expressed as a percentage, making it easier to compare across different price levels.
+Percentage Price Oscillator (PPO)
+=================================
+
+PPO is similar to MACD but shows the percentage difference between two EMAs
+rather than the absolute difference, making it useful for comparing securities
+with different price levels.
+
+Author: Platform3 AI System
+Created: June 3, 2025
 """
 
-from typing import List, Dict, Any, Optional
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass
-from ..indicator_base import BaseIndicator, IndicatorResult, IndicatorSignal, SignalType, IndicatorType, MarketData
+from typing import Dict, Optional, Any
+from datetime import datetime
+
+# Fix import - use absolute import with fallback
+try:
+    from engines.indicator_base import IndicatorBase
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from indicator_base import IndicatorBase
 
 
-@dataclass
-class PPOConfig:
-    """Configuration for Percentage Price Oscillator"""
-    fast_period: int = 12
-    slow_period: int = 26
-    signal_period: int = 9
-    price_type: str = 'close'  # 'close', 'high', 'low', 'hl2', 'hlc3', 'ohlc4'
-    smoothing_factor: float = 2.0  # For EMA calculation
-    signal_threshold: float = 0.05  # Minimum percentage for signal generation
-
-
-class PercentagePriceOscillator(BaseIndicator):
+class PercentagePriceOscillator(IndicatorBase):
     """
-    Percentage Price Oscillator Implementation
+    Percentage Price Oscillator (PPO) indicator.
     
-    PPO = ((Fast EMA - Slow EMA) / Slow EMA) * 100
-    PPO Signal = EMA of PPO over signal period
-    PPO Histogram = PPO - PPO Signal
-    
-    The PPO normalizes the MACD by expressing it as a percentage,
-    making it useful for comparing securities with different price levels.
+    PPO shows the percentage difference between two exponential moving averages,
+    making it useful for comparing different securities or timeframes.
     """
     
-    def __init__(self, config: Optional[PPOConfig] = None):
-        super().__init__(IndicatorType.MOMENTUM)
-        self.config = config or PPOConfig()
-        self.ppo_values: List[float] = []
-        self.signal_values: List[float] = []
-        self.histogram_values: List[float] = []
-        self.fast_ema: List[float] = []
-        self.slow_ema: List[float] = []
+    def __init__(self, 
+                 fast_period: int = 12,
+                 slow_period: int = 26,
+                 signal_period: int = 9):
+        """
+        Initialize PPO indicator.
         
-    def calculate(self, data: List[MarketData]) -> IndicatorResult:
-        """Calculate Percentage Price Oscillator values"""
+        Args:
+            fast_period: Fast EMA period (typically 12)
+            slow_period: Slow EMA period (typically 26)
+            signal_period: Signal line EMA period (typically 9)
+        """
+        super().__init__()
+        
+        self.fast_period = fast_period
+        self.slow_period = slow_period
+        self.signal_period = signal_period
+        
+        # Validation
+        if fast_period <= 0 or slow_period <= 0 or signal_period <= 0:
+            raise ValueError("All periods must be positive")
+        if fast_period >= slow_period:
+            raise ValueError("Fast period must be less than slow period")
+    
+    def calculate(self, data: pd.DataFrame) -> Dict:
+        """
+        Calculate PPO values.
+        
+        Args:
+            data: DataFrame with 'close' column
+            
+        Returns:
+            Dictionary containing PPO values and signals
+        """
         try:
-            if len(data) < self.config.slow_period + self.config.signal_period:
-                return IndicatorResult(
-                    success=False,
-                    error=f"Insufficient data: need {self.config.slow_period + self.config.signal_period}, got {len(data)}"
-                )
+            # Validate input data
+            required_columns = ['close']
+            self._validate_data(data, required_columns)
             
-            # Extract prices
-            prices = self._extract_prices(data, self.config.price_type)
+            min_periods = max(self.slow_period, self.signal_period) + 10
+            if len(data) < min_periods:
+                raise ValueError(f"Insufficient data: need at least {min_periods} periods")
             
-            # Calculate EMAs
-            fast_ema = self._calculate_ema(prices, self.config.fast_period, self.config.smoothing_factor)
-            slow_ema = self._calculate_ema(prices, self.config.slow_period, self.config.smoothing_factor)
+            close = data['close'].values
             
-            # Calculate PPO values
-            ppo_values = []
-            for i in range(len(slow_ema)):
-                if i < len(fast_ema) and slow_ema[i] != 0:
-                    ppo = ((fast_ema[i] - slow_ema[i]) / slow_ema[i]) * 100
-                    ppo_values.append(ppo)
-                else:
-                    ppo_values.append(0.0)
-            
-            # Calculate PPO Signal (EMA of PPO)
-            signal_values = self._calculate_ema(ppo_values, self.config.signal_period, self.config.smoothing_factor)
-            
-            # Calculate PPO Histogram
-            histogram_values = []
-            for i in range(len(signal_values)):
-                if i < len(ppo_values):
-                    histogram = ppo_values[i] - signal_values[i]
-                    histogram_values.append(histogram)
-                else:
-                    histogram_values.append(0.0)
-            
-            # Store values for signal generation
-            self.ppo_values = ppo_values
-            self.signal_values = signal_values
-            self.histogram_values = histogram_values
-            self.fast_ema = fast_ema
-            self.slow_ema = slow_ema
+            # Calculate PPO
+            ppo, signal_line, histogram = self._calculate_ppo(close)
             
             # Generate signals
-            signals = self._generate_signals(data, ppo_values, signal_values, histogram_values)
+            signals = self._generate_signals(ppo, signal_line, histogram)
             
-            # Calculate momentum strength
-            momentum_strength = self._calculate_momentum_strength(ppo_values, histogram_values)
+            # Calculate additional metrics
+            metrics = self._calculate_metrics(ppo, signal_line, histogram)
             
-            return IndicatorResult(
-                success=True,
-                values={
-                    'ppo': ppo_values,
-                    'signal': signal_values,
-                    'histogram': histogram_values,
-                    'fast_ema': fast_ema,
-                    'slow_ema': slow_ema
-                },
-                signals=signals,
-                metadata={
-                    'fast_period': self.config.fast_period,
-                    'slow_period': self.config.slow_period,
-                    'signal_period': self.config.signal_period,
-                    'current_ppo': ppo_values[-1] if ppo_values else 0,
-                    'current_signal': signal_values[-1] if signal_values else 0,
-                    'current_histogram': histogram_values[-1] if histogram_values else 0,
-                    'momentum_strength': momentum_strength,
-                    'trend_direction': self._get_trend_direction(ppo_values, signal_values),
-                    'momentum_phase': self._get_momentum_phase(histogram_values)
-                }
-            )
+            return {
+                'ppo': ppo,
+                'signal_line': signal_line,
+                'histogram': histogram,
+                'signals': signals,
+                'metrics': metrics,
+                'interpretation': self._interpret_signals(ppo[-1], signal_line[-1], signals[-1])
+            }
             
         except Exception as e:
-            return IndicatorResult(
-                success=False,
-                error=f"PPO calculation failed: {str(e)}"
-            )
+            self.logger.error(f"Error calculating PPO: {e}")
+            raise
     
-    def _extract_prices(self, data: List[MarketData], price_type: str) -> List[float]:
-        """Extract prices based on specified type"""
-        if price_type == 'close':
-            return [candle.close for candle in data]
-        elif price_type == 'high':
-            return [candle.high for candle in data]
-        elif price_type == 'low':
-            return [candle.low for candle in data]
-        elif price_type == 'hl2':
-            return [(candle.high + candle.low) / 2 for candle in data]
-        elif price_type == 'hlc3':
-            return [(candle.high + candle.low + candle.close) / 3 for candle in data]
-        elif price_type == 'ohlc4':
-            return [(candle.open + candle.high + candle.low + candle.close) / 4 for candle in data]
-        else:
-            return [candle.close for candle in data]
+    def _calculate_ppo(self, close: np.ndarray) -> tuple:
+        """Calculate PPO, signal line, and histogram."""
+        # Calculate EMAs
+        fast_ema = self._ema(close, self.fast_period)
+        slow_ema = self._ema(close, self.slow_period)
+        
+        # Calculate PPO
+        ppo = np.full(len(close), np.nan)
+        for i in range(len(close)):
+            if not np.isnan(fast_ema[i]) and not np.isnan(slow_ema[i]) and slow_ema[i] != 0:
+                ppo[i] = ((fast_ema[i] - slow_ema[i]) / slow_ema[i]) * 100
+        
+        # Calculate signal line
+        signal_line = self._ema(ppo, self.signal_period)
+        
+        # Calculate histogram
+        histogram = ppo - signal_line
+        
+        return ppo, signal_line, histogram
     
-    def _calculate_ema(self, values: List[float], period: int, smoothing: float) -> List[float]:
-        """Calculate Exponential Moving Average"""
-        if not values or period <= 0:
-            return []
+    def _ema(self, data: np.ndarray, period: int) -> np.ndarray:
+        """Calculate Exponential Moving Average."""
+        alpha = 2 / (period + 1)
+        ema = np.full(len(data), np.nan)
         
-        ema_values = []
-        multiplier = smoothing / (period + 1)
+        # Initialize with first valid value
+        for i, val in enumerate(data):
+            if not np.isnan(val):
+                ema[i] = val
+                break
         
-        # First EMA value is SMA
-        if len(values) >= period:
-            sma = sum(values[:period]) / period
-            ema_values.append(sma)
+        # Calculate EMA
+        for i in range(1, len(data)):
+            if not np.isnan(data[i]) and not np.isnan(ema[i-1]):
+                ema[i] = alpha * data[i] + (1 - alpha) * ema[i-1]
+        
+        return ema
+    
+    def _generate_signals(self, ppo: np.ndarray, signal_line: np.ndarray, histogram: np.ndarray) -> np.ndarray:
+        """Generate trading signals based on PPO."""
+        signals = np.zeros(len(ppo))
+        
+        for i in range(1, len(ppo)):
+            if (np.isnan(ppo[i]) or np.isnan(signal_line[i]) or 
+                np.isnan(ppo[i-1]) or np.isnan(signal_line[i-1])):
+                continue
             
-            # Calculate subsequent EMA values
-            for i in range(period, len(values)):
-                ema = (values[i] * multiplier) + (ema_values[-1] * (1 - multiplier))
-                ema_values.append(ema)
-        
-        return ema_values
-    
-    def _calculate_momentum_strength(self, ppo_values: List[float], histogram_values: List[float]) -> float:
-        """Calculate overall momentum strength"""
-        if not ppo_values or not histogram_values:
-            return 0.0
-        
-        # Use recent values for strength calculation
-        recent_ppo = ppo_values[-10:] if len(ppo_values) >= 10 else ppo_values
-        recent_histogram = histogram_values[-10:] if len(histogram_values) >= 10 else histogram_values
-        
-        # Combine PPO magnitude and histogram consistency
-        ppo_strength = abs(np.mean(recent_ppo)) if recent_ppo else 0
-        histogram_consistency = 1.0 - (np.std(recent_histogram) / (abs(np.mean(recent_histogram)) + 0.001))
-        
-        # Normalize to 0-1 range
-        strength = min((ppo_strength * histogram_consistency) / 2, 1.0)
-        return max(strength, 0.0)
-    
-    def _get_trend_direction(self, ppo_values: List[float], signal_values: List[float]) -> str:
-        """Determine trend direction based on PPO and signal relationship"""
-        if not ppo_values or not signal_values:
-            return 'neutral'
-        
-        current_ppo = ppo_values[-1]
-        current_signal = signal_values[-1]
-        
-        if current_ppo > current_signal > 0:
-            return 'strong_bullish'
-        elif current_ppo > 0 > current_signal:
-            return 'bullish'
-        elif current_ppo < current_signal < 0:
-            return 'strong_bearish'
-        elif current_ppo < 0 < current_signal:
-            return 'bearish'
-        else:
-            return 'neutral'
-    
-    def _get_momentum_phase(self, histogram_values: List[float]) -> str:
-        """Identify momentum phase based on histogram pattern"""
-        if len(histogram_values) < 3:
-            return 'unknown'
-        
-        recent = histogram_values[-3:]
-        
-        # Analyze histogram trend
-        if all(recent[i] >= recent[i-1] for i in range(1, len(recent))):
-            return 'accelerating' if recent[-1] > 0 else 'recovery'
-        elif all(recent[i] <= recent[i-1] for i in range(1, len(recent))):
-            return 'decelerating' if recent[-1] > 0 else 'declining'
-        else:
-            return 'choppy'
-    
-    def _generate_signals(self, data: List[MarketData], ppo_values: List[float], 
-                         signal_values: List[float], histogram_values: List[float]) -> List[IndicatorSignal]:
-        """Generate trading signals based on PPO analysis"""
-        signals = []
-        
-        if len(ppo_values) < 3 or len(signal_values) < 3 or len(histogram_values) < 3:
-            return signals
-        
-        # PPO-Signal crossover signals
-        self._detect_ppo_signal_crossover(ppo_values, signal_values, signals)
-        
-        # Zero line crossover signals
-        self._detect_zero_line_crossover(ppo_values, signals)
-        
-        # Histogram reversal signals
-        self._detect_histogram_reversal(histogram_values, signals)
-        
-        # Divergence signals
-        self._detect_divergence(data, ppo_values, signals)
-        
-        # Momentum acceleration signals
-        self._detect_momentum_acceleration(histogram_values, signals)
+            # PPO crosses above signal line
+            if ppo[i-1] <= signal_line[i-1] and ppo[i] > signal_line[i]:
+                signals[i] = 1
+            
+            # PPO crosses below signal line
+            elif ppo[i-1] >= signal_line[i-1] and ppo[i] < signal_line[i]:
+                signals[i] = -1
+            
+            # Zero line crossovers
+            elif ppo[i-1] <= 0 and ppo[i] > 0:
+                signals[i] = 0.5  # Weak buy
+            elif ppo[i-1] >= 0 and ppo[i] < 0:
+                signals[i] = -0.5  # Weak sell
         
         return signals
     
-    def _detect_ppo_signal_crossover(self, ppo_values: List[float], signal_values: List[float], 
-                                   signals: List[IndicatorSignal]):
-        """Detect PPO and Signal line crossover"""
-        if len(ppo_values) < 2 or len(signal_values) < 2:
-            return
+    def _calculate_metrics(self, ppo: np.ndarray, signal_line: np.ndarray, histogram: np.ndarray) -> Dict:
+        """Calculate additional PPO metrics."""
+        valid_ppo = ppo[~np.isnan(ppo)]
+        valid_histogram = histogram[~np.isnan(histogram)]
         
-        current_ppo = ppo_values[-1]
-        previous_ppo = ppo_values[-2]
-        current_signal = signal_values[-1]
-        previous_signal = signal_values[-2]
+        if len(valid_ppo) == 0:
+            return {}
         
-        # Bullish crossover (PPO crosses above Signal)
-        if previous_ppo <= previous_signal and current_ppo > current_signal:
-            crossover_strength = abs(current_ppo - current_signal)
-            if crossover_strength >= self.config.signal_threshold:
-                signals.append(IndicatorSignal(
-                    signal_type=SignalType.BUY,
-                    strength=0.8,
-                    confidence=0.75,
-                    metadata={
-                        'pattern': 'ppo_signal_crossover_bullish',
-                        'ppo_value': current_ppo,
-                        'signal_value': current_signal,
-                        'crossover_strength': crossover_strength
-                    }
-                ))
+        # Momentum analysis
+        positive_momentum = np.sum(valid_ppo > 0) / len(valid_ppo) * 100
+        above_signal = np.sum(ppo > signal_line) / len(valid_ppo) * 100
         
-        # Bearish crossover (PPO crosses below Signal)
-        elif previous_ppo >= previous_signal and current_ppo < current_signal:
-            crossover_strength = abs(current_ppo - current_signal)
-            if crossover_strength >= self.config.signal_threshold:
-                signals.append(IndicatorSignal(
-                    signal_type=SignalType.SELL,
-                    strength=0.8,
-                    confidence=0.75,
-                    metadata={
-                        'pattern': 'ppo_signal_crossover_bearish',
-                        'ppo_value': current_ppo,
-                        'signal_value': current_signal,
-                        'crossover_strength': crossover_strength
-                    }
-                ))
-    
-    def _detect_zero_line_crossover(self, ppo_values: List[float], signals: List[IndicatorSignal]):
-        """Detect PPO zero line crossover"""
-        if len(ppo_values) < 2:
-            return
-        
-        current = ppo_values[-1]
-        previous = ppo_values[-2]
-        
-        # Bullish zero line crossover
-        if previous <= 0 < current and abs(current) >= self.config.signal_threshold:
-            signals.append(IndicatorSignal(
-                signal_type=SignalType.BUY,
-                strength=0.7,
-                confidence=0.8,
-                metadata={
-                    'pattern': 'ppo_zero_crossover_bullish',
-                    'ppo_value': current,
-                    'momentum_shift': 'positive'
-                }
-            ))
-        
-        # Bearish zero line crossover
-        elif previous >= 0 > current and abs(current) >= self.config.signal_threshold:
-            signals.append(IndicatorSignal(
-                signal_type=SignalType.SELL,
-                strength=0.7,
-                confidence=0.8,
-                metadata={
-                    'pattern': 'ppo_zero_crossover_bearish',
-                    'ppo_value': current,
-                    'momentum_shift': 'negative'
-                }
-            ))
-    
-    def _detect_histogram_reversal(self, histogram_values: List[float], signals: List[IndicatorSignal]):
-        """Detect histogram reversal patterns"""
-        if len(histogram_values) < 3:
-            return
-        
-        h1, h2, h3 = histogram_values[-3], histogram_values[-2], histogram_values[-1]
-        
-        # Bullish reversal (histogram stops declining and starts rising)
-        if h1 < h2 and h2 > h3 and h3 > h2:  # V-shaped bottom
-            signals.append(IndicatorSignal(
-                signal_type=SignalType.BUY,
-                strength=0.6,
-                confidence=0.7,
-                metadata={
-                    'pattern': 'histogram_reversal_bullish',
-                    'histogram_value': h3,
-                    'reversal_strength': h3 - h2
-                }
-            ))
-        
-        # Bearish reversal (histogram stops rising and starts declining)
-        elif h1 > h2 and h2 < h3 and h3 < h2:  # Inverted V-shaped top
-            signals.append(IndicatorSignal(
-                signal_type=SignalType.SELL,
-                strength=0.6,
-                confidence=0.7,
-                metadata={
-                    'pattern': 'histogram_reversal_bearish',
-                    'histogram_value': h3,
-                    'reversal_strength': h2 - h3
-                }
-            ))
-    
-    def _detect_divergence(self, data: List[MarketData], ppo_values: List[float], signals: List[IndicatorSignal]):
-        """Detect price-PPO divergences"""
-        if len(data) < 10 or len(ppo_values) < 10:
-            return
-        
-        # Extract recent prices and PPO values
-        recent_data = data[-10:]
-        recent_ppo = ppo_values[-10:]
-        prices = [candle.close for candle in recent_data]
-        
-        # Find recent highs and lows
-        price_highs = self._find_peaks(prices, True)
-        price_lows = self._find_peaks(prices, False)
-        ppo_highs = self._find_peaks(recent_ppo, True)
-        ppo_lows = self._find_peaks(recent_ppo, False)
-        
-        # Bullish divergence (price lower low, PPO higher low)
-        if len(price_lows) >= 2 and len(ppo_lows) >= 2:
-            if price_lows[-1] < price_lows[-2] and ppo_lows[-1] > ppo_lows[-2]:
-                signals.append(IndicatorSignal(
-                    signal_type=SignalType.BUY,
-                    strength=0.75,
-                    confidence=0.7,
-                    metadata={
-                        'pattern': 'ppo_bullish_divergence',
-                        'price_trend': 'lower_low',
-                        'ppo_trend': 'higher_low'
-                    }
-                ))
-        
-        # Bearish divergence (price higher high, PPO lower high)
-        if len(price_highs) >= 2 and len(ppo_highs) >= 2:
-            if price_highs[-1] > price_highs[-2] and ppo_highs[-1] < ppo_highs[-2]:
-                signals.append(IndicatorSignal(
-                    signal_type=SignalType.SELL,
-                    strength=0.75,
-                    confidence=0.7,
-                    metadata={
-                        'pattern': 'ppo_bearish_divergence',
-                        'price_trend': 'higher_high',
-                        'ppo_trend': 'lower_high'
-                    }
-                ))
-    
-    def _detect_momentum_acceleration(self, histogram_values: List[float], signals: List[IndicatorSignal]):
-        """Detect momentum acceleration based on histogram"""
-        if len(histogram_values) < 5:
-            return
-        
-        recent = histogram_values[-5:]
-        
-        # Calculate acceleration (second derivative)
-        changes = [recent[i] - recent[i-1] for i in range(1, len(recent))]
-        acceleration = [changes[i] - changes[i-1] for i in range(1, len(changes))]
-        
-        if len(acceleration) >= 2:
-            current_accel = acceleration[-1]
-            
-            # Strong positive acceleration
-            if current_accel > 0 and recent[-1] > recent[-2]:
-                signals.append(IndicatorSignal(
-                    signal_type=SignalType.BUY,
-                    strength=0.5,
-                    confidence=0.6,
-                    metadata={
-                        'pattern': 'momentum_acceleration_bullish',
-                        'acceleration': current_accel,
-                        'histogram_trend': 'increasing'
-                    }
-                ))
-            
-            # Strong negative acceleration
-            elif current_accel < 0 and recent[-1] < recent[-2]:
-                signals.append(IndicatorSignal(
-                    signal_type=SignalType.SELL,
-                    strength=0.5,
-                    confidence=0.6,
-                    metadata={
-                        'pattern': 'momentum_acceleration_bearish',
-                        'acceleration': current_accel,
-                        'histogram_trend': 'decreasing'
-                    }
-                ))
-    
-    def _find_peaks(self, values: List[float], find_max: bool = True) -> List[float]:
-        """Find local peaks (max or min) in the values"""
-        peaks = []
-        for i in range(1, len(values) - 1):
-            if find_max:
-                if values[i] > values[i-1] and values[i] > values[i+1]:
-                    peaks.append(values[i])
-            else:
-                if values[i] < values[i-1] and values[i] < values[i+1]:
-                    peaks.append(values[i])
-        return peaks
-
-
-def test_percentage_price_oscillator():
-    """Test the Percentage Price Oscillator implementation"""
-    # Create test data with trend and momentum changes
-    np.random.seed(42)
-    test_data = []
-    base_price = 100.0
-    
-    for i in range(80):
-        # Generate data with varying momentum
-        if i < 30:
-            trend = 0.2  # Strong uptrend
-        elif i < 50:
-            trend = -0.1  # Downtrend
+        # Histogram trend
+        if len(valid_histogram) > 1:
+            histogram_trend = np.mean(np.diff(valid_histogram[-min(5, len(valid_histogram)):]))
         else:
-            trend = 0.05  # Weak uptrend
+            histogram_trend = 0
         
-        momentum = np.sin(i * 0.1) * 0.5
-        noise = np.random.normal(0, 0.3)
+        # Current divergence
+        current_divergence = 0
+        if not np.isnan(ppo[-1]) and not np.isnan(signal_line[-1]):
+            current_divergence = ppo[-1] - signal_line[-1]
         
-        close_price = base_price + trend + momentum + noise
-        open_price = close_price + np.random.normal(0, 0.2)
-        high_price = max(open_price, close_price) + abs(np.random.normal(0, 0.2))
-        low_price = min(open_price, close_price) - abs(np.random.normal(0, 0.2))
-        volume = 1000 + np.random.randint(0, 500)
-        
-        test_data.append(MarketData(
-            timestamp=i,
-            open=open_price,
-            high=high_price,
-            low=low_price,
-            close=close_price,
-            volume=volume
-        ))
-        
-        base_price = close_price
+        return {
+            'current_ppo': ppo[-1] if not np.isnan(ppo[-1]) else None,
+            'current_signal': signal_line[-1] if not np.isnan(signal_line[-1]) else None,
+            'current_histogram': histogram[-1] if not np.isnan(histogram[-1]) else None,
+            'positive_momentum_pct': positive_momentum,
+            'above_signal_pct': above_signal,
+            'histogram_trend': histogram_trend,
+            'current_divergence': current_divergence,
+            'ppo_volatility': np.std(valid_ppo),
+            'mean_ppo': np.mean(valid_ppo)
+        }
     
-    # Test PPO
-    ppo = PercentagePriceOscillator()
-    result = ppo.calculate(test_data)
-    
-    print("=== PERCENTAGE PRICE OSCILLATOR TEST ===")
-    print(f"Success: {result.success}")
-    if result.success:
-        ppo_values = result.values['ppo']
-        signal_values = result.values['signal']
-        histogram_values = result.values['histogram']
+    def _interpret_signals(self, current_ppo: float, current_signal: float, signal: float) -> str:
+        """Provide human-readable interpretation."""
+        if np.isnan(current_ppo):
+            return "Insufficient data for PPO calculation"
         
-        print(f"PPO Values (last 5): {[round(v, 4) for v in ppo_values[-5:]]}")
-        print(f"Signal Values (last 5): {[round(v, 4) for v in signal_values[-5:]]}")
-        print(f"Histogram Values (last 5): {[round(v, 4) for v in histogram_values[-5:]]}")
-        print(f"Current PPO: {round(ppo_values[-1], 4)}%")
-        print(f"Trend Direction: {result.metadata['trend_direction']}")
-        print(f"Momentum Phase: {result.metadata['momentum_phase']}")
-        print(f"Momentum Strength: {round(result.metadata['momentum_strength'], 3)}")
-        print(f"Number of signals: {len(result.signals)}")
+        if current_ppo > current_signal:
+            momentum = "BULLISH"
+        else:
+            momentum = "BEARISH"
         
-        for i, signal in enumerate(result.signals[-3:]):  # Show last 3 signals
-            print(f"Signal {i+1}: {signal.signal_type.value} - Strength: {signal.strength:.2f} - {signal.metadata.get('pattern', 'N/A')}")
-    else:
-        print(f"Error: {result.error}")
-    
-    return result.success
+        if current_ppo > 0:
+            trend = "POSITIVE"
+        else:
+            trend = "NEGATIVE"
+        
+        signal_desc = {
+            1: "BUY signal (PPO crosses above signal)",
+            0.5: "Weak BUY (zero line cross)",
+            -0.5: "Weak SELL (zero line cross)",
+            -1: "SELL signal (PPO crosses below signal)",
+            0: "No signal"
+        }.get(signal, "No signal")
+        
+        return f"PPO: {current_ppo:.2f}% ({trend}, {momentum}) - {signal_desc}"
 
 
-if __name__ == "__main__":
-    test_percentage_price_oscillator()
+def create_ppo(fast_period: int = 12, **kwargs) -> PercentagePriceOscillator:
+    """Factory function to create PPO indicator."""
+    return PercentagePriceOscillator(fast_period=fast_period, **kwargs)

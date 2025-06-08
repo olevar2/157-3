@@ -1,0 +1,49 @@
+{
+  "overall_success": true,
+  "tests_run": 4,
+  "tests_passed": 4,
+  "tests_failed": 0,
+  "pass_rate_percent": 100.0,
+  "total_execution_time_ms": 1077.465295791626,
+  "test_results": [
+    {
+      "test_name": "Import Verification",
+      "success": true,
+      "error": null,
+      "timestamp": "2025-06-04T12:41:18.681189"
+    },
+    {
+      "test_name": "Class Instantiation",
+      "success": true,
+      "has_auto_recovery": true,
+      "auto_recovery_enabled": true,
+      "error": null,
+      "timestamp": "2025-06-04T12:41:18.681773"
+    },
+    {
+      "test_name": "Recovery Manager Functionality",
+      "success": true,
+      "has_required_methods": true,
+      "recovery_started": true,
+      "execution_time_ms": 0.18596649169921875,
+      "history_entries": 0,
+      "error": null,
+      "timestamp": "2025-06-04T12:41:19.684407"
+    },
+    {
+      "test_name": "ModelCommunication Integration",
+      "success": true,
+      "integration_points": {
+        "auto_recovery_config": true,
+        "health_monitor_init": true,
+        "start_monitoring": true,
+        "health_alert_handler": true,
+        "critical_failure_handler": true
+      },
+      "error": null,
+      "timestamp": "2025-06-04T12:41:19.687724"
+    }
+  ],
+  "timestamp": "2025-06-04T12:41:19.687981",
+  "verification_status": "COMPLETE"
+}

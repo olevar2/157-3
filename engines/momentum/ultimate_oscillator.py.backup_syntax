@@ -1,0 +1,311 @@
+"""
+Ultimate Oscillator Momentum Indicator
+A momentum oscillator that uses three different timeframes to reduce false signals.
+Part of Platform3's 67-indicator humanitarian trading system.
+"""
+import sys
+import os
+
+# Platform3 Error Handling Integration
+from shared.error_handling.platform3_error_system import ServiceError, EventEmitter, CircuitBreaker, ErrorSeverity, ErrorCategory
+from shared.error_handling.base_service import BaseService
+
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+from typing import List, Optional
+from datetime import datetime
+from indicator_base import (
+    MomentumIndicator, IndicatorResult, IndicatorSignal, MarketData, 
+    SignalType, TimeFrame, true_range
+)
+
+class UltimateOscillator(MomentumIndicator), BaseService:
+    """
+    Ultimate Oscillator momentum indicator.
+    
+    The Ultimate Oscillator uses weighted sums of three oscillators each of a different
+    time period to reduce the volatility and false signals that are associated with
+    many momentum oscillators.
+    
+    Formula involves three timeframes (7, 14, 28) with weighted calculations.
+    """
+    
+    def __init__(self, timeframe: TimeFrame, 
+                 short_period: int = 7, 
+                 medium_period: int = 14, 
+                 long_period: int = 28):
+        """
+        Initialize Ultimate Oscillator indicator.
+        
+        Args:
+            timeframe: Timeframe for analysis
+            short_period: Short-term period (default 7)
+            medium_period: Medium-term period (default 14)
+            long_period: Long-term period (default 28)
+        """
+        super().__init__("Ultimate Oscillator", timeframe, lookback_periods=long_period + 1)
+        self.short_period = short_period
+        self.medium_period = medium_period
+        self.long_period = long_period
+        self.overbought_level = 70
+        self.oversold_level = 30
+        self.extreme_overbought = 80
+        self.extreme_oversold = 20
+        
+    def calculate(self, data: List[MarketData]) -> IndicatorResult:
+        try:
+        """
+        Calculate Ultimate Oscillator value.
+        
+        Args:
+            data: List of MarketData objects
+            
+        Returns:
+            IndicatorResult with Ultimate Oscillator calculation
+        """
+        if len(data) < self.long_period + 1:
+            raise ValueError(f"Insufficient data for Ultimate Oscillator calculation. Need {self.long_period + 1} periods, got {len(data)}")
+        
+        start_time = datetime.now()
+        
+        try:
+            # Calculate buying pressure and true range for each period
+            buying_pressures = []
+            true_ranges = []
+            
+            for i in range(1, len(data)):
+                current = data[i]
+                previous = data[i-1]
+                
+                # Buying Pressure = Close - Min(Low, Previous Close)
+                min_low_prev_close = min(current.low, previous.close)
+                buying_pressure = current.close - min_low_prev_close
+                buying_pressures.append(buying_pressure)
+                
+                # True Range
+                tr = true_range(current.high, current.low, previous.close)
+                true_ranges.append(tr)
+            
+            # Calculate oscillators for each timeframe
+            def calculate_oscillator(period: int) -> float:
+                if len(buying_pressures) < period:
+                    return 0
+                
+                bp_sum = sum(buying_pressures[-period:])
+                tr_sum = sum(true_ranges[-period:])
+                
+                if tr_sum == 0:
+                    return 0
+                return bp_sum / tr_sum
+            
+            short_osc = calculate_oscillator(self.short_period)
+            medium_osc = calculate_oscillator(self.medium_period)
+            long_osc = calculate_oscillator(self.long_period)
+            
+            # Ultimate Oscillator = 100 * [(4 * Short) + (2 * Medium) + Long] / (4 + 2 + 1)
+            ultimate_osc = 100 * ((4 * short_osc) + (2 * medium_osc) + long_osc) / 7
+            
+            calculation_time = (datetime.now() - start_time).total_seconds() * 1000
+            
+            result = IndicatorResult(
+                timestamp=data[-1].timestamp,
+                indicator_name=self.name,
+                indicator_type=self.indicator_type,
+                timeframe=self.timeframe,
+                value=ultimate_osc,
+                raw_data={
+                    'ultimate_oscillator': ultimate_osc,
+                    'short_oscillator': short_osc,
+                    'medium_oscillator': medium_osc,
+                    'long_oscillator': long_osc,
+                    'short_period': self.short_period,
+                    'medium_period': self.medium_period,
+                    'long_period': self.long_period
+                },
+                calculation_time_ms=calculation_time
+            )
+            
+            # Generate signal
+            signal = self.generate_signal(result, [])
+            if signal:
+                result.signal = signal
+                
+            return result
+            
+        except Exception as e:
+            raise ValueError(f"Ultimate Oscillator calculation failed: {e}")
+    
+    def generate_signal(self, current_result: IndicatorResult, 
+        try:
+                       historical_results: List[IndicatorResult]) -> Optional[IndicatorSignal]:
+        """
+        Generate trading signals based on Ultimate Oscillator levels.
+        
+        Args:
+            current_result: Current Ultimate Oscillator calculation
+            historical_results: Previous results for trend analysis
+            
+        Returns:
+            IndicatorSignal if conditions are met
+        """
+        uo = current_result.value
+        
+        # Extreme level signals
+        if uo >= self.extreme_overbought:
+            return IndicatorSignal(
+                timestamp=current_result.timestamp,
+                indicator_name=self.name,
+                signal_type=SignalType.STRONG_SELL,
+                strength=min(1.0, (uo - self.extreme_overbought) / 20),
+                confidence=0.85,
+                metadata={
+                    'ultimate_oscillator': uo,
+                    'level': 'extreme_overbought',
+                    'threshold': self.extreme_overbought
+                }
+            )
+        elif uo <= self.extreme_oversold:
+            return IndicatorSignal(
+                timestamp=current_result.timestamp,
+                indicator_name=self.name,
+                signal_type=SignalType.STRONG_BUY,
+                strength=min(1.0, (self.extreme_oversold - uo) / 20),
+                confidence=0.85,
+                metadata={
+                    'ultimate_oscillator': uo,
+                    'level': 'extreme_oversold',
+                    'threshold': self.extreme_oversold
+                }
+            )
+        
+        # Regular overbought/oversold signals
+        elif uo >= self.overbought_level:
+            return IndicatorSignal(
+                timestamp=current_result.timestamp,
+                indicator_name=self.name,
+                signal_type=SignalType.SELL,
+                strength=min(1.0, (uo - self.overbought_level) / 30),
+                confidence=0.7,
+                metadata={
+                    'ultimate_oscillator': uo,
+                    'level': 'overbought',
+                    'threshold': self.overbought_level
+                }
+            )
+        elif uo <= self.oversold_level:
+            return IndicatorSignal(
+                timestamp=current_result.timestamp,
+                indicator_name=self.name,
+                signal_type=SignalType.BUY,
+                strength=min(1.0, (self.oversold_level - uo) / 30),
+                confidence=0.7,
+                metadata={
+                    'ultimate_oscillator': uo,
+                    'level': 'oversold',
+                    'threshold': self.oversold_level
+                }
+            )
+        
+        return None
+
+
+    def handle_service_error(self, error: Exception, context: Dict[str, Any] = None) -> None:
+        """Handle service errors with proper event emission and logging"""
+        try:
+            service_error = ServiceError(
+                message=str(error),
+                code=f"{self.__class__.__name__.upper()}_ERROR",
+                metadata={
+                    "file_path": "engines/momentum/ultimate_oscillator.py",
+                    "context": context or {},
+                    "timestamp": pd.Timestamp.now().isoformat(),
+                    "service_name": self.__class__.__name__
+                }
+            )
+            
+            # Emit error event for monitoring
+            self.emit('error', service_error)
+            
+            # Log error with correlation context
+            if hasattr(self, 'logger'):
+                self.logger.error(
+                    f"Service error in {self.__class__.__name__}: {str(error)}",
+                    extra={
+                        "error_code": service_error.code,
+                        "error_severity": service_error.severity.value,
+                        "error_category": service_error.category.value,
+                        "context": context
+                    }
+                )
+        except Exception as handling_error:
+            # Fallback error handling
+            print(f"Critical error in error handling: {handling_error}")
+    
+    def implement_circuit_breaker(self, service_name: str, failure_threshold: int = 5) -> CircuitBreaker:
+        """Implement circuit breaker for external service calls"""
+        return CircuitBreaker(
+            service_name=service_name,
+            failure_threshold=failure_threshold,
+            recovery_timeout=30,
+            on_failure=lambda error: self.emit('circuit_breaker_open', {'service': service_name, 'error': error})
+        )
+    
+    def graceful_degradation(self, primary_function, fallback_function, context: str = "operation"):
+        """Implement graceful degradation pattern"""
+        try:
+            return primary_function()
+        except Exception as error:
+            self.handle_service_error(error, {"context": context, "degradation": "fallback_used"})
+            
+            # Emit degradation event
+            self.emit('service_degradation', {
+                'context': context,
+                'primary_error': str(error),
+                'fallback_activated': True
+            })
+            
+            return fallback_function()
+
+def test_ultimate_oscillator():
+    """Test Ultimate Oscillator calculation with sample data."""
+    from datetime import datetime, timedelta
+    
+    # Create sample market data
+    base_time = datetime.now()
+    test_data = []
+    
+    # Generate test data with volatility
+    base_price = 100
+    for i in range(35):
+        volatility = 1 + (i % 5) * 0.01
+        trend = 1 + i * 0.002
+        price = base_price * trend * volatility
+        
+        test_data.append(MarketData(
+            timestamp=base_time + timedelta(minutes=i),
+            open=price * 0.999,
+            high=price * 1.003,
+            low=price * 0.997,
+            close=price,
+            volume=1000,
+            timeframe=TimeFrame.M1
+        ))
+    
+    # Test Ultimate Oscillator calculation
+    uo = UltimateOscillator(TimeFrame.M1)
+    result = uo.calculate(test_data)
+    
+    print(f"Ultimate Oscillator Test Results:")
+    print(f"Value: {result.value:.2f}")
+    print(f"Calculation time: {result.calculation_time_ms:.2f}ms")
+    print(f"Raw data: {result.raw_data}")
+    
+    if result.signal:
+        print(f"Signal: {result.signal.signal_type.value} (strength: {result.signal.strength:.2f})")
+    else:
+        print("No signal generated")
+    
+    return result
+
+if __name__ == "__main__":
+    test_ultimate_oscillator()

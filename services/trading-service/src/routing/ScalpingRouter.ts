@@ -14,8 +14,28 @@
  * - Lower overall transaction costs for high-frequency trading.
  */
 
-import { Logger } from 'winston';
-import { Order, OrderSide, OrderType } from '../orders/advanced/ScalpingOCOOrder'; // Assuming common types
+// --- Common Types ---
+
+export enum OrderSide {
+  BUY = 'BUY',
+  SELL = 'SELL'
+}
+
+export enum OrderType {
+  MARKET = 'MARKET',
+  LIMIT = 'LIMIT',
+  STOP = 'STOP',
+  STOP_LIMIT = 'STOP_LIMIT'
+}
+
+export interface Order {
+  id: string;
+  symbol: string;
+  side: OrderSide;
+  type: OrderType;
+  quantity: number;
+  price?: number;
+}
 
 // --- Venue and Routing Specific Types ---
 
@@ -55,21 +75,18 @@ export interface RoutingRequest {
  */
 export class ScalpingRouter {
   private venues: ExecutionVenue[] = [];
-  private logger: Logger;
 
-  constructor(logger: Logger, initialVenues: ExecutionVenue[] = []) {
-    this.logger = logger;
+  constructor(initialVenues: ExecutionVenue[] = []) {
     this.venues = initialVenues;
-    this.logger.info(`ScalpingRouter initialized with ${initialVenues.length} venues.`);
+    console.log(`ScalpingRouter initialized with ${initialVenues.length} venues.`);
     // In a real system, this would subscribe to venue status updates.
   }
-
   public addVenue(venue: ExecutionVenue): void {
     if (!this.venues.find(v => v.id === venue.id)) {
       this.venues.push(venue);
-      this.logger.info(`Venue ${venue.name} added to ScalpingRouter.`);
+      console.log(`Venue ${venue.name} added to ScalpingRouter.`);
     } else {
-      this.logger.warn(`Venue ${venue.name} already exists.`);
+      console.warn(`Venue ${venue.name} already exists.`);
     }
   }
 
@@ -77,9 +94,8 @@ export class ScalpingRouter {
     const venue = this.venues.find(v => v.id === venueId);
     if (venue) {
       Object.assign(venue, updates);
-      this.logger.info(`Venue ${venue.name} status updated. Latency: ${venue.averageLatencyMs}ms, Health: ${venue.healthStatus}`);
-    } else {
-      this.logger.warn(`Attempted to update non-existent venue ${venueId}.`);
+      console.log(`Venue ${venue.name} status updated. Latency: ${venue.averageLatencyMs}ms, Health: ${venue.healthStatus}`);    } else {
+      console.warn(`Attempted to update non-existent venue ${venueId}.`);
     }
   }
 
@@ -132,9 +148,8 @@ export class ScalpingRouter {
   }
 
   public async findBestRoute(request: RoutingRequest): Promise<RouteDecision | null> {
-    const availableVenues = this.getAvailableVenues();
-    if (availableVenues.length === 0) {
-      this.logger.warn('No available venues for routing.');
+    const availableVenues = this.getAvailableVenues();    if (availableVenues.length === 0) {
+      console.warn('No available venues for routing.');
       return null;
     }
 
@@ -144,7 +159,7 @@ export class ScalpingRouter {
 
     for (const venue of availableVenues) {
       const score = this._scoreVenue(venue, request);
-      this.logger.debug(`Venue ${venue.name} scored ${score} for order ${request.order.symbol} ${request.order.type}`);
+      console.log(`Venue ${venue.name} scored ${score} for order ${request.order.symbol} ${request.order.type}`);
       if (score > highestScore) {
         highestScore = score;
         bestVenue = venue;
@@ -162,12 +177,12 @@ export class ScalpingRouter {
         estimatedCost: estimatedCost,
         estimatedLatencyMs: bestVenue.averageLatencyMs,
       };
-      this.logger.info(`Best route for ${request.order.symbol} ${request.order.type} Qty ${request.order.quantity}: Venue ${bestVenue.name}. Reason: ${reason}`);
+      console.log(`Best route for ${request.order.symbol} ${request.order.type} Qty ${request.order.quantity}: Venue ${bestVenue.name}. Reason: ${reason}`);
       this.emit('routeSelected', decision, request.order);
       return decision;
     }
 
-    this.logger.warn(`Could not find a suitable route for order ${request.order.symbol} ${request.order.type}.`, { request });
+    console.warn(`Could not find a suitable route for order ${request.order.symbol} ${request.order.type}.`);
     this.emit('noRouteFound', request.order);
     return null;
   }
@@ -215,13 +230,13 @@ function testScalpingRouter() {
     }
   ];
 
-  const router = new ScalpingRouter(logger as any, venues);
+  const router = new ScalpingRouter(venues);
 
   router.on('routeSelected', (decision, order) => {
-    logger.info(`EVENT: Route selected for ${order.symbol}: ${decision.venue.name}`);
+    console.log(`EVENT: Route selected for ${order.symbol}: ${decision.venue.name}`);
   });
   router.on('noRouteFound', (order) => {
-    logger.warn(`EVENT: No route found for ${order.symbol}`);
+    console.warn(`EVENT: No route found for ${order.symbol}`);
   });
 
   const routingRequestSpeed: RoutingRequest = {
@@ -241,22 +256,22 @@ function testScalpingRouter() {
   };
 
   (async () => {
-    logger.info('\n--- Routing for SPEED ---');
+    console.log('\n--- Routing for SPEED ---');
     const routeSpeed = await router.findBestRoute(routingRequestSpeed);
-    // if (routeSpeed) logger.info('Chosen for SPEED:', routeSpeed.venue.name, routeSpeed.reason);
+    // if (routeSpeed) console.log('Chosen for SPEED:', routeSpeed.venue.name, routeSpeed.reason);
 
-    logger.info('\n--- Routing for COST ---');
+    console.log('\n--- Routing for COST ---');
     const routeCost = await router.findBestRoute(routingRequestCost);
-    // if (routeCost) logger.info('Chosen for COST:', routeCost.venue.name, routeCost.reason);
+    // if (routeCost) console.log('Chosen for COST:', routeCost.venue.name, routeCost.reason);
     
-    logger.info('\n--- Routing for FILL PROBABILITY ---');
+    console.log('\n--- Routing for FILL PROBABILITY ---');
     const routeFill = await router.findBestRoute(routingRequestFill);
-    // if (routeFill) logger.info('Chosen for FILL:', routeFill.venue.name, routeFill.reason);
+    // if (routeFill) console.log('Chosen for FILL:', routeFill.venue.name, routeFill.reason);
 
-    logger.info('\n--- Simulating VenueA degraded ---');
+    console.log('\n--- Simulating VenueA degraded ---');
     router.updateVenueStatus('venue-a', { healthStatus: 'DEGRADED', averageLatencyMs: 70 });
     const routeSpeedAfterDegrade = await router.findBestRoute(routingRequestSpeed);
-    // if (routeSpeedAfterDegrade) logger.info('Chosen for SPEED (VenueA degraded):', routeSpeedAfterDegrade.venue.name, routeSpeedAfterDegrade.reason);
+    // if (routeSpeedAfterDegrade) console.log('Chosen for SPEED (VenueA degraded):', routeSpeedAfterDegrade.venue.name, routeSpeedAfterDegrade.reason);
 
   })();
 }

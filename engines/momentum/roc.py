@@ -1,299 +1,209 @@
 """
-Rate of Change (ROC) Momentum Indicator
-Measures the percentage change in price over a specified period.
-Part of Platform3's 67-indicator humanitarian trading system.
+Rate of Change (ROC)
+===================
+
+ROC is a momentum indicator that measures the percentage change in price 
+from one period to the next. It oscillates around zero, with positive 
+values indicating upward momentum and negative values indicating downward momentum.
+
+Author: Platform3 AI System
+Created: June 3, 2025
 """
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from typing import List, Optional
-from datetime import datetime
-from indicator_base import (
-    MomentumIndicator, IndicatorResult, IndicatorSignal, MarketData, 
-    SignalType, TimeFrame
-)
+import numpy as np
+import pandas as pd
+from typing import Dict, Optional
 
-class ROC(MomentumIndicator):
+# Fix import - use absolute import with fallback
+try:
+    from engines.indicator_base import IndicatorBase
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from indicator_base import IndicatorBase
+
+
+class RateOfChange(IndicatorBase):
     """
-    Rate of Change (ROC) momentum indicator.
+    Rate of Change (ROC) indicator.
     
-    ROC measures the percentage change in price from one period to the next.
-    It oscillates around zero, with positive values indicating upward momentum
-    and negative values indicating downward momentum.
-    
-    Formula: ROC = ((Current Price - Price n periods ago) / Price n periods ago) * 100
+    ROC calculates the percentage change in price over a specified period,
+    providing insight into the momentum and velocity of price movements.
     """
     
-    def __init__(self, timeframe: TimeFrame, lookback_periods: int = 12):
+    def __init__(self, 
+                 period: int = 12,
+                 use_percentage: bool = True):
         """
         Initialize ROC indicator.
         
         Args:
-            timeframe: Timeframe for analysis
-            lookback_periods: Period for rate of change calculation (default 12)
+            period: Period for ROC calculation
+            use_percentage: If True, return percentage change; if False, return ratio
         """
-        super().__init__("ROC", timeframe, lookback_periods=lookback_periods + 1)  # +1 for comparison
-        self.period = lookback_periods
-        self.overbought_threshold = 15  # Positive threshold for overbought
-        self.oversold_threshold = -15   # Negative threshold for oversold        self.strong_threshold = 25      # Strong momentum threshold
+        super().__init__()
         
-    def calculate(self, data: List[MarketData]) -> IndicatorResult:
+        self.period = period
+        self.use_percentage = use_percentage
+        
+        # Validation
+        if period <= 0:
+            raise ValueError("period must be positive")
+    
+    def calculate(self, data: pd.DataFrame) -> Dict:
         """
-        Calculate ROC value.
+        Calculate ROC values.
         
         Args:
-            data: List of MarketData objects
+            data: DataFrame with 'close' column (can also have 'high', 'low')
             
         Returns:
-            IndicatorResult with ROC calculation
+            Dictionary containing ROC values and signals
         """
-        if len(data) < (self.period + 1):
-            raise ValueError(f"Insufficient data for ROC calculation. Need {self.period + 1} periods, got {len(data)}")
-        
-        start_time = datetime.now()
-        
         try:
-            # Get current price and price n periods ago
-            current_price = data[-1].close
-            past_price = data[-(self.period + 1)].close
+            # Validate input data
+            required_columns = ['close']
+            self._validate_data(data, required_columns)
             
-            # Calculate Rate of Change
-            if past_price == 0:
-                roc = 0  # Avoid division by zero
-            else:
-                roc = ((current_price - past_price) / past_price) * 100
+            if len(data) < self.period + 1:
+                raise ValueError(f"Insufficient data: need at least {self.period + 1} periods")
             
-            calculation_time = (datetime.now() - start_time).total_seconds() * 1000
+            close = data['close'].values
             
-            result = IndicatorResult(
-                timestamp=data[-1].timestamp,
-                indicator_name=self.name,
-                indicator_type=self.indicator_type,
-                timeframe=self.timeframe,
-                value=roc,
-                raw_data={
-                    'roc': roc,
-                    'current_price': current_price,
-                    'past_price': past_price,
-                    'period': self.period,
-                    'price_change': current_price - past_price,
-                    'percentage_change': roc
-                },
-                calculation_time_ms=calculation_time
-            )
+            # Calculate ROC
+            roc = self._calculate_roc(close)
             
-            # Generate signal
-            signal = self.generate_signal(result, [])
-            if signal:
-                result.signal = signal
-                
-            self.update_status(self.status)
-            return result
+            # Generate signals
+            signals = self._generate_signals(roc)
+            
+            # Calculate additional metrics
+            metrics = self._calculate_metrics(roc)
+            
+            return {
+                'roc': roc,
+                'signals': signals,
+                'metrics': metrics,
+                'interpretation': self._interpret_signals(roc[-1], signals[-1])
+            }
             
         except Exception as e:
-            self.update_status(self.status, str(e))
-            raise ValueError(f"ROC calculation failed: {e}")
+            self.logger.error(f"Error calculating ROC: {e}")
+            raise
     
-    def generate_signal(self, current_result: IndicatorResult, 
-                       historical_results: List[IndicatorResult]) -> Optional[IndicatorSignal]:
-        """
-        Generate trading signals based on ROC momentum and crossovers.
+    def _calculate_roc(self, close: np.ndarray) -> np.ndarray:
+        """Calculate ROC values."""
+        roc = np.full(len(close), np.nan)
         
-        Args:
-            current_result: Current ROC calculation
-            historical_results: Previous results for trend analysis
+        for i in range(self.period, len(close)):
+            prev_close = close[i - self.period]
+            current_close = close[i]
             
-        Returns:
-            IndicatorSignal if conditions are met
-        """
-        roc = current_result.value
+            if prev_close != 0:
+                if self.use_percentage:
+                    roc[i] = ((current_close - prev_close) / prev_close) * 100
+                else:
+                    roc[i] = current_close / prev_close
+            else:
+                roc[i] = 0
         
-        # Strong momentum signals
-        if roc >= self.strong_threshold:
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.STRONG_BUY,
-                strength=min(1.0, roc / 50),
-                confidence=0.8,
-                metadata={
-                    'roc': roc,
-                    'level': 'strong_bullish_momentum',
-                    'threshold': self.strong_threshold
-                }
-            )
-        elif roc <= -self.strong_threshold:
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.STRONG_SELL,
-                strength=min(1.0, abs(roc) / 50),
-                confidence=0.8,
-                metadata={
-                    'roc': roc,
-                    'level': 'strong_bearish_momentum',
-                    'threshold': -self.strong_threshold
-                }
-            )
+        return roc
+    
+    def _generate_signals(self, roc: np.ndarray) -> np.ndarray:
+        """Generate trading signals based on ROC."""
+        signals = np.zeros(len(roc))
         
-        # Regular momentum signals
-        elif roc >= self.overbought_threshold:
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.BUY,
-                strength=min(1.0, roc / 30),
-                confidence=0.6,
-                metadata={
-                    'roc': roc,
-                    'level': 'bullish_momentum',
-                    'threshold': self.overbought_threshold
-                }
-            )
-        elif roc <= self.oversold_threshold:
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.SELL,
-                strength=min(1.0, abs(roc) / 30),
-                confidence=0.6,
-                metadata={
-                    'roc': roc,
-                    'level': 'bearish_momentum',
-                    'threshold': self.oversold_threshold
-                }
-            )
+        # Calculate dynamic thresholds based on historical volatility
+        valid_values = roc[~np.isnan(roc)]
+        if len(valid_values) < 10:
+            threshold = 5.0 if self.use_percentage else 0.05
+        else:
+            std_dev = np.std(valid_values)
+            threshold = std_dev * 0.5
         
-        # Zero line crossover signals
-        if len(historical_results) >= 1:
-            prev_result = historical_results[-1]
-            if hasattr(prev_result, 'value'):
-                prev_roc = prev_result.value
-                
-                # Bullish zero line crossover
-                if prev_roc < 0 and roc > 0:
-                    return IndicatorSignal(
-                        timestamp=current_result.timestamp,
-                        indicator_name=self.name,
-                        signal_type=SignalType.BUY,
-                        strength=0.7,
-                        confidence=0.7,
-                        metadata={
-                            'roc': roc,
-                            'previous_roc': prev_roc,
-                            'signal': 'bullish_zero_crossover'
-                        }
-                    )
-                # Bearish zero line crossover
-                elif prev_roc > 0 and roc < 0:
-                    return IndicatorSignal(
-                        timestamp=current_result.timestamp,
-                        indicator_name=self.name,
-                        signal_type=SignalType.SELL,
-                        strength=0.7,
-                        confidence=0.7,
-                        metadata={
-                            'roc': roc,
-                            'previous_roc': prev_roc,
-                            'signal': 'bearish_zero_crossover'
-                        }
-                    )
-        
-        # Momentum divergence signals (requires more historical data)
-        if len(historical_results) >= 3:
-            # Check for momentum divergence patterns
-            recent_rocs = [hr.value for hr in historical_results[-3:]] + [roc]
+        for i in range(1, len(roc)):
+            if np.isnan(roc[i]) or np.isnan(roc[i-1]):
+                continue
             
-            # Bullish divergence: ROC making higher lows while price might be making lower lows
-            if (recent_rocs[-1] > recent_rocs[-2] and 
-                recent_rocs[-2] > recent_rocs[-3] and 
-                all(r < 0 for r in recent_rocs[-3:])):
-                return IndicatorSignal(
-                    timestamp=current_result.timestamp,
-                    indicator_name=self.name,
-                    signal_type=SignalType.BUY,
-                    strength=0.6,
-                    confidence=0.5,
-                    metadata={
-                        'roc': roc,
-                        'signal': 'bullish_momentum_divergence',
-                        'recent_values': recent_rocs
-                    }
-                )
+            # Zero line crossovers
+            if roc[i-1] <= 0 and roc[i] > 0:
+                signals[i] = 1  # Buy signal
+            elif roc[i-1] >= 0 and roc[i] < 0:
+                signals[i] = -1  # Sell signal
             
-            # Bearish divergence: ROC making lower highs while price might be making higher highs
-            elif (recent_rocs[-1] < recent_rocs[-2] and 
-                  recent_rocs[-2] < recent_rocs[-3] and 
-                  all(r > 0 for r in recent_rocs[-3:])):
-                return IndicatorSignal(
-                    timestamp=current_result.timestamp,
-                    indicator_name=self.name,
-                    signal_type=SignalType.SELL,
-                    strength=0.6,
-                    confidence=0.5,
-                    metadata={
-                        'roc': roc,
-                        'signal': 'bearish_momentum_divergence',
-                        'recent_values': recent_rocs
-                    }
-                )
+            # Extreme momentum signals
+            elif roc[i] > threshold and roc[i-1] <= threshold:
+                signals[i] = 0.5  # Weak buy (strong momentum)
+            elif roc[i] < -threshold and roc[i-1] >= -threshold:
+                signals[i] = -0.5  # Weak sell (strong negative momentum)
         
-        return None
+        return signals
+    
+    def _calculate_metrics(self, roc: np.ndarray) -> Dict:
+        """Calculate additional ROC metrics."""
+        valid_values = roc[~np.isnan(roc)]
+        
+        if len(valid_values) == 0:
+            return {}
+        
+        # Momentum analysis
+        positive_pct = np.sum(valid_values > 0) / len(valid_values) * 100
+        negative_pct = np.sum(valid_values < 0) / len(valid_values) * 100
+        neutral_pct = np.sum(valid_values == 0) / len(valid_values) * 100
+        
+        # Extreme readings
+        max_momentum = np.max(valid_values)
+        min_momentum = np.min(valid_values)
+        
+        # Recent trend
+        recent_values = valid_values[-min(5, len(valid_values)):]
+        trend = np.mean(recent_values) if len(recent_values) > 0 else 0
+        
+        # Acceleration (second derivative)
+        if len(valid_values) > 1:
+            acceleration = np.mean(np.diff(valid_values[-min(3, len(valid_values)):]))
+        else:
+            acceleration = 0
+        
+        return {
+            'current_value': roc[-1] if not np.isnan(roc[-1]) else None,
+            'positive_momentum_pct': positive_pct,
+            'negative_momentum_pct': negative_pct,
+            'neutral_pct': neutral_pct,
+            'max_momentum': max_momentum,
+            'min_momentum': min_momentum,
+            'recent_trend': trend,
+            'acceleration': acceleration,
+            'volatility': np.std(valid_values),
+            'mean_value': np.mean(valid_values)
+        }
+    
+    def _interpret_signals(self, current_roc: float, current_signal: float) -> str:
+        """Provide human-readable interpretation."""
+        if np.isnan(current_roc):
+            return "Insufficient data for ROC calculation"
+        
+        if current_roc > 5:
+            momentum = "STRONG POSITIVE"
+        elif current_roc > 0:
+            momentum = "POSITIVE"
+        elif current_roc < -5:
+            momentum = "STRONG NEGATIVE"
+        else:
+            momentum = "NEGATIVE"
+        
+        signal_desc = {
+            1: "BUY signal (zero line cross up)",
+            0.5: "Momentum acceleration signal",
+            -0.5: "Momentum deceleration signal",
+            -1: "SELL signal (zero line cross down)",
+            0: "No signal"
+        }.get(current_signal, "No signal")
+        
+        unit = "%" if self.use_percentage else ""
+        return f"ROC: {current_roc:.2f}{unit} ({momentum} momentum) - {signal_desc}"
 
-# Test function for validation
-def test_roc():
-    """Test ROC calculation with sample data."""
-    from datetime import datetime, timedelta
-    
-    # Create sample market data with clear trend
-    base_time = datetime.now()
-    test_data = []
-    
-    # Generate test data with accelerating uptrend then reversal
-    base_price = 100
-    prices = []
-    
-    # Building momentum phase
-    for i in range(15):
-        momentum = 1 + (i * 0.02)  # Accelerating growth
-        price = base_price * momentum
-        prices.append(price)
-    
-    # Reversal phase
-    for i in range(10):
-        decline = 0.98 ** (i + 1)  # Decelerating decline
-        price = prices[-1] * decline
-        prices.append(price)
-    
-    for i, price in enumerate(prices):
-        test_data.append(MarketData(
-            timestamp=base_time + timedelta(minutes=i),
-            open=price * 0.999,
-            high=price * 1.002,
-            low=price * 0.998,
-            close=price,
-            volume=1000,
-            timeframe=TimeFrame.M1
-        ))
-    
-    # Test ROC calculation
-    roc = ROC(TimeFrame.M1, lookback_periods=12)
-    result = roc.calculate(test_data)
-    
-    print(f"ROC Test Results:")
-    print(f"Value: {result.value:.2f}%")
-    print(f"Calculation time: {result.calculation_time_ms:.2f}ms")
-    print(f"Raw data: {result.raw_data}")
-    
-    if result.signal:
-        print(f"Signal: {result.signal.signal_type.value} (strength: {result.signal.strength:.2f})")
-        print(f"Confidence: {result.signal.confidence:.2f}")
-        print(f"Metadata: {result.signal.metadata}")
-    else:
-        print("No signal generated")
-    
-    return result
 
-if __name__ == "__main__":
-    test_roc()
+def create_roc(period: int = 12, **kwargs) -> RateOfChange:
+    """Factory function to create ROC indicator."""
+    return RateOfChange(period=period, **kwargs)

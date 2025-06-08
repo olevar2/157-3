@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
 Harami Pattern Identifier - Japanese Candlestick Pattern Recognition
 Platform3 Enhanced Technical Analysis Engine
@@ -37,12 +47,14 @@ Mathematical Foundation:
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Tuple, Optional, Union, Any
+from dataclasses import dataclass, field
 from dataclasses import dataclass
 from enum import Enum
 import logging
+from datetime import datetime
 
-from ..indicator_base import IndicatorBase, IndicatorResult
+from engines.indicator_base import IndicatorBase, IndicatorResult, IndicatorType, TimeFrame, IndicatorSignal
 
 class HaramiType(Enum):
     """Types of Harami patterns"""
@@ -78,20 +90,29 @@ class HaramiCandlestick:
 @dataclass
 class HaramiPatternResult(IndicatorResult):
     """Harami Pattern identification result"""
-    pattern_type: HaramiType
-    pattern_strength: float  # 0-100, higher means stronger pattern
-    containment_ratio: float  # How well the second candle is contained
-    size_ratio: float  # Size of second candle relative to first
-    mother_candle: HaramiCandlestick  # First (larger) candle
-    baby_candle: HaramiCandlestick    # Second (smaller) candle
-    trend_context: str  # 'uptrend', 'downtrend', 'sideways'
-    reversal_probability: float  # 0-100
-    indecision_level: float  # Market indecision measurement
-    volume_confirmation: bool
-    volume_ratio: float  # Current volume vs average
-    support_resistance_level: Optional[float]
-    signal: HaramiSignal
-    signal_strength: float
+    timestamp: datetime
+    indicator_name: str
+    indicator_type: IndicatorType
+    timeframe: TimeFrame
+    value: float  # This will store pattern_strength
+    pattern_type: HaramiType = HaramiType.NO_PATTERN
+    pattern_strength: float = 0.0  # 0-100, higher means stronger pattern
+    containment_ratio: float = 0.0  # How well the second candle is contained
+    size_ratio: float = 0.0  # Size of second candle relative to first
+    mother_candle: Optional[HaramiCandlestick] = None  # First (larger) candle
+    baby_candle: Optional[HaramiCandlestick] = None    # Second (smaller) candle
+    trend_context: str = 'sideways'  # 'uptrend', 'downtrend', 'sideways'
+    reversal_probability: float = 0.0  # 0-100
+    indecision_level: float = 0.0  # Market indecision measurement
+    volume_confirmation: bool = False
+    volume_ratio: float = 1.0  # Current volume vs average
+    support_resistance_level: Optional[float] = None
+    signal: HaramiSignal = HaramiSignal.NEUTRAL
+    signal_strength: float = 0.0
+    signal_instance: Optional[IndicatorSignal] = None
+    raw_data: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None
+    calculation_time_ms: Optional[float] = None
     
     def to_dict(self) -> Dict:
         """Convert result to dictionary"""

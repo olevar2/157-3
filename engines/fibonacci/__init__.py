@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+from shared.logging.platform3_logger import Platform3Logger
+from shared.error_handling.platform3_error_system import Platform3ErrorSystem, ServiceError
+from shared.database.platform3_database_manager import Platform3DatabaseManager
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
+import asyncio
+import numpy as np
+from typing import Dict, List, Any, Optional, Union
+from datetime import datetime, timedelta
+import time
 """
 Fibonacci Analysis Suite Package
 Advanced Fibonacci tools for precise technical analysis.
@@ -58,10 +68,17 @@ from .ProjectionArcCalculator import (
     ProjectionResult
 )
 
+from .FibonacciFan import (
+    FibonacciFanIndicator,
+    FanLine,
+    FanZone
+)
+
 __all__ = [
     # Main classes
     'FibonacciRetracement',
     'FibonacciExtension',
+    'FibonacciFanIndicator',
     'TimeZoneAnalysis',
     'ConfluenceDetector',
     'ProjectionArcCalculator',
@@ -89,7 +106,12 @@ __all__ = [
     # Projection components
     'FibonacciProjection',
     'FibonacciArc',
-    'ProjectionResult'
+    'ProjectionResult',
+    
+    # Fan components
+    'FibonacciFanIndicator',
+    'FanLine',
+    'FanZone'
 ]
 
 __version__ = "1.0.0"

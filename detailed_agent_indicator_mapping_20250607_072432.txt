@@ -1,0 +1,933 @@
+====================================================================================================
+DETAILED AGENT INDICATOR MAPPING REPORT
+====================================================================================================
+Generated: 2025-06-07 07:24:32
+
+SUMMARY TABLE
+--------------------------------------------------
+Agent                               Primary    Secondary    Total   
+-----------------------------------------------------------------
+RISK_GENIUS                         35         5            40      
+PATTERN_MASTER                      61         3            64      
+EXECUTION_EXPERT                    42         3            45      
+DECISION_MASTER                     0          0            0       
+SESSION_EXPERT                      27         2            29      
+PAIR_SPECIALIST                     43         3            46      
+AI_MODEL_COORDINATOR                25         2            27      
+MARKET_MICROSTRUCTURE_GENIUS        43         2            45      
+SENTIMENT_INTEGRATION_GENIUS        26         3            29      
+-----------------------------------------------------------------
+TOTAL                                                       325     
+
+
+RISK_GENIUS
+===========
+Total Indicators: 40
+Primary: 35, Secondary: 5
+
+PRIMARY INDICATORS:
+--------------------
+  ADAPTIVE:
+    - adaptive_rsi
+
+  ADVANCED:
+    - advanced_ml_engine
+
+  ATTRACTOR:
+    - attractor_point
+
+  AUTOCORRELATION:
+    - autocorrelation_indicator
+
+  BETA:
+    - beta_coefficient_indicator
+
+  CHAIKIN:
+    - chaikin_volatility
+
+  CHAOS:
+    - chaos_fractal_dimension
+
+  COINTEGRATION:
+    - cointegration_indicator
+
+  COMPOSITE:
+    - composite_signal
+
+  CORRELATION:
+    - correlation_analysis
+    - correlation_coefficient_indicator
+
+  FRACTAL:
+    - fractal_correlation_dimension
+    - fractal_dimension_calculator
+    - fractal_efficiency_ratio
+    - fractal_market_hypothesis
+
+  GENETIC:
+    - genetic_algorithm_optimizer
+
+  HISTORICAL:
+    - historical_volatility
+
+  HURST:
+    - hurst_exponent_calculator
+
+  KELTNER:
+    - keltner_channels
+
+  LINEAR:
+    - linear_regression_channels
+    - linear_regression_indicator
+
+  MASS:
+    - mass_index
+
+  MULTI:
+    - multi_fractal_dfa
+
+  NEURAL:
+    - neural_network_predictor
+
+  R:
+    - r_squared_indicator
+
+  REGIME:
+    - regime_adaptive_ma
+
+  RELATIVE:
+    - relative_volatility_index
+
+  SD:
+    - sd_channel_signal
+
+  SKEWNESS:
+    - skewness_indicator
+
+  SMART:
+    - smart_money_index
+
+  STANDARD:
+    - standard_deviation_channels
+    - standard_deviation_indicator
+
+  VARIANCE:
+    - variance_ratio_indicator
+
+  VOLATILITY:
+    - volatility_index
+
+  Z:
+    - z_score_indicator
+
+SECONDARY INDICATORS:
+----------------------
+  - fractal_adaptive_moving_average
+  - fractal_energy_indicator
+  - fractal_market_profile
+  - mandelbrot_fractal_indicator
+  - self_similarity_signal
+
+--------------------------------------------------------------------------------
+
+PATTERN_MASTER
+==============
+Total Indicators: 64
+Primary: 61, Secondary: 3
+
+PRIMARY INDICATORS:
+--------------------
+  ABANDONED:
+    - abandoned_baby_signal
+
+  ATTRACTOR:
+    - attractor_point
+
+  BELT:
+    - belt_hold_type
+
+  CONFLUENCE:
+    - confluence_area
+
+  CYCLE:
+    - cycle_period_identification
+
+  DARK:
+    - dark_cloud_type
+
+  DOJI:
+    - doji_type
+    - doji_type_fixed
+
+  DOMINANT:
+    - dominant_cycle_analysis
+
+  DOUBLE:
+    - double_top_bottom_pattern
+
+  ELLIOTT:
+    - elliott_wave_type
+
+  ENGULFING:
+    - engulfing_type
+    - engulfing_type_fixed
+
+  EXTENSION:
+    - extension_level
+
+  FAN:
+    - fan_line
+
+  FIBONACCI:
+    - fibonacci_level
+    - fibonacci_pattern_type
+    - fibonacci_projection
+
+  FRACTAL:
+    - fractal_channel_indicator
+    - fractal_chaos_oscillator
+    - fractal_correlation_dimension
+    - fractal_dimension_calculator
+    - fractal_efficiency_ratio
+    - fractal_energy_indicator
+    - fractal_market_hypothesis
+    - fractal_market_profile
+    - fractal_wave_type
+
+  GANN:
+    - gann_angle
+    - gann_angle
+    - gann_angles_time_cycles
+    - gann_pattern
+
+  GRID:
+    - grid_line
+
+  HAMMER:
+    - hammer_type
+
+  HARAMI:
+    - harami_type
+
+  HARMONIC:
+    - harmonic_point
+
+  HEAD:
+    - head_shoulders_pattern
+
+  HIGH:
+    - high_wave_candle_pattern
+
+  HURST:
+    - hurst_exponent_calculator
+
+  INVERTED:
+    - inverted_hammer_shooting_star_pattern
+
+  JAPANESE:
+    - japanese_candlestick_pattern_type
+
+  KICKING:
+    - kicking_signal
+
+  LONG:
+    - long_legged_doji_pattern
+
+  MARUBOZU:
+    - marubozu_pattern
+
+  MATCHING:
+    - matching_signal
+
+  PHASE:
+    - phase_analysis
+
+  PIERCING:
+    - piercing_line_type
+
+  PRICE:
+    - price_time_relationships
+
+  SELF:
+    - self_similarity_signal
+
+  SOLDIERS:
+    - soldiers_signal
+
+  SPINNING:
+    - spinning_top_pattern
+
+  SQUARE:
+    - square_level
+
+  STAR:
+    - star_signal
+
+  THREE:
+    - three_inside_signal
+    - three_line_strike_signal
+    - three_outside_signal
+
+  TIME:
+    - time_cycle
+    - time_zone
+
+  TWEEZER:
+    - tweezer_type
+
+  WAVE:
+    - wave_point
+    - wave_structure
+    - wave_type
+
+SECONDARY INDICATORS:
+----------------------
+  - divergence
+  - hidden_divergence_detector
+  - momentum_divergence_scanner
+
+--------------------------------------------------------------------------------
+
+EXECUTION_EXPERT
+================
+Total Indicators: 45
+Primary: 42, Secondary: 3
+
+PRIMARY INDICATORS:
+--------------------
+  ACCUMULATION:
+    - accumulation_distribution_signal
+
+  ADAPTIVE:
+    - adaptive_rsi
+
+  BLOCK:
+    - block_trade_signal
+
+  CHAIKIN:
+    - chaikin_money_flow_signal
+
+  CORRELATION:
+    - correlation_matrix
+
+  DOJI:
+    - doji_type
+
+  DYNAMIC:
+    - dynamic_correlation
+
+  EASE:
+    - ease_of_movement
+
+  ELLIOTT:
+    - elliott_wave_type
+
+  ENGULFING:
+    - engulfing_type
+
+  EXTENSION:
+    - extension_level
+
+  FIBONACCI:
+    - fibonacci_pattern_type
+
+  FLOW:
+    - flow_indicator
+
+  FORCE:
+    - force_index
+
+  GANN:
+    - gann_angles_time_cycles
+
+  HAMMER:
+    - hammer_type
+
+  HARMONIC:
+    - harmonic_point
+    - harmonic_point
+
+  INSTITUTIONAL:
+    - institutional_flow_signal
+
+  KLINGER:
+    - klinger_oscillator
+
+  LIQUIDITY:
+    - liquidity_flow_signal
+
+  MARKET:
+    - market_microstructure_signal
+
+  MONEY:
+    - money_flow_index
+
+  NEGATIVE:
+    - negative_volume_index
+
+  ON:
+    - on_balance_volume
+
+  ORDER:
+    - order_flow_imbalance
+    - order_flow_sequence_signal
+
+  PIVOT:
+    - pivot_type
+
+  POSITIVE:
+    - positive_volume_index
+
+  PRICE:
+    - price_volume_divergence
+    - price_volume_rank
+
+  REGIME:
+    - regime_adaptive_ma
+
+  SMART:
+    - smart_money_index
+    - smart_money_indicators
+
+  STAR:
+    - star_signal
+
+  STOCHASTIC:
+    - stochastic_oscillator
+
+  TICK:
+    - tick_volume_indicators
+    - tick_volume_signal
+
+  VOLUME:
+    - volume_breakout_signal
+    - volume_profiles
+    - volume_spread_analysis
+    - volume_weighted_average_price
+
+SECONDARY INDICATORS:
+----------------------
+  - momentum_indicators
+  - trend_indicators
+  - volatility_indicators
+
+--------------------------------------------------------------------------------
+
+DECISION_MASTER
+===============
+Total Indicators: 0
+Primary: 0, Secondary: 0
+
+--------------------------------------------------------------------------------
+
+SESSION_EXPERT
+==============
+Total Indicators: 29
+Primary: 27, Secondary: 2
+
+PRIMARY INDICATORS:
+--------------------
+  ALLIGATOR:
+    - alligator_trend
+
+  AROON:
+    - aroon_indicator
+
+  AVERAGE:
+    - average_true_range
+
+  BOLLINGER:
+    - bollinger_bands
+
+  CONFLUENCE:
+    - confluence_area
+
+  CYCLE:
+    - cycle_period_identification
+
+  DIRECTIONAL:
+    - directional_movement_system
+
+  DOMINANT:
+    - dominant_cycle_analysis
+
+  DONCHIAN:
+    - donchian_channels
+
+  EXTENSION:
+    - extension_level
+
+  FAN:
+    - fan_line
+
+  FIBONACCI:
+    - fibonacci_level
+    - fibonacci_projection
+
+  FISHER:
+    - fisher_signal_type
+
+  GANN:
+    - gann_angle
+
+  HURST:
+    - hurst_exponent
+
+  KELTNER:
+    - keltner_channel_state
+
+  MARKET:
+    - market_regime
+    - market_regime_detection
+
+  PARABOLIC:
+    - parabolic_sar
+
+  PHASE:
+    - phase_analysis
+
+  PIVOT:
+    - pivot_type
+
+  TIME:
+    - time_cycle
+    - time_zone
+
+  VORTEX:
+    - vortex_trend_state
+
+  WAVE:
+    - wave_structure
+    - wave_type
+
+SECONDARY INDICATORS:
+----------------------
+  - pattern_indicators
+  - volume_profile_indicators
+
+--------------------------------------------------------------------------------
+
+PAIR_SPECIALIST
+===============
+Total Indicators: 46
+Primary: 43, Secondary: 3
+
+PRIMARY INDICATORS:
+--------------------
+  ADAPTIVE:
+    - adaptive_rsi
+
+  ADVANCED:
+    - advanced_ml_engine
+
+  AROON:
+    - aroon_indicator
+
+  AUTOCORRELATION:
+    - autocorrelation_indicator
+
+  AVERAGE:
+    - average_true_range
+
+  BETA:
+    - beta_coefficient_indicator
+
+  BOLLINGER:
+    - bollinger_bands
+
+  CHAIKIN:
+    - chaikin_volatility
+
+  CHAOS:
+    - chaos_fractal_dimension
+
+  COINTEGRATION:
+    - cointegration_indicator
+
+  COMMODITY:
+    - commodity_channel_index
+
+  COMPOSITE:
+    - composite_signal
+
+  CORRELATION:
+    - correlation_analysis
+    - correlation_coefficient_indicator
+    - correlation_matrix
+
+  DIRECTIONAL:
+    - directional_movement_system
+
+  DYNAMIC:
+    - dynamic_correlation
+
+  FRACTAL:
+    - fractal_correlation_dimension
+    - fractal_efficiency_ratio
+
+  HISTORICAL:
+    - historical_volatility
+
+  HURST:
+    - hurst_exponent_calculator
+
+  INSTITUTIONAL:
+    - institutional_flow_signal
+
+  LINEAR:
+    - linear_regression_channels
+    - linear_regression_indicator
+
+  MONEY:
+    - money_flow_index
+
+  MOVING:
+    - moving_average_convergence_divergence
+
+  MULTI:
+    - multi_fractal_dfa
+
+  NEURAL:
+    - neural_network_predictor
+
+  R:
+    - r_squared_indicator
+
+  RATE:
+    - rate_of_change
+
+  REGIME:
+    - regime_adaptive_ma
+
+  RELATIVE:
+    - relative_momentum
+    - relative_strength_index
+
+  SELF:
+    - self_similarity_signal
+
+  SKEWNESS:
+    - skewness_indicator
+
+  SMART:
+    - smart_money_index
+
+  STANDARD:
+    - standard_deviation_channels
+    - standard_deviation_indicator
+
+  STOCHASTIC:
+    - stochastic_oscillator
+
+  VARIANCE:
+    - variance_ratio_indicator
+
+  VORTEX:
+    - vortex_trend_state
+
+  WILLIAMS:
+    - williams_percent_r
+
+  Z:
+    - z_score_indicator
+
+SECONDARY INDICATORS:
+----------------------
+  - trend_indicators
+  - volatility_indicators
+  - volume_indicators
+
+--------------------------------------------------------------------------------
+
+AI_MODEL_COORDINATOR
+====================
+Total Indicators: 27
+Primary: 25, Secondary: 2
+
+PRIMARY INDICATORS:
+--------------------
+  ADAPTIVE:
+    - adaptive_rsi
+
+  ADVANCED:
+    - advanced_ml_engine
+
+  ATTRACTOR:
+    - attractor_point
+
+  AUTOCORRELATION:
+    - autocorrelation_indicator
+
+  BETA:
+    - beta_coefficient_indicator
+
+  CHAOS:
+    - chaos_fractal_dimension
+
+  COMPOSITE:
+    - composite_signal
+
+  CORRELATION:
+    - correlation_analysis
+
+  FRACTAL:
+    - fractal_correlation_dimension
+    - fractal_dimension_calculator
+    - fractal_efficiency_ratio
+    - fractal_energy_indicator
+    - fractal_market_hypothesis
+
+  GENETIC:
+    - genetic_algorithm_optimizer
+
+  HURST:
+    - hurst_exponent_calculator
+
+  LINEAR:
+    - linear_regression_indicator
+
+  MANDELBROT:
+    - mandelbrot_fractal_indicator
+
+  MULTI:
+    - multi_fractal_dfa
+
+  NEURAL:
+    - neural_network_predictor
+
+  R:
+    - r_squared_indicator
+
+  REGIME:
+    - regime_adaptive_ma
+
+  SELF:
+    - self_similarity_signal
+
+  SKEWNESS:
+    - skewness_indicator
+
+  VARIANCE:
+    - variance_ratio_indicator
+
+  Z:
+    - z_score_indicator
+
+SECONDARY INDICATORS:
+----------------------
+  - momentum_indicators
+  - pattern_indicators
+
+--------------------------------------------------------------------------------
+
+MARKET_MICROSTRUCTURE_GENIUS
+============================
+Total Indicators: 45
+Primary: 43, Secondary: 2
+
+PRIMARY INDICATORS:
+--------------------
+  ACCUMULATION:
+    - accumulation_distribution_signal
+
+  ADVANCED:
+    - advanced_ml_engine
+
+  BLOCK:
+    - block_trade_signal
+
+  CHAIKIN:
+    - chaikin_money_flow_signal
+    - chaikin_volatility
+
+  COMPOSITE:
+    - composite_signal
+
+  CORRELATION:
+    - correlation_matrix
+
+  DYNAMIC:
+    - dynamic_correlation
+
+  EASE:
+    - ease_of_movement
+
+  FLOW:
+    - flow_indicator
+
+  FORCE:
+    - force_index
+
+  HIDDEN:
+    - hidden_divergence_detector
+
+  HISTORICAL:
+    - historical_volatility
+
+  INSTITUTIONAL:
+    - institutional_flow_signal
+
+  KELTNER:
+    - keltner_channels
+
+  KLINGER:
+    - klinger_oscillator
+
+  LIQUIDITY:
+    - liquidity_flow_signal
+
+  MARKET:
+    - market_microstructure_signal
+
+  MASS:
+    - mass_index
+
+  MOMENTUM:
+    - momentum_divergence_scanner
+
+  MONEY:
+    - money_flow_index
+
+  MOVING:
+    - moving_average_convergence_divergence
+
+  NEGATIVE:
+    - negative_volume_index
+
+  ON:
+    - on_balance_volume
+
+  ORDER:
+    - order_flow_imbalance
+    - order_flow_sequence_signal
+
+  POSITIVE:
+    - positive_volume_index
+
+  PRICE:
+    - price_volume_divergence
+    - price_volume_rank
+
+  RELATIVE:
+    - relative_momentum
+    - relative_strength_index
+    - relative_volatility_index
+
+  SD:
+    - sd_channel_signal
+
+  SMART:
+    - smart_money_index
+    - smart_money_indicators
+
+  STOCHASTIC:
+    - stochastic_oscillator
+
+  TICK:
+    - tick_volume_indicators
+    - tick_volume_signal
+
+  VOLATILITY:
+    - volatility_index
+
+  VOLUME:
+    - volume_breakout_signal
+    - volume_profiles
+    - volume_spread_analysis
+    - volume_weighted_average_price
+
+SECONDARY INDICATORS:
+----------------------
+  - fractal_indicators
+  - pattern_indicators
+
+--------------------------------------------------------------------------------
+
+SENTIMENT_INTEGRATION_GENIUS
+============================
+Total Indicators: 29
+Primary: 26, Secondary: 3
+
+PRIMARY INDICATORS:
+--------------------
+  ADVANCED:
+    - advanced_ml_engine
+
+  AVERAGE:
+    - average_true_range
+
+  BLOCK:
+    - block_trade_signal
+
+  CHAIKIN:
+    - chaikin_volatility
+
+  COMPOSITE:
+    - composite_signal
+
+  CORRELATION:
+    - correlation_analysis
+    - correlation_coefficient_indicator
+    - correlation_matrix
+
+  DYNAMIC:
+    - dynamic_correlation
+
+  FLOW:
+    - flow_indicator
+
+  GENETIC:
+    - genetic_algorithm_optimizer
+
+  INSTITUTIONAL:
+    - institutional_flow_signal
+
+  MONEY:
+    - money_flow_index
+
+  MOVING:
+    - moving_average_convergence_divergence
+
+  NEURAL:
+    - neural_network_predictor
+
+  NEWS:
+    - news_article
+
+  ORDER:
+    - order_flow_sequence_signal
+
+  RELATIVE:
+    - relative_strength_index
+
+  SENTIMENT:
+    - sentiment_config
+
+  SMART:
+    - smart_money_index
+
+  SOCIAL:
+    - social_media_post
+
+  STANDARD:
+    - standard_deviation_indicator
+
+  STOCHASTIC:
+    - stochastic_oscillator
+
+  VARIANCE:
+    - variance_ratio_indicator
+
+  VOLATILITY:
+    - volatility_index
+
+  Z:
+    - z_score_indicator
+
+SECONDARY INDICATORS:
+----------------------
+  - news_indicators
+  - volatility_indicators
+  - volume_indicators
+
+--------------------------------------------------------------------------------

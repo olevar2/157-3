@@ -1,18 +1,22 @@
 """
 High-Frequency Backtesting Engine - Scalping Module
+Platform3 Phase 3 - Enhanced with Framework Integration
 Ultra-fast backtesting for M1-M5 strategies with tick-accurate simulation.
 
 This module provides comprehensive backtesting capabilities for scalping strategies
 with microsecond precision and realistic execution modeling.
 """
 
+from shared.logging.platform3_logger import Platform3Logger
+from shared.error_handling.platform3_error_system import Platform3ErrorSystem, ServiceError
+from shared.database.platform3_database_manager import Platform3DatabaseManager
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
 import asyncio
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-import logging
 from concurrent.futures import ThreadPoolExecutor
 import time
 
@@ -47,6 +51,7 @@ class BacktestResult:
 class ScalpingBacktester:
     """
     Ultra-fast backtesting engine optimized for M1-M5 scalping strategies.
+    Platform3 Phase 3 - Enhanced with Framework Integration
     
     Features:
     - Tick-accurate simulation with microsecond precision
@@ -54,17 +59,25 @@ class ScalpingBacktester:
     - High-frequency execution simulation
     - Vectorized calculations for speed
     - Concurrent processing support
+    - Platform3 framework integration
     """
-    
     def __init__(self, config: Dict[str, Any]):
         self.config = config
-        self.logger = logging.getLogger(__name__)
+        
+        # Initialize Platform3 framework components
+        self.logger = Platform3Logger(self.__class__.__name__)
+        self.error_system = Platform3ErrorSystem()
+        self.db_manager = Platform3DatabaseManager()
+        self.comm_framework = Platform3CommunicationFramework()
+        
         self.executor = ThreadPoolExecutor(max_workers=config.get('max_workers', 4))
         
         # Performance optimization settings
         self.batch_size = config.get('batch_size', 10000)
         self.use_vectorization = config.get('use_vectorization', True)
         self.enable_slippage = config.get('enable_slippage', True)
+        
+        self.logger.info(f"{self.__class__.__name__} initialized with Platform3 framework")
         
         # Execution modeling parameters
         self.execution_delay_ms = config.get('execution_delay_ms', 2.0)  # 2ms average

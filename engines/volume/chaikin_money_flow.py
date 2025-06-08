@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
 Chaikin Money Flow (CMF) - Volume-Weighted Momentum Indicator
 Platform3 - Humanitarian Trading System
@@ -15,7 +25,7 @@ Key Features:
 - Overbought/oversold identification
 
 Money Flow Multiplier = ((Close - Low) - (High - Close)) / (High - Low)
-Money Flow Volume = Money Flow Multiplier × Volume
+Money Flow Volume = Money Flow Multiplier multiply Volume
 CMF = Sum(Money Flow Volume, n) / Sum(Volume, n)
 
 Humanitarian Mission: Optimize money flow timing for maximum profit generation
@@ -26,7 +36,8 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
-from ..indicator_base import IndicatorSignal, TechnicalIndicator
+from datetime import datetime
+from engines.indicator_base import IndicatorSignal, TechnicalIndicator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -34,16 +45,25 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ChaikinMoneyFlowSignal(IndicatorSignal):
     """CMF-specific signal with detailed analysis"""
-    cmf_value: float
-    money_flow_volume: float
-    volume_sum: float
-    pressure_level: str  # "strong_buying", "buying", "neutral", "selling", "strong_selling"
-    trend_direction: str  # "bullish", "bearish", "neutral"
-    momentum_phase: str  # "accelerating", "decelerating", "stable"
-    overbought_oversold: str  # "overbought", "oversold", "neutral"
-    zero_line_cross: Optional[str]  # "bullish_cross", "bearish_cross"
-    divergence_signal: Optional[str]  # "bullish_divergence", "bearish_divergence"
-    volume_quality: str  # "high", "medium", "low"
+    cmf_value: float = 0.0
+    money_flow_volume: float = 0.0
+    volume_sum: float = 0.0
+    pressure_level: str = "neutral"  # "strong_buying", "buying", "neutral", "selling", "strong_selling"
+    trend_direction: str = "neutral"  # "bullish", "bearish", "neutral"
+    momentum_phase: str = "stable"  # "accelerating", "decelerating", "stable"
+    overbought_oversold: str = "neutral"  # "overbought", "oversold", "neutral"
+    zero_line_cross: Optional[str] = None  # "bullish_cross", "bearish_cross"
+    divergence_signal: Optional[str] = None  # "bullish_divergence", "bearish_divergence"
+    volume_quality: str = "medium"  # "high", "medium", "low"
+    
+    def __post_init__(self):
+        """Auto-populate required base fields if missing"""
+        if not hasattr(self, 'timestamp') or self.timestamp is None:
+            self.timestamp = datetime.now()
+        if not hasattr(self, 'indicator_name') or self.indicator_name is None:
+            self.indicator_name = "ChaikinMoneyFlow"
+        if not hasattr(self, 'signal_type') or self.signal_type is None:
+            self.signal_type = "volume"
 
 class ChaikinMoneyFlow(TechnicalIndicator):
     """
@@ -54,6 +74,7 @@ class ChaikinMoneyFlow(TechnicalIndicator):
     """
     
     def __init__(self, 
+                 config: Optional[Dict[str, Any]] = None, # Added type hint for config
                  period: int = 20,
                  overbought_threshold: float = 0.25,
                  oversold_threshold: float = -0.25,
@@ -63,13 +84,34 @@ class ChaikinMoneyFlow(TechnicalIndicator):
         Initialize CMF with comprehensive analysis parameters
         
         Args:
+            config: Optional configuration object (for compatibility)
             period: Calculation period (default 20)
             overbought_threshold: Overbought level (default 0.25)
             oversold_threshold: Oversold level (default -0.25)
             trend_confirmation_period: Periods for trend confirmation
             divergence_period: Period for divergence analysis
         """
-        super().__init__()
+        # Handle config parameter for compatibility
+        if config is not None:
+            # Extract parameters from config if provided
+            if hasattr(config, 'parameters') and config.parameters:
+                period = config.parameters.get('period', period)
+                overbought_threshold = config.parameters.get('overbought_threshold', overbought_threshold)
+                oversold_threshold = config.parameters.get('oversold_threshold', oversold_threshold)
+                trend_confirmation_period = config.parameters.get('trend_confirmation_period', trend_confirmation_period)
+                divergence_period = config.parameters.get('divergence_period', divergence_period)
+        
+        # Create default config if none provided
+        if config is None:
+            from engines.indicator_base import IndicatorConfig, IndicatorType, TimeFrame
+            config = IndicatorConfig(
+                name="ChaikinMoneyFlow",
+                indicator_type=IndicatorType.VOLUME,
+                timeframe=TimeFrame.D1,
+                lookback_periods=period
+            )
+        
+        super().__init__(config=config) # Added super call with config
         self.period = period
         self.overbought_threshold = overbought_threshold
         self.oversold_threshold = oversold_threshold
@@ -86,15 +128,44 @@ class ChaikinMoneyFlow(TechnicalIndicator):
         self.signals: List[ChaikinMoneyFlowSignal] = []
         
     def calculate(self, 
-                  high: float, 
-                  low: float, 
-                  close: float, 
-                  volume: float, 
+                  data=None,
+                  high=None, 
+                  low=None, 
+                  close=None, 
+                  volume=None, 
                   timestamp: Optional[Any] = None) -> ChaikinMoneyFlowSignal:
         """
         Calculate CMF with comprehensive volume momentum analysis
         """
         try:
+            # Extract required params from data if not provided separately
+            if data is not None:
+                if isinstance(data, dict):
+                    high = high if high is not None else data.get('high')
+                    low = low if low is not None else data.get('low')
+                    close = close if close is not None else data.get('close')
+                    volume = volume if volume is not None else data.get('volume')
+                elif hasattr(data, 'iloc') and len(data) >= 4:  # DataFrame-like
+                    high = high if high is not None else data.iloc[1]  # Assuming OHLCV order
+                    low = low if low is not None else data.iloc[2]
+                    close = close if close is not None else data.iloc[3]
+                    volume = volume if volume is not None else data.iloc[4]
+                elif isinstance(data, (list, tuple)) and len(data) >= 4:
+                    high = high if high is not None else data[1]  # Assuming OHLCV order
+                    low = low if low is not None else data[2]
+                    close = close if close is not None else data[3]
+                    volume = volume if volume is not None else data[4]
+            
+            # Validate required parameters
+            if any(x is None for x in [high, low, close, volume]):
+                raise ValueError("Missing required parameters: high, low, close, and volume are required")
+            
+            # Convert to float if needed
+            high = float(high)
+            low = float(low)
+            close = float(close)
+            volume = float(volume)
+            
             # Store current values
             self.highs.append(high)
             self.lows.append(low)
@@ -148,7 +219,33 @@ class ChaikinMoneyFlow(TechnicalIndicator):
             
         except Exception as e:
             logger.error(f"CMF calculation error: {e}")
-            return self._create_neutral_signal(close, 0.0, 0.0, 0.0)
+            return self._create_neutral_signal(close if 'close' in locals() else 0.0, 0.0, 0.0, 0.0)
+    
+    def _create_neutral_signal(self, close: float, cmf_value: float, 
+                              money_flow_volume: float, volume_sum: float) -> ChaikinMoneyFlowSignal:
+        """Create a neutral signal when calculation fails"""
+        return ChaikinMoneyFlowSignal(
+            timestamp=datetime.now(),
+            indicator_name="ChaikinMoneyFlow",
+            signal_type="volume",
+            strength=0.0,
+            confidence=0.0,
+            cmf_value=cmf_value,
+            money_flow_volume=money_flow_volume,
+            volume_sum=volume_sum,
+            pressure_level="neutral",
+            trend_direction="neutral",
+            momentum_phase="stable",
+            overbought_oversold="neutral",
+            zero_line_cross=None,
+            divergence_signal=None,
+            volume_quality="medium",
+            metadata={
+                "indicator": "CMF",
+                "error": "calculation_failed",
+                "close": close
+            }
+        )
     
     def _generate_signal(self, high: float, low: float, close: float, volume: float,
                          cmf_value: float, money_flow_volume: float, 
@@ -183,6 +280,9 @@ class ChaikinMoneyFlow(TechnicalIndicator):
         )
         
         return ChaikinMoneyFlowSignal(
+            timestamp=datetime.now(),
+            indicator_name="ChaikinMoneyFlow",
+            signal_type="volume",
             strength=strength,
             confidence=confidence,
             cmf_value=cmf_value,
@@ -431,11 +531,14 @@ class ChaikinMoneyFlow(TechnicalIndicator):
         
         return strength, confidence
     
-    def _create_neutral_signal(self, close: float, cmf_value: float,
-                               money_flow_volume: float, 
-                               volume_sum: float) -> ChaikinMoneyFlowSignal:
+    def _create_neutral_signal(self, close: float, cmf_value: float = 0.0,
+                               money_flow_volume: float = 0.0, 
+                               volume_sum: float = 0.0) -> ChaikinMoneyFlowSignal:
         """Create neutral signal for insufficient data"""
         return ChaikinMoneyFlowSignal(
+            timestamp=datetime.now(),
+            indicator_name="ChaikinMoneyFlow",
+            signal_type="volume",
             strength=0.0,
             confidence=0.0,
             cmf_value=cmf_value,
@@ -453,6 +556,10 @@ class ChaikinMoneyFlow(TechnicalIndicator):
                 "status": "insufficient_data"
             }
         )
+
+    def generate_signal(self, high: float, low: float, close: float, volume: float, timestamp: Optional[Any] = None) -> IndicatorSignal:
+        """Generate signal using standard interface - delegates to calculate method"""
+        return self.calculate(high, low, close, volume, timestamp)
 
 # Test function
 def test_chaikin_money_flow():

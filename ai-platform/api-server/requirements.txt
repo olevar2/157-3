@@ -1,0 +1,39 @@
+# Platform3 Python AI Engine API Server Dependencies
+# High-performance FastAPI server for TypeScript-Python communication
+
+# Core FastAPI and server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+websockets==12.0
+
+# Data validation and serialization
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# HTTP client for external requests
+httpx==0.25.2
+aiohttp==3.9.1
+
+# Scientific computing and ML
+numpy==1.24.3
+pandas==2.0.3
+scikit-learn==1.3.0
+
+# Async and concurrency
+asyncio-throttle==1.0.2
+aiofiles==23.2.1
+
+# Monitoring and logging
+prometheus-client==0.19.0
+structlog==23.2.0
+
+# Development and testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+isort==5.12.0
+
+# Optional AI/ML dependencies (uncomment if needed)
+# tensorflow==2.15.0
+# torch==2.1.0
+# transformers==4.35.0

@@ -1,0 +1,257 @@
+{
+  "timestamp": "2025-06-03T10:15:23.012938",
+  "summary": {
+    "total_indicators": 89,
+    "passed_indicators": 0,
+    "pass_rate": 0.0,
+    "average_performance_ms": 0,
+    "ai_integration_status": "pass",
+    "typescript_integration_status": "pass"
+  },
+  "categories": {
+    "momentum": {
+      "indicators_tested": 19,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing awesome_oscillator.py: Test returned None result",
+        "Error testing cci.py: Test returned None result",
+        "Error testing chande_momentum_oscillator.py: Test returned None result",
+        "Error testing commodity_channel_index.py: Test returned None result",
+        "Error testing detrended_price_oscillator.py: Test returned None result",
+        "Error testing know_sure_thing.py: Test returned None result",
+        "Error testing macd.py: Test returned None result",
+        "Error testing mfi.py: Test returned None result",
+        "Error testing momentum.py: Test returned None result",
+        "Error testing percentage_price_oscillator.py: Test returned None result",
+        "Error testing roc.py: Test returned None result",
+        "Error testing rsi.py: Test returned None result",
+        "Error testing stochastic.py: Test returned None result",
+        "Error testing trix.py: Test returned None result",
+        "Error testing trix_new.py: Test returned None result",
+        "Error testing trix_old.py: Test returned None result",
+        "Error testing true_strength_index.py: Test returned None result",
+        "Error testing ultimate_oscillator.py: Test returned None result",
+        "Error testing williams_r.py: Test returned None result"
+      ],
+      "pass_rate": 0.0
+    },
+    "trend": {
+      "indicators_tested": 8,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing aroon_indicator.py: Test returned None result",
+        "Error testing average_true_range.py: Test returned None result",
+        "Error testing bollinger_bands.py: Test returned None result",
+        "Error testing directional_movement_system.py: Test returned None result",
+        "Error testing donchian_channels.py: Test returned None result",
+        "Error testing keltner_channels.py: Test returned None result",
+        "Error testing parabolic_sar.py: Test returned None result",
+        "Error testing vortex_indicator.py: Test returned None result"
+      ],
+      "pass_rate": 0.0
+    },
+    "volume": {
+      "indicators_tested": 10,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing accumulation_distribution.py: Test returned None result",
+        "Error testing chaikin_money_flow.py: Test returned None result",
+        "Error testing obv.py: Test returned None result",
+        "Error testing OrderFlowImbalance.py: Test returned None result",
+        "Error testing SmartMoneyIndicators.py: Test returned None result",
+        "Error testing TickVolumeIndicators.py: Test returned None result",
+        "Error testing VolumeProfiles.py: Test returned None result",
+        "Error testing VolumeSpreadAnalysis.py: Test returned None result",
+        "Error testing volume_price_trend.py: Test returned None result",
+        "Error testing vwap.py: Test returned None result"
+      ],
+      "pass_rate": 0.0
+    },
+    "volatility": {
+      "indicators_tested": 3,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing historical_volatility.py: Test returned None result",
+        "Error testing keltner_channels.py: Test returned None result",
+        "Error testing volatility_index.py: Test returned None result"
+      ],
+      "pass_rate": 0.0
+    },
+    "pattern": {
+      "indicators_tested": 12,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing doji_recognition.py: Test returned None result",
+        "Error testing doji_recognition_fixed.py: Test returned None result",
+        "Error testing elliott_wave_analysis.py: Test returned None result",
+        "Error testing engulfing_pattern.py: Test returned None result",
+        "Error testing engulfing_pattern_fixed.py: Test returned None result",
+        "Error testing fibonacci_retracement_extension.py: Test returned None result",
+        "Error testing gann_angles_time_cycles.py: Test returned None result",
+        "Error testing hammer_hanging_man.py: Test returned None result",
+        "Error testing hammer_hanging_man_fixed.py: Test returned None result",
+        "Error testing harami_pattern.py: Test returned None result",
+        "Error testing harami_pattern_fixed.py: Test returned None result",
+        "Error testing japanese_candlestick_patterns.py: Test returned None result"
+      ],
+      "pass_rate": 0.0
+    },
+    "statistical": {
+      "indicators_tested": 4,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing correlation_analysis.py: Test returned None result",
+        "Error testing linear_regression_channels.py: Test returned None result",
+        "Error testing standard_deviation_channels.py: Test returned None result",
+        "Error testing z_score.py: Test returned None result"
+      ],
+      "pass_rate": 0.0
+    },
+    "fractal": {
+      "indicators_tested": 8,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing chaos_theory_indicators.py: Test returned None result",
+        "Error testing fractal_channel.py: Test returned None result",
+        "Error testing fractal_dimension_calculator.py: Test returned None result",
+        "Error testing frama.py: Test returned None result",
+        "Error testing implementation_template.py: Test returned None result",
+        "Error testing mandelbrot_fractal.py: Test returned None result",
+        "Error testing mfdfa.py: Test returned None result",
+        "Error testing self_similarity_detector.py: Test returned None result"
+      ],
+      "pass_rate": 0.0
+    },
+    "elliott_wave": {
+      "indicators_tested": 3,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing fibonacci_wave_projections.py: Test returned None result",
+        "Error testing impulse_corrective_classifier.py: Test returned None result",
+        "Error testing wave_count_calculator.py: Test returned None result"
+      ],
+      "pass_rate": 0.0
+    },
+    "gann": {
+      "indicators_tested": 5,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing GannPatternDetector.py: Test returned None result",
+        "Error testing gann_fan_lines.py: Test returned None result",
+        "Error testing gann_square_of_nine.py: Test returned None result",
+        "Error testing gann_time_cycles.py: Test returned None result",
+        "Error testing price_time_relationships.py: Test returned None result"
+      ],
+      "pass_rate": 0.0
+    },
+    "fibonacci": {
+      "indicators_tested": 5,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing ConfluenceDetector.py: Test returned None result",
+        "Error testing FibonacciExtension.py: Test returned None result",
+        "Error testing FibonacciRetracement.py: Test returned None result",
+        "Error testing ProjectionArcCalculator.py: Test returned None result",
+        "Error testing TimeZoneAnalysis.py: Test returned None result"
+      ],
+      "pass_rate": 0.0
+    },
+    "cycle": {
+      "indicators_tested": 8,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing Alligator.py: Test returned None result",
+        "Error testing cycle_period_identification.py: Test returned None result",
+        "Error testing dominant_cycle_analysis.py: Test returned None result",
+        "Error testing FisherTransform.py: Test returned None result",
+        "Error testing HurstExponent.py: Test returned None result",
+        "Error testing hurst_exponent.py: Test returned None result",
+        "Error testing market_regime_detection.py: Test returned None result",
+        "Error testing phase_analysis.py: Test returned None result"
+      ],
+      "pass_rate": 0.0
+    },
+    "divergence": {
+      "indicators_tested": 4,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing hidden_divergence_detector.py: Test returned None result",
+        "Error testing momentum_divergence_scanner.py: Test returned None result",
+        "Error testing multi_timeframe_divergence.py: Test returned None result",
+        "Error testing price_volume_divergence.py: Test returned None result"
+      ],
+      "pass_rate": 0.0
+    }
+  },
+  "ai_integration": {
+    "ai_platform_available": true,
+    "ai_platform_manager": true,
+    "adaptive_strategy_generator": true,
+    "decision_master": true,
+    "execution_expert": true,
+    "indicator_integration_ready": true,
+    "ai_manager_initialized": true
+  },
+  "typescript_integration": {
+    "typescript_integration_available": true,
+    "tests_passed": 3,
+    "tests_failed": 1,
+    "tests_total": 4,
+    "pass_rate": 0.75,
+    "details": {
+      "python_indicator_latency": {
+        "status": "pass",
+        "latency_ms": 0.21240001660771668
+      },
+      "data_serialization": {
+        "status": "pass",
+        "latency_ms": 0.27879999834112823
+      },
+      "concurrent_requests": {
+        "status": "pass",
+        "latency_ms": 0.3947000077459961,
+        "requests": 10
+      },
+      "websocket_simulation": {
+        "status": "fail",
+        "latency_ms": 3.2826999959070235
+      }
+    },
+    "latency_performance": {
+      "meets_1ms_target": false,
+      "performance_issues": [
+        "websocket_simulation: 3.283ms"
+      ],
+      "recommendations": [
+        "Optimize websocket_simulation (current: 3.283ms)"
+      ]
+    }
+  },
+  "recommendations": [
+    "Improve momentum indicators (pass rate: 0.0%)",
+    "Improve trend indicators (pass rate: 0.0%)",
+    "Improve volume indicators (pass rate: 0.0%)",
+    "Improve volatility indicators (pass rate: 0.0%)",
+    "Improve pattern indicators (pass rate: 0.0%)",
+    "Improve statistical indicators (pass rate: 0.0%)",
+    "Improve fractal indicators (pass rate: 0.0%)",
+    "Improve elliott_wave indicators (pass rate: 0.0%)",
+    "Improve gann indicators (pass rate: 0.0%)",
+    "Improve fibonacci indicators (pass rate: 0.0%)",
+    "Improve cycle indicators (pass rate: 0.0%)",
+    "Improve divergence indicators (pass rate: 0.0%)",
+    "Improve TypeScript-Python bridge (pass rate: 75.0%)"
+  ]
+}

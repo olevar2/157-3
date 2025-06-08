@@ -1,0 +1,1429 @@
+"""
+Chaos Theory Indicators Implementation
+Advanced non-linear dynamics analysis for market behavior prediction.
+"""
+
+import numpy as np
+import pandas as pd
+from typing import Dict, List, Tuple, Optional, Union
+from scipy import stats
+from scipy.integrate import odeint
+from scipy.optimize import minimize
+import math
+from dataclasses import dataclass
+
+@dataclass
+class AttractorPoint:
+    """Point in phase space attractor."""
+    coordinates: List[float]
+    timestamp: pd.Timestamp
+    distance_to_center: float
+    local_dimension: float
+
+@dataclass
+class ChaosSignal:
+    """Chaos-based trading signal."""
+    timestamp: pd.Timestamp
+    signal_type: str
+    chaos_level: float
+    lyapunov_exponent: float
+    attractor_deviation: float
+    signal_strength: float
+    description: str
+
+class ChaosTheoryIndicators:
+    """
+    Chaos Theory Indicators for Market Analysis
+    
+    Implements various chaos theory concepts for market analysis:
+    - Lyapunov Exponents: Sensitivity to initial conditions
+    - Strange Attractors: Deterministic but chaotic behavior patterns
+    - Phase Space Reconstruction: Hidden dynamics revelation
+    - Entropy Measures: Information content and predictability
+    - Bifurcation Detection: Structural changes in dynamics
+    - Nonlinear Prediction: Chaos-based forecasting
+    """
+    
+    def __init__(self, 
+                 embedding_dimension: int = 3,
+                 time_delay: int = 1,
+                 min_data_points: int = 100,
+                 max_lyapunov_iterations: int = 1000):
+        """
+        Initialize Chaos Theory Indicators.
+        
+        Args:
+            embedding_dimension: Dimension for phase space reconstruction
+            time_delay: Time delay for embedding
+            min_data_points: Minimum data points needed for analysis
+            max_lyapunov_iterations: Maximum iterations for Lyapunov calculation
+        """
+        self.embedding_dimension = embedding_dimension
+        self.time_delay = time_delay
+        self.min_data_points = min_data_points
+        self.max_lyapunov_iterations = max_lyapunov_iterations
+        
+        # Chaos classification thresholds
+        self.chaos_thresholds = {
+            'deterministic': 0.0,
+            'edge_of_chaos': 0.1,
+            'chaotic': 0.5,
+            'highly_chaotic': 1.0
+        }
+        
+        # Historical chaos measurements
+        self.chaos_history: List[Dict] = []
+        self.attractor_points: List[AttractorPoint] = []
+        
+    def analyze(self, 
+                data: pd.DataFrame,
+                price_column: str = 'close',
+                volume_column: str = 'volume') -> Dict:
+        """
+        Comprehensive chaos theory analysis.
+        
+        Args:
+            data: OHLCV DataFrame with datetime index
+            price_column: Column name for price analysis
+            volume_column: Column name for volume analysis
+            
+        Returns:
+            Dictionary containing chaos analysis results
+        """
+        if len(data) < self.min_data_points:
+            return self._empty_result()
+        
+        results = {
+            'timestamp': data.index[-1],
+            'lyapunov_exponents': {},
+            'phase_space_analysis': {},
+            'strange_attractor': {},
+            'entropy_measures': {},
+            'bifurcation_analysis': {},
+            'nonlinear_prediction': {},
+            'chaos_classification': {},
+            'signals': [],
+            'chaos_level': 0.0,
+            'predictability': 0.0,
+            'system_stability': 'unknown'
+        }
+        
+        prices = data[price_column].values
+        volumes = data[volume_column].values if volume_column in data.columns else None
+        
+        # Calculate Lyapunov exponents
+        results['lyapunov_exponents'] = self._calculate_lyapunov_exponents(prices)
+        
+        # Analyze phase space
+        results['phase_space_analysis'] = self._analyze_phase_space(prices)
+        
+        # Detect strange attractor
+        results['strange_attractor'] = self._analyze_strange_attractor(prices)
+        
+        # Calculate entropy measures
+        results['entropy_measures'] = self._calculate_entropy_measures(prices)
+        
+        # Detect bifurcations
+        results['bifurcation_analysis'] = self._analyze_bifurcations(prices)
+        
+        # Nonlinear prediction
+        results['nonlinear_prediction'] = self._nonlinear_prediction(prices)
+        
+        # Classify chaos level
+        results['chaos_classification'] = self._classify_chaos_level(results)
+        
+        # Generate chaos-based signals
+        results['signals'] = self._generate_chaos_signals(data, prices)
+        
+        # Calculate overall chaos level
+        results['chaos_level'] = self._calculate_overall_chaos_level(results)
+        
+        # Calculate predictability
+        results['predictability'] = self._calculate_predictability(results)
+        
+        # Determine system stability
+        results['system_stability'] = self._determine_system_stability(results)
+        
+        return results
+    
+    def _calculate_lyapunov_exponents(self, prices: np.ndarray) -> Dict:
+        """Calculate Lyapunov exponents for chaos detection."""
+        if len(prices) < 50:
+            return {'largest_exponent': 0.0, 'all_exponents': [], 'confidence': 0.0}
+        
+        # Phase space reconstruction
+        embedded_data = self._phase_space_reconstruction(prices)
+        
+        if len(embedded_data) < 20:
+            return {'largest_exponent': 0.0, 'all_exponents': [], 'confidence': 0.0}
+        
+        # Calculate largest Lyapunov exponent using Wolf's algorithm
+        largest_lyapunov = self._wolf_lyapunov_exponent(embedded_data)
+        
+        # Estimate other exponents (simplified)
+        all_exponents = self._estimate_lyapunov_spectrum(embedded_data)
+        
+        # Calculate confidence based on data quality
+        confidence = self._calculate_lyapunov_confidence(embedded_data, largest_lyapunov)
+        
+        return {
+            'largest_exponent': largest_lyapunov,
+            'all_exponents': all_exponents,
+            'confidence': confidence,
+            'chaos_indicator': largest_lyapunov > 0,
+            'divergence_rate': max(0, largest_lyapunov),
+            'predictability_horizon': self._calculate_predictability_horizon(largest_lyapunov)
+        }
+    
+    def _analyze_phase_space(self, prices: np.ndarray) -> Dict:
+        """Analyze phase space structure."""
+        if len(prices) < 30:
+            return {'dimension': 0, 'trajectory_points': 0, 'coverage': 0.0}
+        
+        # Phase space reconstruction
+        embedded_data = self._phase_space_reconstruction(prices)
+        
+        # Calculate phase space characteristics
+        phase_analysis = {
+            'dimension': self.embedding_dimension,
+            'trajectory_points': len(embedded_data),
+            'coverage': self._calculate_phase_space_coverage(embedded_data),
+            'trajectory_density': self._calculate_trajectory_density(embedded_data),
+            'recurrence_rate': self._calculate_recurrence_rate(embedded_data),
+            'trajectory_divergence': self._calculate_trajectory_divergence(embedded_data)
+        }
+        
+        # Analyze trajectory patterns
+        phase_analysis['patterns'] = self._analyze_trajectory_patterns(embedded_data)
+        
+        # Calculate phase space geometry
+        phase_analysis['geometry'] = self._analyze_phase_space_geometry(embedded_data)
+        
+        return phase_analysis
+    
+    def _analyze_strange_attractor(self, prices: np.ndarray) -> Dict:
+        """Analyze strange attractor properties."""
+        if len(prices) < 50:
+            return {'exists': False, 'dimension': 0.0, 'complexity': 0.0}
+        
+        # Phase space reconstruction
+        embedded_data = self._phase_space_reconstruction(prices)
+        
+        # Check for attractor existence
+        attractor_exists = self._detect_attractor_existence(embedded_data)
+        
+        if not attractor_exists:
+            return {'exists': False, 'dimension': 0.0, 'complexity': 0.0}
+        
+        # Calculate attractor properties
+        attractor_analysis = {
+            'exists': True,
+            'dimension': self._calculate_attractor_dimension(embedded_data),
+            'complexity': self._calculate_attractor_complexity(embedded_data),
+            'stability': self._calculate_attractor_stability(embedded_data),
+            'basin_size': self._estimate_basin_of_attraction(embedded_data),
+            'fractal_structure': self._analyze_fractal_structure(embedded_data)
+        }
+        
+        # Identify attractor type
+        attractor_analysis['type'] = self._classify_attractor_type(embedded_data)
+        
+        # Calculate attractor center and variance
+        center, variance = self._calculate_attractor_center_variance(embedded_data)
+        attractor_analysis['center'] = center
+        attractor_analysis['variance'] = variance
+        
+        # Store attractor points
+        self._store_attractor_points(embedded_data, prices)
+        
+        return attractor_analysis
+    
+    def _calculate_entropy_measures(self, prices: np.ndarray) -> Dict:
+        """Calculate various entropy measures."""
+        if len(prices) < 20:
+            return {'shannon_entropy': 0.0, 'approximate_entropy': 0.0, 'sample_entropy': 0.0}
+        
+        # Calculate log returns for entropy calculation
+        log_prices = np.log(prices)
+        returns = np.diff(log_prices)
+        
+        entropy_measures = {}
+        
+        # Shannon entropy
+        entropy_measures['shannon_entropy'] = self._calculate_shannon_entropy(returns)
+        
+        # Approximate entropy
+        entropy_measures['approximate_entropy'] = self._calculate_approximate_entropy(returns)
+        
+        # Sample entropy
+        entropy_measures['sample_entropy'] = self._calculate_sample_entropy(returns)
+        
+        # Kolmogorov complexity (estimated)
+        entropy_measures['kolmogorov_complexity'] = self._estimate_kolmogorov_complexity(returns)
+        
+        # Permutation entropy
+        entropy_measures['permutation_entropy'] = self._calculate_permutation_entropy(returns)
+        
+        # Multiscale entropy
+        entropy_measures['multiscale_entropy'] = self._calculate_multiscale_entropy(returns)
+        
+        return entropy_measures
+    
+    def _analyze_bifurcations(self, prices: np.ndarray) -> Dict:
+        """Analyze bifurcation points in the system."""
+        if len(prices) < 100:
+            return {'bifurcations': [], 'stability_changes': 0}
+        
+        bifurcation_analysis = {
+            'bifurcations': [],
+            'stability_changes': 0,
+            'parameter_sensitivity': 0.0,
+            'critical_points': []
+        }
+        
+        # Analyze system parameters over time
+        window_size = 50
+        step_size = 10
+        
+        system_parameters = []
+        
+        for i in range(0, len(prices) - window_size, step_size):
+            window_prices = prices[i:i + window_size]
+            
+            # Calculate local system characteristics
+            local_lyapunov = self._quick_lyapunov_estimate(window_prices)
+            local_variance = np.var(np.diff(np.log(window_prices)))
+            local_autocorr = self._calculate_autocorrelation(window_prices)
+            
+            system_parameters.append({
+                'position': i,
+                'lyapunov': local_lyapunov,
+                'variance': local_variance,
+                'autocorrelation': local_autocorr
+            })
+        
+        # Detect bifurcations as sudden changes in system parameters
+        if len(system_parameters) >= 3:
+            bifurcations = self._detect_parameter_changes(system_parameters)
+            bifurcation_analysis['bifurcations'] = bifurcations
+            bifurcation_analysis['stability_changes'] = len(bifurcations)
+        
+        return bifurcation_analysis
+    
+    def _nonlinear_prediction(self, prices: np.ndarray) -> Dict:
+        """Perform nonlinear prediction using chaos theory."""
+        if len(prices) < 50:
+            return {'predictions': [], 'accuracy': 0.0, 'horizon': 0}
+        
+        # Phase space reconstruction
+        embedded_data = self._phase_space_reconstruction(prices)
+        
+        prediction_results = {
+            'predictions': [],
+            'accuracy': 0.0,
+            'horizon': 0,
+            'method': 'local_linear',
+            'confidence_intervals': []
+        }
+        
+        # Use local linear method for prediction
+        if len(embedded_data) >= 10:
+            predictions = self._local_linear_prediction(embedded_data, prices)
+            prediction_results['predictions'] = predictions
+            
+            # Calculate prediction accuracy on historical data
+            accuracy = self._calculate_prediction_accuracy(embedded_data, prices)
+            prediction_results['accuracy'] = accuracy
+            
+            # Determine prediction horizon
+            horizon = self._calculate_prediction_horizon(accuracy)
+            prediction_results['horizon'] = horizon
+        
+        return prediction_results
+    
+    def _phase_space_reconstruction(self, data: np.ndarray) -> np.ndarray:
+        """Reconstruct phase space using time delay embedding."""
+        if len(data) < self.embedding_dimension * self.time_delay:
+            return np.array([])
+        
+        embedded_data = []
+        
+        for i in range(len(data) - (self.embedding_dimension - 1) * self.time_delay):
+            vector = []
+            for j in range(self.embedding_dimension):
+                vector.append(data[i + j * self.time_delay])
+            embedded_data.append(vector)
+        
+        return np.array(embedded_data)
+    
+    def _wolf_lyapunov_exponent(self, embedded_data: np.ndarray) -> float:
+        """Calculate largest Lyapunov exponent using Wolf's algorithm."""
+        if len(embedded_data) < 10:
+            return 0.0
+        
+        # Initialize
+        lyapunov_sum = 0.0
+        evolution_time = 0
+        
+        # Find nearest neighbors and track divergence
+        for i in range(len(embedded_data) - 10):
+            # Find nearest neighbor
+            distances = np.linalg.norm(embedded_data[i+1:] - embedded_data[i], axis=1)
+            
+            if len(distances) == 0:
+                continue
+            
+            min_idx = np.argmin(distances)
+            min_distance = distances[min_idx]
+            
+            if min_distance > 0:
+                # Track evolution
+                evolution_steps = min(10, len(embedded_data) - i - min_idx - 1)
+                
+                if evolution_steps > 1:
+                    # Calculate divergence after evolution
+                    evolved_distance = np.linalg.norm(
+                        embedded_data[i + evolution_steps] - 
+                        embedded_data[i + min_idx + 1 + evolution_steps]
+                    )
+                    
+                    if evolved_distance > 0:
+                        lyapunov_sum += np.log(evolved_distance / min_distance)
+                        evolution_time += evolution_steps
+        
+        # Calculate average Lyapunov exponent
+        if evolution_time > 0:
+            return lyapunov_sum / evolution_time
+        else:
+            return 0.0
+    
+    def _estimate_lyapunov_spectrum(self, embedded_data: np.ndarray) -> List[float]:
+        """Estimate full Lyapunov spectrum (simplified)."""
+        if len(embedded_data) < 10:
+            return [0.0]
+        
+        # For simplicity, estimate based on eigenvalues of local Jacobian
+        spectrum = []
+        
+        try:
+            # Calculate local linearization
+            for dim in range(min(3, self.embedding_dimension)):
+                # Estimate local exponent for each dimension
+                local_exponent = self._estimate_local_exponent(embedded_data, dim)
+                spectrum.append(local_exponent)
+        except:
+            spectrum = [0.0]
+        
+        return spectrum
+    
+    def _estimate_local_exponent(self, embedded_data: np.ndarray, dimension: int) -> float:
+        """Estimate local Lyapunov exponent for specific dimension."""
+        if len(embedded_data) < 5:
+            return 0.0
+        
+        # Calculate variance in specific dimension
+        dim_data = embedded_data[:, dimension] if dimension < embedded_data.shape[1] else embedded_data[:, 0]
+        
+        # Estimate local expansion rate
+        local_expansion = 0.0
+        count = 0
+        
+        for i in range(len(dim_data) - 1):
+            if dim_data[i] != 0:
+                expansion = abs(dim_data[i+1] - dim_data[i]) / abs(dim_data[i])
+                if expansion > 0:
+                    local_expansion += np.log(expansion)
+                    count += 1
+        
+        return local_expansion / count if count > 0 else 0.0
+    
+    def _calculate_lyapunov_confidence(self, embedded_data: np.ndarray, lyapunov: float) -> float:
+        """Calculate confidence in Lyapunov exponent calculation."""
+        if len(embedded_data) < 10:
+            return 0.0
+        
+        # Base confidence on data quality and consistency
+        data_quality = min(1.0, len(embedded_data) / 100)
+        
+        # Check for reasonable Lyapunov value
+        value_reasonableness = 1.0 if -2.0 <= lyapunov <= 2.0 else 0.5
+        
+        # Check data variance (too low variance reduces confidence)
+        data_variance = np.var(embedded_data.flatten())
+        variance_quality = min(1.0, data_variance / 0.01) if data_variance > 0 else 0.0
+        
+        return (data_quality + value_reasonableness + variance_quality) / 3
+    
+    def _calculate_predictability_horizon(self, lyapunov: float) -> int:
+        """Calculate predictability horizon from Lyapunov exponent."""
+        if lyapunov <= 0:
+            return 100  # Long horizon for non-chaotic systems
+        
+        # Predictability horizon is inversely related to Lyapunov exponent
+        horizon = int(1 / lyapunov) if lyapunov > 0.01 else 100
+        
+        return min(100, max(1, horizon))
+    
+    def _calculate_phase_space_coverage(self, embedded_data: np.ndarray) -> float:
+        """Calculate how much of phase space is covered by trajectory."""
+        if len(embedded_data) < 2:
+            return 0.0
+        
+        # Calculate bounding box volume
+        min_coords = np.min(embedded_data, axis=0)
+        max_coords = np.max(embedded_data, axis=0)
+        
+        # Calculate coverage as ratio of visited vs. total space
+        visited_volume = np.prod(max_coords - min_coords)
+        
+        # Estimate density
+        point_density = len(embedded_data) / (visited_volume + 1e-10)
+        
+        # Normalize coverage measure
+        coverage = min(1.0, point_density / 10)
+        
+        return coverage
+    
+    def _calculate_trajectory_density(self, embedded_data: np.ndarray) -> float:
+        """Calculate density of trajectory points."""
+        if len(embedded_data) < 2:
+            return 0.0
+        
+        # Calculate average distance between consecutive points
+        distances = []
+        for i in range(len(embedded_data) - 1):
+            distance = np.linalg.norm(embedded_data[i+1] - embedded_data[i])
+            distances.append(distance)
+        
+        avg_distance = np.mean(distances) if distances else 0.0
+        
+        # Density is inverse of average distance
+        density = 1 / (avg_distance + 1e-10)
+        
+        return density
+    
+    def _calculate_recurrence_rate(self, embedded_data: np.ndarray) -> float:
+        """Calculate recurrence rate in phase space."""
+        if len(embedded_data) < 10:
+            return 0.0
+        
+        # Define recurrence threshold as percentage of phase space diameter
+        threshold = 0.1 * np.std(embedded_data.flatten())
+        
+        recurrences = 0
+        total_comparisons = 0
+        
+        # Sample pairs to avoid O(n²) complexity
+        sample_size = min(100, len(embedded_data))
+        indices = np.random.choice(len(embedded_data), sample_size, replace=False)
+        
+        for i in indices:
+            for j in indices:
+                if i != j:
+                    distance = np.linalg.norm(embedded_data[i] - embedded_data[j])
+                    if distance < threshold:
+                        recurrences += 1
+                    total_comparisons += 1
+        
+        return recurrences / total_comparisons if total_comparisons > 0 else 0.0
+    
+    def _calculate_trajectory_divergence(self, embedded_data: np.ndarray) -> float:
+        """Calculate average trajectory divergence."""
+        if len(embedded_data) < 5:
+            return 0.0
+        
+        # Calculate divergence from centroid
+        centroid = np.mean(embedded_data, axis=0)
+        distances = [np.linalg.norm(point - centroid) for point in embedded_data]
+        
+        return np.std(distances)
+    
+    def _analyze_trajectory_patterns(self, embedded_data: np.ndarray) -> Dict:
+        """Analyze patterns in trajectory."""
+        patterns = {
+            'spiraling': False,
+            'periodic': False,
+            'chaotic': False,
+            'convergent': False
+        }
+        
+        if len(embedded_data) < 10:
+            return patterns
+        
+        # Check for spiraling (increasing/decreasing distance from center)
+        centroid = np.mean(embedded_data, axis=0)
+        distances = [np.linalg.norm(point - centroid) for point in embedded_data]
+        
+        # Linear trend in distances indicates spiraling
+        if len(distances) >= 3:
+            x = np.arange(len(distances))
+            slope, _, r_value, _, _ = stats.linregress(x, distances)
+            
+            if abs(r_value) > 0.5:
+                patterns['spiraling'] = True
+                patterns['convergent'] = slope < 0
+        
+        # Check for periodicity (simplified)
+        patterns['periodic'] = self._detect_periodicity(embedded_data)
+        
+        # Chaos indicator
+        patterns['chaotic'] = np.std(distances) > 2 * np.mean(distances)
+        
+        return patterns
+    
+    def _analyze_phase_space_geometry(self, embedded_data: np.ndarray) -> Dict:
+        """Analyze geometric properties of phase space."""
+        geometry = {
+            'volume': 0.0,
+            'surface_area': 0.0,
+            'compactness': 0.0,
+            'elongation': 0.0
+        }
+        
+        if len(embedded_data) < 3:
+            return geometry
+        
+        # Calculate bounding box volume
+        min_coords = np.min(embedded_data, axis=0)
+        max_coords = np.max(embedded_data, axis=0)
+        geometry['volume'] = np.prod(max_coords - min_coords)
+        
+        # Estimate surface area (simplified)
+        hull_points = self._convex_hull_estimate(embedded_data)
+        geometry['surface_area'] = len(hull_points)
+        
+        # Compactness (volume to surface area ratio)
+        if geometry['surface_area'] > 0:
+            geometry['compactness'] = geometry['volume'] / geometry['surface_area']
+        
+        # Elongation (ratio of principal axes)
+        geometry['elongation'] = self._calculate_elongation(embedded_data)
+        
+        return geometry
+    
+    def _detect_attractor_existence(self, embedded_data: np.ndarray) -> bool:
+        """Detect if a strange attractor exists."""
+        if len(embedded_data) < 20:
+            return False
+        
+        # Check for bounded behavior
+        ranges = np.max(embedded_data, axis=0) - np.min(embedded_data, axis=0)
+        bounded = np.all(ranges < np.inf) and np.all(ranges > 0)
+        
+        # Check for non-periodic behavior
+        non_periodic = not self._detect_periodicity(embedded_data)
+        
+        # Check for sensitive dependence (estimated)
+        sensitive = self._quick_lyapunov_estimate(embedded_data.flatten()) > 0
+        
+        return bounded and non_periodic and sensitive
+    
+    def _calculate_attractor_dimension(self, embedded_data: np.ndarray) -> float:
+        """Calculate attractor dimension (correlation dimension)."""
+        if len(embedded_data) < 10:
+            return 0.0
+        
+        # Use correlation dimension as approximation
+        distances = []
+        sample_size = min(50, len(embedded_data))
+        indices = np.random.choice(len(embedded_data), sample_size, replace=False)
+        
+        for i in range(len(indices)):
+            for j in range(i+1, len(indices)):
+                distance = np.linalg.norm(embedded_data[indices[i]] - embedded_data[indices[j]])
+                distances.append(distance)
+        
+        if not distances:
+            return 0.0
+        
+        # Estimate dimension from distance distribution
+        # This is a simplified approximation
+        distance_std = np.std(distances)
+        distance_mean = np.mean(distances)
+        
+        if distance_mean > 0:
+            dimension = -np.log(distance_std / distance_mean) / np.log(2)
+            return max(0, min(self.embedding_dimension, dimension))
+        
+        return 0.0
+    
+    def _calculate_attractor_complexity(self, embedded_data: np.ndarray) -> float:
+        """Calculate attractor complexity."""
+        if len(embedded_data) < 5:
+            return 0.0
+        
+        # Complexity based on trajectory variability
+        centroid = np.mean(embedded_data, axis=0)
+        distances = [np.linalg.norm(point - centroid) for point in embedded_data]
+        
+        # Normalized standard deviation as complexity measure
+        complexity = np.std(distances) / (np.mean(distances) + 1e-10)
+        
+        return min(1.0, complexity)
+    
+    def _calculate_attractor_stability(self, embedded_data: np.ndarray) -> float:
+        """Calculate attractor stability."""
+        if len(embedded_data) < 10:
+            return 0.0
+        
+        # Stability based on return map analysis
+        # Check how often trajectory returns to similar states
+        threshold = 0.1 * np.std(embedded_data.flatten())
+        returns = 0
+        
+        for i in range(len(embedded_data) // 2):
+            for j in range(i + len(embedded_data) // 4, len(embedded_data)):
+                if np.linalg.norm(embedded_data[i] - embedded_data[j]) < threshold:
+                    returns += 1
+                    break
+        
+        stability = returns / (len(embedded_data) // 2)
+        return min(1.0, stability)
+    
+    def _estimate_basin_of_attraction(self, embedded_data: np.ndarray) -> float:
+        """Estimate size of basin of attraction."""
+        if len(embedded_data) < 5:
+            return 0.0
+        
+        # Basin size estimated as volume occupied by trajectory
+        min_coords = np.min(embedded_data, axis=0)
+        max_coords = np.max(embedded_data, axis=0)
+        
+        basin_volume = np.prod(max_coords - min_coords)
+        
+        # Normalize by embedding space
+        max_possible_volume = np.prod([10] * self.embedding_dimension)  # Arbitrary normalization
+        
+        return min(1.0, basin_volume / max_possible_volume)
+    
+    def _analyze_fractal_structure(self, embedded_data: np.ndarray) -> Dict:
+        """Analyze fractal structure of attractor."""
+        fractal_analysis = {
+            'fractal_dimension': 0.0,
+            'self_similarity': 0.0,
+            'scaling_behavior': False
+        }
+        
+        if len(embedded_data) < 20:
+            return fractal_analysis
+        
+        # Calculate fractal dimension using box counting
+        fractal_analysis['fractal_dimension'] = self._box_counting_dimension(embedded_data)
+        
+        # Check for self-similarity
+        fractal_analysis['self_similarity'] = self._calculate_self_similarity(embedded_data)
+        
+        # Check for scaling behavior
+        fractal_analysis['scaling_behavior'] = fractal_analysis['fractal_dimension'] > 1.5
+        
+        return fractal_analysis
+    
+    def _classify_attractor_type(self, embedded_data: np.ndarray) -> str:
+        """Classify type of attractor."""
+        if len(embedded_data) < 10:
+            return "unknown"
+        
+        # Check for fixed point
+        if self._is_fixed_point(embedded_data):
+            return "fixed_point"
+        
+        # Check for limit cycle
+        if self._is_limit_cycle(embedded_data):
+            return "limit_cycle"
+        
+        # Check for torus
+        if self._is_torus(embedded_data):
+            return "torus"
+        
+        # Check for strange attractor
+        if self._is_strange_attractor(embedded_data):
+            return "strange_attractor"
+        
+        return "unknown"
+    
+    def _calculate_attractor_center_variance(self, embedded_data: np.ndarray) -> Tuple[np.ndarray, float]:
+        """Calculate attractor center and variance."""
+        if len(embedded_data) == 0:
+            return np.array([0]), 0.0
+        
+        center = np.mean(embedded_data, axis=0)
+        
+        # Calculate variance as average distance from center
+        distances = [np.linalg.norm(point - center) for point in embedded_data]
+        variance = np.var(distances)
+        
+        return center, variance
+    
+    def _store_attractor_points(self, embedded_data: np.ndarray, prices: np.ndarray):
+        """Store attractor points for analysis."""
+        if len(embedded_data) == 0:
+            return
+        
+        center, _ = self._calculate_attractor_center_variance(embedded_data)
+        
+        # Store significant points
+        for i, point in enumerate(embedded_data[-10:]):  # Last 10 points
+            distance_to_center = np.linalg.norm(point - center)
+            local_dimension = self._estimate_local_dimension(point, embedded_data)
+            
+            attractor_point = AttractorPoint(
+                coordinates=point.tolist(),
+                timestamp=pd.Timestamp.now(),  # Would use actual timestamp in practice
+                distance_to_center=distance_to_center,
+                local_dimension=local_dimension
+            )
+            
+            self.attractor_points.append(attractor_point)
+        
+        # Keep only recent points
+        self.attractor_points = self.attractor_points[-100:]
+    
+    def _calculate_shannon_entropy(self, data: np.ndarray) -> float:
+        """Calculate Shannon entropy."""
+        if len(data) == 0:
+            return 0.0
+        
+        # Discretize data into bins
+        hist, _ = np.histogram(data, bins=20, density=True)
+        hist = hist[hist > 0]  # Remove zero bins
+        
+        # Calculate Shannon entropy
+        if len(hist) > 0:
+            return -np.sum(hist * np.log2(hist))
+        else:
+            return 0.0
+    
+    def _calculate_approximate_entropy(self, data: np.ndarray, pattern_length: int = 2, tolerance: float = 0.1) -> float:
+        """Calculate approximate entropy."""
+        if len(data) < pattern_length + 1:
+            return 0.0
+        
+        def _max_distance(xi, xj, pattern_length):
+            return max([abs(ua - va) for ua, va in zip(xi, xj)])
+        
+        def _phi(m):
+            N = len(data) - m + 1
+            patterns = np.array([data[i:i + m] for i in range(N)])
+            
+            C = np.zeros(N)
+            for i in range(N):
+                template_i = patterns[i]
+                for j in range(N):
+                    if _max_distance(template_i, patterns[j], m) <= tolerance * np.std(data):
+                        C[i] += 1.0
+            
+            C = C / float(N)
+            phi = np.mean([np.log(c) for c in C if c > 0])
+            return phi
+        
+        return _phi(pattern_length) - _phi(pattern_length + 1)
+    
+    def _calculate_sample_entropy(self, data: np.ndarray, pattern_length: int = 2, tolerance: float = 0.1) -> float:
+        """Calculate sample entropy."""
+        if len(data) < pattern_length + 1:
+            return 0.0
+        
+        def _max_distance(xi, xj, pattern_length):
+            return max([abs(ua - va) for ua, va in zip(xi, xj)])
+        
+        def _phi(m):
+            N = len(data) - m + 1
+            patterns = np.array([data[i:i + m] for i in range(N)])
+            
+            C = 0
+            for i in range(N):
+                template_i = patterns[i]
+                for j in range(N):
+                    if i != j and _max_distance(template_i, patterns[j], m) <= tolerance * np.std(data):
+                        C += 1
+            return C
+        
+        A = _phi(pattern_length)
+        B = _phi(pattern_length + 1)
+        
+        if A == 0:
+            return 0.0
+        else:
+            return -np.log(B / A)
+    
+    def _estimate_kolmogorov_complexity(self, data: np.ndarray) -> float:
+        """Estimate Kolmogorov complexity (simplified)."""
+        if len(data) == 0:
+            return 0.0
+        
+        # Simple compression-based estimate
+        # In practice, you'd use actual compression algorithms
+        
+        # Count unique patterns of length 3
+        patterns = set()
+        for i in range(len(data) - 2):
+            pattern = tuple(data[i:i+3])
+            patterns.add(pattern)
+        
+        # Complexity as ratio of unique patterns to possible patterns
+        max_patterns = len(data) - 2
+        if max_patterns > 0:
+            complexity = len(patterns) / max_patterns
+        else:
+            complexity = 0.0
+        
+        return complexity
+    
+    def _calculate_permutation_entropy(self, data: np.ndarray, order: int = 3) -> float:
+        """Calculate permutation entropy."""
+        if len(data) < order:
+            return 0.0
+        
+        # Generate ordinal patterns
+        permutations = []
+        for i in range(len(data) - order + 1):
+            sorted_indices = sorted(range(order), key=lambda x: data[i + x])
+            permutations.append(tuple(sorted_indices))
+        
+        # Count permutation frequencies
+        from collections import Counter
+        perm_counts = Counter(permutations)
+        
+        # Calculate entropy
+        total = len(permutations)
+        entropy = 0.0
+        for count in perm_counts.values():
+            prob = count / total
+            if prob > 0:
+                entropy -= prob * np.log2(prob)
+        
+        # Normalize by maximum possible entropy
+        max_entropy = np.log2(math.factorial(order))
+        
+        return entropy / max_entropy if max_entropy > 0 else 0.0
+    
+    def _calculate_multiscale_entropy(self, data: np.ndarray) -> Dict:
+        """Calculate multiscale entropy."""
+        scales = [1, 2, 4, 8]
+        multiscale_entropies = {}
+        
+        for scale in scales:
+            if len(data) >= scale * 10:
+                # Coarse-grain the data
+                coarse_grained = []
+                for i in range(0, len(data) - scale + 1, scale):
+                    coarse_grained.append(np.mean(data[i:i + scale]))
+                
+                # Calculate entropy at this scale
+                entropy = self._calculate_sample_entropy(np.array(coarse_grained))
+                multiscale_entropies[f'scale_{scale}'] = entropy
+        
+        return multiscale_entropies
+    
+    def _detect_parameter_changes(self, system_parameters: List[Dict]) -> List[Dict]:
+        """Detect bifurcation points from parameter changes."""
+        bifurcations = []
+        
+        if len(system_parameters) < 3:
+            return bifurcations
+        
+        # Check for sudden changes in Lyapunov exponent
+        lyapunovs = [p['lyapunov'] for p in system_parameters]
+        
+        for i in range(1, len(lyapunovs) - 1):
+            # Check for sign change (major bifurcation indicator)
+            if (lyapunovs[i-1] * lyapunovs[i+1] < 0 and 
+                abs(lyapunovs[i] - lyapunovs[i-1]) > 0.1):
+                
+                bifurcations.append({
+                    'position': system_parameters[i]['position'],
+                    'type': 'stability_change',
+                    'from_lyapunov': lyapunovs[i-1],
+                    'to_lyapunov': lyapunovs[i+1],
+                    'magnitude': abs(lyapunovs[i+1] - lyapunovs[i-1])
+                })
+        
+        return bifurcations
+    
+    def _local_linear_prediction(self, embedded_data: np.ndarray, prices: np.ndarray) -> List[float]:
+        """Perform local linear prediction."""
+        if len(embedded_data) < 10:
+            return []
+        
+        # Use last few points to predict next values
+        current_state = embedded_data[-1]
+        
+        # Find k nearest neighbors
+        k = min(5, len(embedded_data) - 1)
+        distances = [np.linalg.norm(point - current_state) for point in embedded_data[:-1]]
+        
+        # Get indices of k nearest neighbors
+        nearest_indices = np.argsort(distances)[:k]
+        
+        # Predict using local linear model
+        predictions = []
+        for idx in nearest_indices:
+            if idx < len(embedded_data) - 1:
+                # Use next state of neighbor as prediction
+                next_state = embedded_data[idx + 1]
+                predicted_price = next_state[0]  # First component as price prediction
+                predictions.append(predicted_price)
+        
+        return predictions[:3]  # Return up to 3 predictions
+    
+    def _calculate_prediction_accuracy(self, embedded_data: np.ndarray, prices: np.ndarray) -> float:
+        """Calculate historical prediction accuracy."""
+        if len(embedded_data) < 20:
+            return 0.0
+        
+        # Test predictions on historical data
+        correct_predictions = 0
+        total_predictions = 0
+        
+        # Test on last 20% of data
+        test_start = int(0.8 * len(embedded_data))
+        
+        for i in range(test_start, len(embedded_data) - 1):
+            current_state = embedded_data[i]
+            actual_next = prices[i + 1] if i + 1 < len(prices) else prices[-1]
+            
+            # Simple prediction: find nearest neighbor and use its next value
+            distances = [np.linalg.norm(point - current_state) for point in embedded_data[:i]]
+            
+            if distances:
+                nearest_idx = np.argmin(distances)
+                if nearest_idx < len(embedded_data) - 1:
+                    predicted_next = embedded_data[nearest_idx + 1][0]
+                    
+                    # Check if prediction direction is correct
+                    actual_direction = 1 if actual_next > prices[i] else -1
+                    predicted_direction = 1 if predicted_next > prices[i] else -1
+                    
+                    if actual_direction == predicted_direction:
+                        correct_predictions += 1
+                    total_predictions += 1
+        
+        return correct_predictions / total_predictions if total_predictions > 0 else 0.0
+    
+    def _calculate_prediction_horizon(self, accuracy: float) -> int:
+        """Calculate prediction horizon based on accuracy."""
+        if accuracy >= 0.8:
+            return 5
+        elif accuracy >= 0.6:
+            return 3
+        elif accuracy >= 0.5:
+            return 1
+        else:
+            return 0
+    
+    def _quick_lyapunov_estimate(self, data: np.ndarray) -> float:
+        """Quick estimate of largest Lyapunov exponent."""
+        if len(data) < 10:
+            return 0.0
+        
+        # Simple divergence estimate
+        divergences = []
+        
+        for i in range(len(data) - 5):
+            for j in range(i + 1, min(i + 5, len(data) - 1)):
+                if abs(data[i] - data[j]) > 1e-10:
+                    next_divergence = abs(data[i + 1] - data[j + 1]) / abs(data[i] - data[j])
+                    if next_divergence > 0:
+                        divergences.append(np.log(next_divergence))
+        
+        return np.mean(divergences) if divergences else 0.0
+    
+    def _calculate_autocorrelation(self, data: np.ndarray, lag: int = 1) -> float:
+        """Calculate autocorrelation at given lag."""
+        if len(data) <= lag:
+            return 0.0
+        
+        # Calculate autocorrelation
+        mean_data = np.mean(data)
+        numerator = np.sum((data[:-lag] - mean_data) * (data[lag:] - mean_data))
+        denominator = np.sum((data - mean_data) ** 2)
+        
+        return numerator / denominator if denominator > 0 else 0.0
+    
+    def _convex_hull_estimate(self, data: np.ndarray) -> np.ndarray:
+        """Estimate convex hull points (simplified)."""
+        if len(data) < 3:
+            return data
+        
+        # For simplicity, return points at extremes of each dimension
+        hull_points = []
+        
+        for dim in range(data.shape[1]):
+            min_idx = np.argmin(data[:, dim])
+            max_idx = np.argmax(data[:, dim])
+            hull_points.extend([data[min_idx], data[max_idx]])
+        
+        return np.array(hull_points)
+    
+    def _calculate_elongation(self, data: np.ndarray) -> float:
+        """Calculate elongation ratio of data cloud."""
+        if len(data) < 2:
+            return 1.0
+        
+        # Calculate covariance matrix
+        cov_matrix = np.cov(data.T)
+        
+        # Get eigenvalues (principal axes)
+        eigenvalues = np.linalg.eigvals(cov_matrix)
+        eigenvalues = np.sort(eigenvalues)[::-1]  # Sort descending
+        
+        # Elongation as ratio of largest to smallest eigenvalue
+        if len(eigenvalues) >= 2 and eigenvalues[-1] > 0:
+            return eigenvalues[0] / eigenvalues[-1]
+        else:
+            return 1.0
+    
+    def _detect_periodicity(self, data: np.ndarray) -> bool:
+        """Detect if data has periodic behavior."""
+        if len(data) < 10:
+            return False
+        
+        # Use autocorrelation to detect periodicity
+        max_lag = min(len(data) // 4, 20)
+        autocorrelations = []
+        
+        for lag in range(1, max_lag):
+            autocorr = self._calculate_autocorrelation(data.flatten(), lag)
+            autocorrelations.append(autocorr)
+        
+        # Look for significant peaks in autocorrelation
+        if autocorrelations:
+            max_autocorr = np.max(autocorrelations)
+            return max_autocorr > 0.5
+        
+        return False
+    
+    def _box_counting_dimension(self, data: np.ndarray) -> float:
+        """Calculate box counting dimension."""
+        if len(data) < 5:
+            return 0.0
+        
+        # Simplified box counting for embedded data
+        # This is a basic implementation
+        
+        min_coords = np.min(data, axis=0)
+        max_coords = np.max(data, axis=0)
+        ranges = max_coords - min_coords
+        
+        if np.any(ranges == 0):
+            return 0.0
+        
+        # Different box sizes
+        box_sizes = [0.1, 0.2, 0.5, 1.0]
+        box_counts = []
+        
+        for size in box_sizes:
+            # Count occupied boxes
+            occupied_boxes = set()
+            
+            for point in data:
+                # Determine which box this point falls into
+                box_coords = tuple(int((point[i] - min_coords[i]) / (ranges[i] * size)) 
+                                 for i in range(len(point)))
+                occupied_boxes.add(box_coords)
+            
+            box_counts.append(len(occupied_boxes))
+        
+        # Calculate dimension from log-log plot
+        if len(box_counts) >= 2 and all(count > 0 for count in box_counts):
+            log_sizes = np.log(box_sizes)
+            log_counts = np.log(box_counts)
+            
+            slope, _, r_value, _, _ = stats.linregress(log_sizes, log_counts)
+            
+            if abs(r_value) > 0.5:  # Good fit
+                return -slope  # Negative because smaller boxes -> more count
+        
+        return 0.0
+    
+    def _calculate_self_similarity(self, data: np.ndarray) -> float:
+        """Calculate self-similarity measure."""
+        if len(data) < 10:
+            return 0.0
+        
+        # Compare structure at different scales
+        scales = [0.5, 0.25]
+        similarities = []
+        
+        for scale in scales:
+            # Subsample data
+            subsample_size = int(len(data) * scale)
+            if subsample_size < 3:
+                continue
+            
+            subsample = data[:subsample_size]
+            
+            # Compare statistical properties
+            original_std = np.std(data, axis=0)
+            subsample_std = np.std(subsample, axis=0)
+            
+            # Calculate similarity
+            if np.all(original_std > 0):
+                similarity = 1 - np.mean(np.abs(subsample_std - original_std) / original_std)
+                similarities.append(max(0, similarity))
+        
+        return np.mean(similarities) if similarities else 0.0
+    
+    def _is_fixed_point(self, data: np.ndarray) -> bool:
+        """Check if attractor is a fixed point."""
+        if len(data) < 5:
+            return False
+        
+        # Check if all points are close to mean
+        center = np.mean(data, axis=0)
+        distances = [np.linalg.norm(point - center) for point in data]
+        
+        return np.max(distances) < 0.1 * np.std(data.flatten())
+    
+    def _is_limit_cycle(self, data: np.ndarray) -> bool:
+        """Check if attractor is a limit cycle."""
+        if len(data) < 10:
+            return False
+        
+        # Check for periodic behavior and circular structure
+        return self._detect_periodicity(data) and not self._is_fixed_point(data)
+    
+    def _is_torus(self, data: np.ndarray) -> bool:
+        """Check if attractor is a torus."""
+        if len(data) < 20:
+            return False
+        
+        # Simplified check: multiple periodicities
+        # In practice, would need more sophisticated analysis
+        return False  # Placeholder
+    
+    def _is_strange_attractor(self, data: np.ndarray) -> bool:
+        """Check if attractor is strange (chaotic)."""
+        if len(data) < 20:
+            return False
+        
+        # Check for: bounded, non-periodic, sensitive dependence
+        bounded = not self._is_fixed_point(data)
+        non_periodic = not self._detect_periodicity(data)
+        sensitive = self._quick_lyapunov_estimate(data.flatten()) > 0
+        
+        return bounded and non_periodic and sensitive
+    
+    def _estimate_local_dimension(self, point: np.ndarray, data: np.ndarray) -> float:
+        """Estimate local dimension around a point."""
+        if len(data) < 5:
+            return 0.0
+        
+        # Find nearby points
+        distances = [np.linalg.norm(p - point) for p in data]
+        threshold = np.percentile(distances, 10)  # Nearest 10%
+        
+        nearby_points = [data[i] for i, d in enumerate(distances) if d <= threshold]
+        
+        if len(nearby_points) < 3:
+            return 0.0
+        
+        # Estimate dimension using PCA
+        nearby_points = np.array(nearby_points)
+        cov_matrix = np.cov(nearby_points.T)
+        eigenvalues = np.linalg.eigvals(cov_matrix)
+        
+        # Count significant eigenvalues
+        significant_eigs = np.sum(eigenvalues > 0.01 * np.max(eigenvalues))
+        
+        return float(significant_eigs)
+    
+    def _classify_chaos_level(self, results: Dict) -> Dict:
+        """Classify overall chaos level."""
+        classification = {
+            'level': 'unknown',
+            'confidence': 0.0,
+            'characteristics': []
+        }
+        
+        # Get Lyapunov exponent
+        lyapunov = results.get('lyapunov_exponents', {}).get('largest_exponent', 0.0)
+        
+        # Classify based on Lyapunov exponent
+        if lyapunov <= 0:
+            classification['level'] = 'deterministic'
+            classification['characteristics'].append('negative_lyapunov')
+        elif lyapunov <= 0.1:
+            classification['level'] = 'edge_of_chaos'
+            classification['characteristics'].append('small_positive_lyapunov')
+        elif lyapunov <= 0.5:
+            classification['level'] = 'chaotic'
+            classification['characteristics'].append('moderate_lyapunov')
+        else:
+            classification['level'] = 'highly_chaotic'
+            classification['characteristics'].append('large_lyapunov')
+        
+        # Add other characteristics
+        entropy = results.get('entropy_measures', {}).get('shannon_entropy', 0.0)
+        if entropy > 3.0:
+            classification['characteristics'].append('high_entropy')
+        
+        attractor = results.get('strange_attractor', {})
+        if attractor.get('exists', False):
+            classification['characteristics'].append('strange_attractor')
+        
+        # Calculate confidence
+        lyapunov_conf = results.get('lyapunov_exponents', {}).get('confidence', 0.0)
+        classification['confidence'] = lyapunov_conf
+        
+        return classification
+    
+    def _generate_chaos_signals(self, data: pd.DataFrame, prices: np.ndarray) -> List[ChaosSignal]:
+        """Generate chaos-based trading signals."""
+        signals = []
+        current_time = data.index[-1]
+        
+        if len(self.chaos_history) < 2:
+            return signals
+        
+        # Get current chaos measurements
+        current_lyapunov = self.chaos_history[-1].get('lyapunov', 0.0)
+        previous_lyapunov = self.chaos_history[-2].get('lyapunov', 0.0)
+        
+        lyapunov_change = current_lyapunov - previous_lyapunov
+        
+        # Signal generation rules
+        
+        # 1. Chaos regime change
+        if abs(lyapunov_change) > 0.2:
+            signal_type = "chaos_regime_change"
+            if lyapunov_change > 0:
+                description = "Increasing chaos - market becoming less predictable"
+            else:
+                description = "Decreasing chaos - market becoming more predictable"
+            
+            signal = ChaosSignal(
+                timestamp=current_time,
+                signal_type=signal_type,
+                chaos_level=current_lyapunov,
+                lyapunov_exponent=current_lyapunov,
+                attractor_deviation=0.0,  # Would calculate from attractor analysis
+                signal_strength=min(0.9, abs(lyapunov_change) * 2),
+                description=description
+            )
+            signals.append(signal)
+        
+        # 2. Extreme chaos levels
+        if current_lyapunov > 1.0:
+            signal = ChaosSignal(
+                timestamp=current_time,
+                signal_type="high_chaos",
+                chaos_level=current_lyapunov,
+                lyapunov_exponent=current_lyapunov,
+                attractor_deviation=0.0,
+                signal_strength=0.8,
+                description="High chaos detected - increased volatility expected"
+            )
+            signals.append(signal)
+        
+        elif current_lyapunov < -0.5:
+            signal = ChaosSignal(
+                timestamp=current_time,
+                signal_type="low_chaos",
+                chaos_level=current_lyapunov,
+                lyapunov_exponent=current_lyapunov,
+                attractor_deviation=0.0,
+                signal_strength=0.7,
+                description="Low chaos - stable, predictable market behavior"
+            )
+            signals.append(signal)
+        
+        return signals
+    
+    def _calculate_overall_chaos_level(self, results: Dict) -> float:
+        """Calculate overall chaos level."""
+        chaos_indicators = []
+        
+        # Lyapunov exponent contribution
+        lyapunov = results.get('lyapunov_exponents', {}).get('largest_exponent', 0.0)
+        chaos_indicators.append(max(0, min(1, (lyapunov + 1) / 2)))  # Normalize to [0,1]
+        
+        # Entropy contribution
+        entropy = results.get('entropy_measures', {}).get('shannon_entropy', 0.0)
+        chaos_indicators.append(min(1, entropy / 5))  # Normalize assuming max entropy ~5
+        
+        # Attractor complexity
+        complexity = results.get('strange_attractor', {}).get('complexity', 0.0)
+        chaos_indicators.append(complexity)
+        
+        return np.mean(chaos_indicators) if chaos_indicators else 0.0
+    
+    def _calculate_predictability(self, results: Dict) -> float:
+        """Calculate system predictability."""
+        predictability_factors = []
+        
+        # From Lyapunov exponent (negative relationship)
+        lyapunov = results.get('lyapunov_exponents', {}).get('largest_exponent', 0.0)
+        lyapunov_predictability = max(0, 1 - lyapunov / 2)  # Normalize
+        predictability_factors.append(lyapunov_predictability)
+        
+        # From entropy (negative relationship)
+        entropy = results.get('entropy_measures', {}).get('shannon_entropy', 0.0)
+        entropy_predictability = max(0, 1 - entropy / 5)
+        predictability_factors.append(entropy_predictability)
+        
+        # From prediction accuracy
+        prediction_accuracy = results.get('nonlinear_prediction', {}).get('accuracy', 0.0)
+        predictability_factors.append(prediction_accuracy)
+        
+        return np.mean(predictability_factors) if predictability_factors else 0.0
+    
+    def _determine_system_stability(self, results: Dict) -> str:
+        """Determine system stability."""
+        lyapunov = results.get('lyapunov_exponents', {}).get('largest_exponent', 0.0)
+        chaos_level = results.get('chaos_level', 0.0)
+        
+        if lyapunov < -0.5:
+            return "highly_stable"
+        elif lyapunov < 0:
+            return "stable"
+        elif lyapunov < 0.5:
+            return "unstable"
+        else:
+            return "highly_unstable"
+    
+    def _empty_result(self) -> Dict:
+        """Return empty result structure."""
+        return {
+            'timestamp': None,
+            'lyapunov_exponents': {'largest_exponent': 0.0, 'confidence': 0.0},
+            'phase_space_analysis': {'dimension': 0, 'trajectory_points': 0},
+            'strange_attractor': {'exists': False, 'dimension': 0.0},
+            'entropy_measures': {'shannon_entropy': 0.0},
+            'bifurcation_analysis': {'bifurcations': [], 'stability_changes': 0},
+            'nonlinear_prediction': {'predictions': [], 'accuracy': 0.0},
+            'chaos_classification': {'level': 'unknown', 'confidence': 0.0},
+            'signals': [],
+            'chaos_level': 0.0,
+            'predictability': 0.0,
+            'system_stability': 'unknown'
+        }
+    
+    def get_chaos_summary(self, analysis_result: Dict) -> str:
+        """Generate human-readable chaos analysis summary."""
+        if not analysis_result or analysis_result['chaos_level'] == 0:
+            return "No chaos analysis available."
+        
+        summary_parts = []
+        
+        # Chaos level
+        chaos_level = analysis_result['chaos_level']
+        summary_parts.append(f"Chaos level: {chaos_level:.1%}")
+        
+        # Lyapunov exponent
+        lyapunov = analysis_result.get('lyapunov_exponents', {}).get('largest_exponent', 0.0)
+        summary_parts.append(f"Lyapunov: {lyapunov:.3f}")
+        
+        # Predictability
+        predictability = analysis_result.get('predictability', 0.0)
+        summary_parts.append(f"Predictability: {predictability:.1%}")
+        
+        # System stability
+        stability = analysis_result.get('system_stability', 'unknown')
+        summary_parts.append(f"Stability: {stability}")
+        
+        # Chaos classification
+        classification = analysis_result.get('chaos_classification', {}).get('level', 'unknown')
+        summary_parts.append(f"Classification: {classification}")
+        
+        return " | ".join(summary_parts)

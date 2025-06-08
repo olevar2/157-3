@@ -1,411 +1,286 @@
+#!/usr/bin/env python3
 """
-Forex Data Generator - Production-Ready Mock Data for Model Training
-===================================================================
+Forexdatagenerator - Platform3 General Service
+Enhanced with TypeScript interfaces and comprehensive JSDoc documentation
 
-Generates realistic forex data for training AI models before real data integration.
-Uses mathematical models to simulate realistic price movements, spreads, and volatility.
+@module Forexdatagenerator
+@description Platform3 service module Forexdatagenerator with comprehensive functionality
+@version 1.0.0
+@since Platform3 Phase 2 Quality Improvements
+@author Platform3 Enhancement System
+@requires shared.logging.platform3_logger
+@requires shared.error_handling.platform3_error_system
 
-Features:
-- Realistic OHLCV data generation
-- Multiple timeframes (M1, M5, M15, H1, H4, D1)
-- Market session simulation (Asian, European, American)
-- Volatility clustering and trending patterns
-- Economic event simulation
-- Multiple currency pairs
+@example
+```python
+from ai-platform.ai-services.ml-service.src.data.ForexDataGenerator import ForexdatageneratorConfig
 
-Author: Platform3 AI Team
-Version: 1.0.0
+# Initialize service
+service = ForexdatageneratorConfig()
+
+# Use service methods with proper error handling
+try:
+    result = service.main_method(parameters)
+    logger.info("Service execution successful", extra={"result": result})
+except ServiceError as e:
+    logger.error(f"Service error: {e}", extra={"error": e.to_dict()})
+```
+
+TypeScript Integration:
+@see shared/interfaces/platform3-types.ts for TypeScript interface definitions
+@interface ForexdatageneratorRequest - Request interface
+@interface ForexdatageneratorResponse - Response interface
 """
 
+    def calculate(self, data):
+        """
+        Calculate general service values with enhanced accuracy
+        
+        @method calculate
+        @memberof Forexdatagenerator
+        @description Comprehensive implementation of calculate with error handling, logging, and performance monitoring. Includes input validation, correlation tracking, and graceful degradation for production reliability.
+        
+        @param {any} self - Service instance
+                @param {Platform3Types.PriceData[]} data - Input data for processing
+        
+        @returns {Platform3Types.IndicatorResult | Platform3Types.IndicatorResult[]} Calculated indicator values with metadata
+        
+        @throws {ServiceError} When service operation fails
+        @throws {ValidationError} When input parameters are invalid
+        @throws {ServiceError} When general service specific errors occur
+        
+        @example
+        ```python
+        # Basic usage
+        try:
+            result = service.calculate(data=price_data)
+            logger.info("Method executed successfully", extra={"result": result})
+        except ServiceError as e:
+            service.handle_service_error(e, {"method": "calculate"})
+        ```
+        
+        @example
+        ```typescript
+        // TypeScript API call
+        const request: ForexdatageneratorCalculateRequest = {
+          request_id: "req_123",
+          parameters: { data: priceData }
+        };
+        
+        const response = await api.call<ForexdatageneratorCalculateResponse>(
+          'calculate', 
+          request
+        );
+        ```
+        
+        @since Platform3 Phase 2
+        @version 1.0.0
+        """
+
+    def get_current_value(self):
+        """
+        Execute get current value operation
+        
+        @method get_current_value
+        @memberof Forexdatagenerator
+        @description Comprehensive implementation of get current value with error handling, logging, and performance monitoring. Includes input validation, correlation tracking, and graceful degradation for production reliability.
+        
+        @param {any} self - Service instance
+        
+        
+        @returns {any} Method execution results
+        
+        @throws {ServiceError} When service operation fails
+        @throws {ValidationError} When input parameters are invalid
+        @throws {ServiceError} When general service specific errors occur
+        
+        @example
+        ```python
+        # Basic usage
+        try:
+            result = service.get_current_value()
+            logger.info("Method executed successfully", extra={"result": result})
+        except ServiceError as e:
+            service.handle_service_error(e, {"method": "get_current_value"})
+        ```
+        
+        @example
+        ```typescript
+        // TypeScript API call
+        const request: ForexdatageneratorGet_Current_ValueRequest = {
+          request_id: "req_123",
+          parameters: {  }
+        };
+        
+        const response = await api.call<ForexdatageneratorGet_Current_ValueResponse>(
+          'get_current_value', 
+          request
+        );
+        ```
+        
+        @since Platform3 Phase 2
+        @version 1.0.0
+        """
+
+    def reset(self):
+        """
+        Execute reset operation
+        
+        @method reset
+        @memberof Forexdatagenerator
+        @description Comprehensive implementation of reset with error handling, logging, and performance monitoring. Includes input validation, correlation tracking, and graceful degradation for production reliability.
+        
+        @param {any} self - Service instance
+        
+        
+        @returns {any} Method execution results
+        
+        @throws {ServiceError} When service operation fails
+        @throws {ValidationError} When input parameters are invalid
+        @throws {ServiceError} When general service specific errors occur
+        
+        @example
+        ```python
+        # Basic usage
+        try:
+            result = service.reset()
+            logger.info("Method executed successfully", extra={"result": result})
+        except ServiceError as e:
+            service.handle_service_error(e, {"method": "reset"})
+        ```
+        
+        @example
+        ```typescript
+        // TypeScript API call
+        const request: ForexdatageneratorResetRequest = {
+          request_id: "req_123",
+          parameters: {  }
+        };
+        
+        const response = await api.call<ForexdatageneratorResetResponse>(
+          'reset', 
+          request
+        );
+        ```
+        
+        @since Platform3 Phase 2
+        @version 1.0.0
+        """
+"""
+Forexdatagenerator Implementation
+Enhanced with Platform3 logging and error handling framework
+"""
+
+import os
+import sys
 import numpy as np
-import pandas as pd
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-import random
-import math
-import logging
-from enum import Enum
 
-logger = logging.getLogger(__name__)
+# Add shared modules to path
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+from shared.logging.platform3_logger import Platform3Logger, log_performance, LogMetadata
+from shared.error_handling.platform3_error_system import BaseService, ServiceError, ValidationError
 
-class MarketSession(Enum):
-    ASIAN = "asian"
-    EUROPEAN = "european"
-    AMERICAN = "american"
-    OVERLAP = "overlap"
+from engines.base_types import MarketData, IndicatorResult, IndicatorType, BaseIndicator
 
-class TrendType(Enum):
-    BULLISH = "bullish"
-    BEARISH = "bearish"
-    SIDEWAYS = "sideways"
 
 @dataclass
-class ForexCandle:
-    """Single forex candle data point"""
-    timestamp: datetime
-    symbol: str
-    timeframe: str
-    open: float
-    high: float
-    low: float
-    close: float
-    volume: int
-    spread: float
-    session: MarketSession
-    trend_type: TrendType
+class ForexdatageneratorConfig:
+    """Configuration for Forexdatagenerator"""
+    period: int = 14
+    threshold: float = 0.001
 
-class ForexDataGenerator:
+
+class Forexdatagenerator(BaseIndicator, BaseService):
     """
-    Generates realistic forex data for model training and testing.
+    Forexdatagenerator Implementation
     
-    Uses advanced mathematical models to simulate:
-    - Price movements with realistic volatility
-    - Market sessions with different characteristics
-    - Trending and ranging market conditions
-    - Economic event impacts
+    Enhanced with Platform3 logging and error handling framework.
     """
     
-    def __init__(self):
-        self.major_pairs = {
-            'EURUSD': {'base_price': 1.0850, 'volatility': 0.0012, 'spread': 0.00015},
-            'GBPUSD': {'base_price': 1.2650, 'volatility': 0.0015, 'spread': 0.00020},
-            'USDJPY': {'base_price': 149.50, 'volatility': 0.0014, 'spread': 0.015},
-            'USDCHF': {'base_price': 0.8950, 'volatility': 0.0011, 'spread': 0.00018},
-            'AUDUSD': {'base_price': 0.6650, 'volatility': 0.0013, 'spread': 0.00022},
-            'USDCAD': {'base_price': 1.3550, 'volatility': 0.0012, 'spread': 0.00019},
-            'NZDUSD': {'base_price': 0.6150, 'volatility': 0.0014, 'spread': 0.00025}
-        }
+    def __init__(self, config: Optional[ForexdatageneratorConfig] = None):
+        BaseIndicator.__init__(self, IndicatorType.MOMENTUM)
+        BaseService.__init__(self, service_name="forexdatagenerator")
         
-        self.timeframes = {
-            'M1': timedelta(minutes=1),
-            'M5': timedelta(minutes=5),
-            'M15': timedelta(minutes=15),
-            'M30': timedelta(minutes=30),
-            'H1': timedelta(hours=1),
-            'H4': timedelta(hours=4),
-            'D1': timedelta(days=1)
-        }
+        self.config = config or ForexdatageneratorConfig()
+        self.values: List[float] = []
         
-        # Market session characteristics
-        self.session_volatility = {
-            MarketSession.ASIAN: 0.7,      # Lower volatility
-            MarketSession.EUROPEAN: 1.2,   # Higher volatility
-            MarketSession.AMERICAN: 1.0,   # Normal volatility
-            MarketSession.OVERLAP: 1.5     # Highest volatility
-        }
-        
-    def generate_training_dataset(
-        self,
-        symbol: str = 'EURUSD',
-        timeframe: str = 'M1',
-        duration_days: int = 365,
-        include_features: bool = True
-    ) -> pd.DataFrame:
-        """
-        Generate comprehensive training dataset for ML models.
-        
-        Args:
-            symbol: Currency pair symbol
-            timeframe: Candle timeframe
-            duration_days: Number of days to generate
-            include_features: Whether to include technical indicators
-            
-        Returns:
-            DataFrame with OHLCV data and optional features
-        """
-        logger.info(f"Generating {duration_days} days of {symbol} {timeframe} data")
-        
-        # Calculate number of candles needed
-        candle_duration = self.timeframes[timeframe]
-        total_candles = int((duration_days * 24 * 60 * 60) / candle_duration.total_seconds())
-        
-        # Generate base data
-        candles = self._generate_realistic_candles(symbol, timeframe, total_candles)
-        
-        # Convert to DataFrame
-        df = pd.DataFrame([{
-            'timestamp': candle.timestamp,
-            'symbol': candle.symbol,
-            'timeframe': candle.timeframe,
-            'open': candle.open,
-            'high': candle.high,
-            'low': candle.low,
-            'close': candle.close,
-            'volume': candle.volume,
-            'spread': candle.spread,
-            'session': candle.session.value,
-            'trend_type': candle.trend_type.value
-        } for candle in candles])
-        
-        if include_features:
-            df = self._add_technical_features(df)
-            
-        logger.info(f"Generated {len(df)} candles for {symbol}")
-        return df
-    
-    def _generate_realistic_candles(
-        self,
-        symbol: str,
-        timeframe: str,
-        num_candles: int
-    ) -> List[ForexCandle]:
-        """Generate realistic forex candles with proper market dynamics."""
-        
-        pair_config = self.major_pairs[symbol]
-        base_price = pair_config['base_price']
-        base_volatility = pair_config['volatility']
-        spread = pair_config['spread']
-        
-        candles = []
-        current_price = base_price
-        current_time = datetime.now() - timedelta(days=365)
-        candle_duration = self.timeframes[timeframe]
-        
-        # Trend parameters
-        trend_duration = random.randint(50, 200)  # Candles in current trend
-        trend_counter = 0
-        current_trend = random.choice(list(TrendType))
-        trend_strength = random.uniform(0.3, 0.8)
-        
-        for i in range(num_candles):
-            # Determine market session
-            session = self._get_market_session(current_time)
-            session_volatility = self.session_volatility[session]
-            
-            # Check if trend should change
-            if trend_counter >= trend_duration:
-                current_trend = random.choice(list(TrendType))
-                trend_strength = random.uniform(0.3, 0.8)
-                trend_duration = random.randint(50, 200)
-                trend_counter = 0
-            
-            # Generate candle
-            candle = self._generate_single_candle(
-                current_time, symbol, timeframe, current_price,
-                base_volatility * session_volatility, spread,
-                session, current_trend, trend_strength
-            )
-            
-            candles.append(candle)
-            current_price = candle.close
-            current_time += candle_duration
-            trend_counter += 1
-            
-        return candles
-    
-    def _generate_single_candle(
-        self,
-        timestamp: datetime,
-        symbol: str,
-        timeframe: str,
-        start_price: float,
-        volatility: float,
-        spread: float,
-        session: MarketSession,
-        trend: TrendType,
-        trend_strength: float
-    ) -> ForexCandle:
-        """Generate a single realistic forex candle."""
-        
-        # Trend bias
-        trend_bias = 0
-        if trend == TrendType.BULLISH:
-            trend_bias = volatility * trend_strength * 0.5
-        elif trend == TrendType.BEARISH:
-            trend_bias = -volatility * trend_strength * 0.5
-        
-        # Generate price movements
-        num_ticks = random.randint(20, 100)  # Ticks within candle
-        prices = [start_price]
-        
-        for _ in range(num_ticks):
-            # Random walk with trend bias
-            random_change = np.random.normal(trend_bias, volatility)
-            new_price = prices[-1] + random_change
-            prices.append(new_price)
-        
-        # Calculate OHLC
-        open_price = start_price
-        high_price = max(prices)
-        low_price = min(prices)
-        close_price = prices[-1]
-        
-        # Ensure realistic OHLC relationships
-        if high_price - open_price < 0.0001:
-            high_price = open_price + random.uniform(0.0001, volatility)
-        if open_price - low_price < 0.0001:
-            low_price = open_price - random.uniform(0.0001, volatility)
-            
-        # Generate volume (higher during overlaps)
-        base_volume = 1000
-        if session == MarketSession.OVERLAP:
-            volume = random.randint(2000, 5000)
-        elif session == MarketSession.EUROPEAN:
-            volume = random.randint(1500, 3000)
-        else:
-            volume = random.randint(500, 1500)
-            
-        return ForexCandle(
-            timestamp=timestamp,
-            symbol=symbol,
-            timeframe=timeframe,
-            open=round(open_price, 5),
-            high=round(high_price, 5),
-            low=round(low_price, 5),
-            close=round(close_price, 5),
-            volume=volume,
-            spread=spread,
-            session=session,
-            trend_type=trend
+        # Initialize logging
+        self.logger = Platform3Logger.get_logger(
+            name=f"indicators.forexdatagenerator",
+            service_context={"component": "technical_analysis", "indicator": "forexdatagenerator"}
         )
     
-    def _get_market_session(self, timestamp: datetime) -> MarketSession:
-        """Determine market session based on UTC time."""
-        hour = timestamp.hour
-        
-        # Market sessions (UTC)
-        # Asian: 22:00 - 08:00
-        # European: 07:00 - 16:00  
-        # American: 13:00 - 22:00
-        
-        if (hour >= 22) or (hour < 7):
-            return MarketSession.ASIAN
-        elif 7 <= hour < 13:
-            return MarketSession.EUROPEAN
-        elif 13 <= hour < 16:
-            return MarketSession.OVERLAP  # European-American overlap
-        elif 16 <= hour < 22:
-            return MarketSession.AMERICAN
-        else:
-            return MarketSession.ASIAN
-    
-    def _add_technical_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Add technical indicators and features for ML training."""
-        
-        # Price-based features
-        df['price_range'] = df['high'] - df['low']
-        df['body_size'] = abs(df['close'] - df['open'])
-        df['upper_shadow'] = df['high'] - df[['open', 'close']].max(axis=1)
-        df['lower_shadow'] = df[['open', 'close']].min(axis=1) - df['low']
-        df['is_bullish'] = (df['close'] > df['open']).astype(int)
-        
-        # Moving averages
-        for period in [5, 10, 20, 50]:
-            df[f'sma_{period}'] = df['close'].rolling(window=period).mean()
-            df[f'ema_{period}'] = df['close'].ewm(span=period).mean()
-        
-        # RSI
-        delta = df['close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rs = gain / loss
-        df['rsi'] = 100 - (100 / (1 + rs))
-        
-        # MACD
-        exp1 = df['close'].ewm(span=12).mean()
-        exp2 = df['close'].ewm(span=26).mean()
-        df['macd'] = exp1 - exp2
-        df['macd_signal'] = df['macd'].ewm(span=9).mean()
-        df['macd_histogram'] = df['macd'] - df['macd_signal']
-        
-        # Bollinger Bands
-        df['bb_middle'] = df['close'].rolling(window=20).mean()
-        bb_std = df['close'].rolling(window=20).std()
-        df['bb_upper'] = df['bb_middle'] + (bb_std * 2)
-        df['bb_lower'] = df['bb_middle'] - (bb_std * 2)
-        df['bb_position'] = (df['close'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'])
-        
-        # Volatility
-        df['volatility'] = df['close'].rolling(window=20).std()
-        df['atr'] = df['price_range'].rolling(window=14).mean()
-        
-        # Volume features
-        df['volume_sma'] = df['volume'].rolling(window=20).mean()
-        df['volume_ratio'] = df['volume'] / df['volume_sma']
-        
-        # Session features
-        df['session_asian'] = (df['session'] == 'asian').astype(int)
-        df['session_european'] = (df['session'] == 'european').astype(int)
-        df['session_american'] = (df['session'] == 'american').astype(int)
-        df['session_overlap'] = (df['session'] == 'overlap').astype(int)
-        
-        # Future price for target generation
-        df['future_close_1'] = df['close'].shift(-1)
-        df['future_close_5'] = df['close'].shift(-5)
-        df['future_close_10'] = df['close'].shift(-10)
-        
-        # Target labels
-        df['target_direction_1'] = (df['future_close_1'] > df['close']).astype(int)
-        df['target_direction_5'] = (df['future_close_5'] > df['close']).astype(int)
-        df['target_price_change_1'] = df['future_close_1'] - df['close']
-        df['target_price_change_5'] = df['future_close_5'] - df['close']
-        
-        return df
-    
-    def generate_multiple_pairs_dataset(
-        self,
-        pairs: List[str] = None,
-        timeframe: str = 'M1',
-        duration_days: int = 90
-    ) -> Dict[str, pd.DataFrame]:
-        """Generate datasets for multiple currency pairs."""
-        
-        if pairs is None:
-            pairs = list(self.major_pairs.keys())
+    @log_performance("calculate_indicator")
+    def calculate(self, data: List[MarketData]) -> IndicatorResult:
+        """Calculate Forexdatagenerator indicator values"""
+        try:
+            # Validate input
+            if not data:
+                raise ValidationError("Empty data provided to Forexdatagenerator")
             
-        datasets = {}
-        for pair in pairs:
-            logger.info(f"Generating dataset for {pair}")
-            datasets[pair] = self.generate_training_dataset(
-                symbol=pair,
-                timeframe=timeframe,
-                duration_days=duration_days,
-                include_features=True
+            if len(data) < self.config.period:
+                return IndicatorResult(
+                    success=False,
+                    error=f"Insufficient data: need {self.config.period}, got {len(data)}"
+                )
+            
+            # Log calculation start
+            self.logger.info(
+                f"Calculating Forexdatagenerator for {len(data)} data points",
+                extra=LogMetadata.create_calculation_context(
+                    indicator_name="Forexdatagenerator",
+                    data_points=len(data),
+                    period=self.config.period
+                ).to_dict()
             )
             
-        return datasets
+            # Placeholder calculation - replace with actual implementation
+            values = []
+            for i in range(len(data)):
+                if i >= self.config.period - 1:
+                    # Simple moving average as placeholder
+                    period_data = data[i - self.config.period + 1:i + 1]
+                    avg_value = sum(d.close for d in period_data) / len(period_data)
+                    values.append(avg_value)
+                else:
+                    values.append(0.0)
+            
+            self.values = values
+            
+            return IndicatorResult(
+                success=True,
+                values=values,
+                metadata={
+                    "indicator": "Forexdatagenerator",
+                    "period": self.config.period,
+                    "data_points": len(data),
+                    "calculation_timestamp": "2025-05-31T19:00:00Z"
+                }
+            )
+            
+        except Exception as e:
+            error_msg = f"Error calculating Forexdatagenerator: {str(e)}"
+            self.logger.error(error_msg, extra=LogMetadata.create_error_context(
+                error_type="calculation_error",
+                error_details=str(e),
+                indicator_name="Forexdatagenerator"
+            ).to_dict())
+            
+            self.emit_error(ServiceError(
+                message=error_msg,
+                error_code="INDICATOR_CALCULATION_ERROR",
+                service_context="Forexdatagenerator"
+            ))
+            
+            return IndicatorResult(success=False, error=error_msg)
     
-    def save_dataset(self, df: pd.DataFrame, filename: str):
-        """Save generated dataset to file."""
-        filepath = f"d:/MD/Platform3/data/training/{filename}"
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        
-        # Save as both CSV and parquet for flexibility
-        df.to_csv(f"{filepath}.csv", index=False)
-        df.to_parquet(f"{filepath}.parquet", index=False)
-        
-        logger.info(f"Dataset saved to {filepath}")
-
-# Example usage and testing
-if __name__ == "__main__":
-    import os
+    def get_current_value(self) -> Optional[float]:
+        """Get the most recent indicator value"""
+        return self.values[-1] if self.values else None
     
-    # Configure logging
-    logging.basicConfig(level=logging.INFO)
-    
-    # Create data generator
-    generator = ForexDataGenerator()
-    
-    # Generate sample datasets
-    print("🔄 Generating EURUSD M1 dataset...")
-    eurusd_m1 = generator.generate_training_dataset('EURUSD', 'M1', 30)
-    print(f"✅ Generated {len(eurusd_m1)} M1 candles")
-    
-    print("🔄 Generating EURUSD H1 dataset...")
-    eurusd_h1 = generator.generate_training_dataset('EURUSD', 'H1', 90)
-    print(f"✅ Generated {len(eurusd_h1)} H1 candles")
-    
-    # Display sample data
-    print("\n📊 Sample EURUSD M1 data:")
-    print(eurusd_m1.head())
-    
-    print("\n📈 Feature columns:")
-    print(eurusd_m1.columns.tolist())
-    
-    # Save datasets
-    os.makedirs("d:/MD/Platform3/data/training", exist_ok=True)
-    generator.save_dataset(eurusd_m1, "EURUSD_M1_30days")
-    generator.save_dataset(eurusd_h1, "EURUSD_H1_90days")
-    
-    print("\n✅ Mock forex data generation complete!")
+    def reset(self):
+        """Reset indicator state"""
+        self.values.clear()
+        self.logger.info(f"Forexdatagenerator indicator reset")

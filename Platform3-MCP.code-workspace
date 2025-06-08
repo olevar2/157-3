@@ -1,0 +1,43 @@
+{
+    "folders": [
+        {
+            "name": "Platform3 Project",
+            "path": "D:\\MD\\Platform3"
+        },
+        {
+            "name": "VS Code Settings",
+            "path": "C:\\Users\\ASD\\AppData\\Roaming\\Code - Insiders\\User"
+        }
+    ],
+    "settings": {
+        "github.copilot.enable": {
+            "*": true,
+            "yaml": true,
+            "plaintext": true,
+            "markdown": true,
+            "json": true
+        },
+        "github.copilot.advanced": {
+            "debug": true,
+            "inlineSuggestEnable": true,
+            "length": 8000
+        },
+        "github.copilot.chat.useProjectContext": true,
+        "files.associations": {
+            "mcp-*.json": "jsonc",
+            "copilot-*.md": "markdown"
+        },
+        "search.include": {
+            "C:\\Users\\ASD\\AppData\\Roaming\\Code - Insiders\\User\\copilot-project-context.md": true,
+            "C:\\Users\\ASD\\AppData\\Roaming\\Code - Insiders\\User\\mcp-coordination-system.json": true,
+            "D:\\MD\\Platform3\\.vscode\\mcp-context.json": true
+        }
+    },
+    "extensions": {
+        "recommendations": [
+            "github.copilot",
+            "github.copilot-chat",
+            "jasonkneen.mcpsx-run"
+        ]
+    }
+}

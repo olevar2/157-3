@@ -1,0 +1,847 @@
+"""
+Japanese Candlesticks - Platform3 Ai Model
+Enhanced with TypeScript interfaces and comprehensive JSDoc documentation
+
+@module JapaneseCandlesticks
+@description Advanced AI model implementation for Japanese Candlesticks with machine learning capabilities
+@version 1.0.0
+@since Platform3 Phase 2 Quality Improvements
+@author Platform3 Enhancement System
+@requires shared.logging.platform3_logger
+@requires shared.error_handling.platform3_error_system
+
+@example
+```python
+from ai-platform.ai-models.market-analysis.pattern-recognition.japanese_candlesticks import CandleData
+
+# Initialize service
+service = CandleData()
+
+# Use service methods with proper error handling
+try:
+    result = service.main_method(parameters)
+    logger.info("Service execution successful", extra={"result": result})
+except ServiceError as e:
+    logger.error(f"Service error: {e}", extra={"error": e.to_dict()})
+```
+
+TypeScript Integration:
+@see shared/interfaces/platform3-types.ts for TypeScript interface definitions
+@interface JapaneseCandlesticksRequest - Request interface
+@interface JapaneseCandlesticksResponse - Response interface
+"""
+
+    def analyze_patterns(self, candles, context):
+        """
+        Analyze market data for ai model insights
+        
+        @method analyze_patterns
+        @memberof JapaneseCandlestickPatterns
+        @description Comprehensive implementation of analyze patterns with error handling, logging, and performance monitoring. Includes input validation, correlation tracking, and graceful degradation for production reliability.
+        
+        @param {any} self - Service instance
+                @param {any} candles - Candles parameter
+        @param {any} context - Context parameter
+        
+        @returns {{ analysis: Record<string, any>; patterns?: any[]; }} Analysis results with patterns and insights
+        
+        @throws {ServiceError} When service operation fails
+        @throws {ValidationError} When input parameters are invalid
+        @throws {AIModelError} When ai model specific errors occur
+        
+        @example
+        ```python
+        # Basic usage
+        try:
+            result = service.analyze_patterns(candles=value, context=value)
+            logger.info("Method executed successfully", extra={"result": result})
+        except ServiceError as e:
+            service.handle_service_error(e, {"method": "analyze_patterns"})
+        ```
+        
+        @example
+        ```typescript
+        // TypeScript API call
+        const request: JapaneseCandlestickPatternsAnalyze_PatternsRequest = {
+          request_id: "req_123",
+          parameters: { candles: value, context: value }
+        };
+        
+        const response = await api.call<JapaneseCandlestickPatternsAnalyze_PatternsResponse>(
+          'analyze_patterns', 
+          request
+        );
+        ```
+        
+        @since Platform3 Phase 2
+        @version 1.0.0
+        """
+
+    def handle_service_error(self, error, context):
+        """
+        Execute handle service error operation
+        
+        @method handle_service_error
+        @memberof JapaneseCandlestickPatterns
+        @description Comprehensive implementation of handle service error with error handling, logging, and performance monitoring. Includes input validation, correlation tracking, and graceful degradation for production reliability.
+        
+        @param {any} self - Service instance
+                @param {any} error - Error parameter
+        @param {any} context - Context parameter
+        
+        @returns {any} Method execution results
+        
+        @throws {ServiceError} When service operation fails
+        @throws {ValidationError} When input parameters are invalid
+        @throws {AIModelError} When ai model specific errors occur
+        
+        @example
+        ```python
+        # Basic usage
+        try:
+            result = service.handle_service_error(error=value, context=value)
+            logger.info("Method executed successfully", extra={"result": result})
+        except ServiceError as e:
+            service.handle_service_error(e, {"method": "handle_service_error"})
+        ```
+        
+        @example
+        ```typescript
+        // TypeScript API call
+        const request: JapaneseCandlestickPatternsHandle_Service_ErrorRequest = {
+          request_id: "req_123",
+          parameters: { error: value, context: value }
+        };
+        
+        const response = await api.call<JapaneseCandlestickPatternsHandle_Service_ErrorResponse>(
+          'handle_service_error', 
+          request
+        );
+        ```
+        
+        @since Platform3 Phase 2
+        @version 1.0.0
+        """
+
+    def implement_circuit_breaker(self, service_name, failure_threshold):
+        """
+        Execute implement circuit breaker operation
+        
+        @method implement_circuit_breaker
+        @memberof JapaneseCandlestickPatterns
+        @description Comprehensive implementation of implement circuit breaker with error handling, logging, and performance monitoring. Includes input validation, correlation tracking, and graceful degradation for production reliability.
+        
+        @param {any} self - Service instance
+                @param {any} service_name - Service Name parameter
+        @param {number} failure_threshold - Threshold value for signal generation
+        
+        @returns {any} Method execution results
+        
+        @throws {ServiceError} When service operation fails
+        @throws {ValidationError} When input parameters are invalid
+        @throws {AIModelError} When ai model specific errors occur
+        
+        @example
+        ```python
+        # Basic usage
+        try:
+            result = service.implement_circuit_breaker(service_name=value, failure_threshold=value)
+            logger.info("Method executed successfully", extra={"result": result})
+        except ServiceError as e:
+            service.handle_service_error(e, {"method": "implement_circuit_breaker"})
+        ```
+        
+        @example
+        ```typescript
+        // TypeScript API call
+        const request: JapaneseCandlestickPatternsImplement_Circuit_BreakerRequest = {
+          request_id: "req_123",
+          parameters: { service_name: value, failure_threshold: value }
+        };
+        
+        const response = await api.call<JapaneseCandlestickPatternsImplement_Circuit_BreakerResponse>(
+          'implement_circuit_breaker', 
+          request
+        );
+        ```
+        
+        @since Platform3 Phase 2
+        @version 1.0.0
+        """
+
+    def graceful_degradation(self, primary_function, fallback_function, context):
+        """
+        Execute graceful degradation operation
+        
+        @method graceful_degradation
+        @memberof JapaneseCandlestickPatterns
+        @description Comprehensive implementation of graceful degradation with error handling, logging, and performance monitoring. Includes input validation, correlation tracking, and graceful degradation for production reliability.
+        
+        @param {any} self - Service instance
+                @param {any} primary_function - Primary Function parameter
+        @param {any} fallback_function - Fallback Function parameter
+        @param {any} context - Context parameter
+        
+        @returns {any} Method execution results
+        
+        @throws {ServiceError} When service operation fails
+        @throws {ValidationError} When input parameters are invalid
+        @throws {AIModelError} When ai model specific errors occur
+        
+        @example
+        ```python
+        # Basic usage
+        try:
+            result = service.graceful_degradation(primary_function=value, fallback_function=value, context=value)
+            logger.info("Method executed successfully", extra={"result": result})
+        except ServiceError as e:
+            service.handle_service_error(e, {"method": "graceful_degradation"})
+        ```
+        
+        @example
+        ```typescript
+        // TypeScript API call
+        const request: JapaneseCandlestickPatternsGraceful_DegradationRequest = {
+          request_id: "req_123",
+          parameters: { primary_function: value, fallback_function: value, context: value }
+        };
+        
+        const response = await api.call<JapaneseCandlestickPatternsGraceful_DegradationResponse>(
+          'graceful_degradation', 
+          request
+        );
+        ```
+        
+        @since Platform3 Phase 2
+        @version 1.0.0
+        """
+
+# Platform3 Error Handling Integration
+from shared.error_handling.platform3_error_system import ServiceError, EventEmitter, CircuitBreaker, ErrorSeverity, ErrorCategory
+from shared.error_handling.base_service import BaseService
+
+# 🕯️ Japanese Candlestick Patterns - Comprehensive Implementation
+# Platform3 - Maximum Accuracy Humanitarian Trading System
+
+import numpy as np
+import numba
+import sys
+import os
+from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
+
+# Add Platform3 logging framework
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'shared'))
+from logging.platform3_logger import Platform3Logger, log_performance, LogMetadata
+
+@dataclass
+class CandleData:
+    """Individual candle data structure"""
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+    timestamp: int
+
+@dataclass
+class PatternResult:
+    """Pattern detection result"""
+    pattern_name: str
+    pattern_type: str  # 'bullish', 'bearish', 'neutral'
+    strength_score: float  # 0-100
+    confidence: float  # 0-1
+    confirmation_needed: bool
+    description: str
+
+class JapaneseCandlestickPatterns:
+    """
+    Comprehensive Japanese Candlestick Pattern Recognition
+    
+    Implements 50+ candlestick patterns with:
+    - Strength scoring based on context
+    - Volume confirmation
+    - Multi-timeframe validation
+    - Pattern evolution tracking
+    """
+    
+    def __init__(self, request_id: Optional[str] = None, user_id: Optional[str] = None):
+        self.logger = Platform3Logger.get_pattern_logger("japanese_candlesticks")
+        self.request_id = request_id
+        self.user_id = user_id
+        
+        # Log initialization
+        with self.logger.correlation_context(self.request_id, self.user_id):
+            self.logger.info(
+                "Initializing Japanese Candlestick Pattern Recognition Engine",
+                extra={
+                    "component": "pattern_recognition",
+                    "pattern_count": "50+",
+                    "features": ["strength_scoring", "volume_confirmation", "multi_timeframe"]
+                }
+            )
+        
+        self.pattern_database = self._initialize_pattern_database()
+        self.min_body_size = 0.001  # Minimum body size as % of range
+        self.shadow_ratio_threshold = 2.0  # Shadow to body ratio
+        
+    @log_performance
+    def analyze_patterns(self, candles: List[CandleData], context: Dict) -> List[PatternResult]:
+        """
+        Analyze all candlestick patterns for given candle data
+        
+        Args:
+            candles: List of CandleData objects (minimum 3 candles needed)
+            context: Market context including trend, volume averages, support/resistance
+            
+        Returns:
+            List of PatternResult objects for detected patterns
+        """
+        with self.logger.correlation_context(self.request_id, self.user_id):
+            self.logger.debug(
+                "Starting pattern analysis",
+                extra={
+                    "candle_count": len(candles),
+                    "analysis_depth": "comprehensive",
+                    "context_keys": list(context.keys()) if context else []
+                }
+            )
+            
+            if len(candles) < 3:
+                self.logger.warning(
+                    "Insufficient candles for pattern analysis",
+                    extra={"candle_count": len(candles), "minimum_required": 3}
+                )
+                return []
+                
+            patterns_detected = []
+            
+            try:
+                # Single candle patterns
+                single_patterns = self._analyze_single_candle_patterns(candles[-1], context)
+                patterns_detected.extend(single_patterns)
+                
+                # Two candle patterns
+                if len(candles) >= 2:
+                    two_patterns = self._analyze_two_candle_patterns(candles[-2:], context)
+                    patterns_detected.extend(two_patterns)
+                  # Three+ candle patterns
+                if len(candles) >= 3:
+                    three_patterns = self._analyze_multi_candle_patterns(candles[-3:], context)
+                    patterns_detected.extend(three_patterns)
+                    
+                # Five candle patterns
+                if len(candles) >= 5:
+                    five_patterns = self._analyze_five_candle_patterns(candles[-5:], context)
+                    patterns_detected.extend(five_patterns)
+                
+                # Log successful analysis
+                self.logger.info(
+                    "Pattern analysis completed successfully",
+                    extra={
+                        "patterns_detected": len(patterns_detected),
+                        "pattern_types": [p.pattern_name for p in patterns_detected],
+                        "high_confidence_patterns": len([p for p in patterns_detected if p.confidence > 0.7])
+                    }
+                )
+                
+                return self._rank_and_filter_patterns(patterns_detected)
+                
+            except Exception as e:
+                self.logger.error(
+                    "Critical error during pattern analysis",
+                    exc_info=e,
+                    extra={
+                        "candle_count": len(candles),
+                        "error_type": type(e).__name__,
+                        "component": "pattern_analysis"
+                    }
+                )
+                return []
+            
+            # Filter and rank patterns by strength
+            return self._rank_patterns_by_strength(patterns_detected, context)
+      # ================================
+    # SINGLE CANDLE PATTERNS (20 Patterns)
+    # ================================
+    def _analyze_single_candle_patterns(self, candle: CandleData, context: Dict) -> List[PatternResult]:
+        """Analyze single candle patterns"""
+        with self.logger.correlation_context(self.request_id, self.user_id):
+            self.logger.debug(
+                "Analyzing single candle patterns",
+                extra={
+                    "candle_data": {
+                        "open": candle.open,
+                        "high": candle.high,
+                        "low": candle.low,
+                        "close": candle.close,
+                        "volume": candle.volume
+                    }
+                }
+            )
+            
+            patterns = []
+            
+            try:
+                # Calculate basic candle metrics
+                body_size = abs(candle.close - candle.open)
+                upper_shadow = candle.high - max(candle.open, candle.close)
+                lower_shadow = min(candle.open, candle.close) - candle.low
+                total_range = candle.high - candle.low
+                
+                if total_range == 0:
+                    self.logger.warning("Zero range candle detected", extra={"candle_timestamp": candle.timestamp})
+                    return patterns
+                    
+                body_ratio = body_size / total_range
+                upper_shadow_ratio = upper_shadow / body_size if body_size > 0 else float('inf')
+                lower_shadow_ratio = lower_shadow / body_size if body_size > 0 else float('inf')
+                
+                # DOJI FAMILY PATTERNS
+                doji_patterns = self._detect_doji_patterns(candle, body_ratio, upper_shadow_ratio, lower_shadow_ratio, context)
+                patterns.extend(doji_patterns)
+                
+                # HAMMER FAMILY PATTERNS  
+                hammer_patterns = self._detect_hammer_patterns(candle, body_ratio, upper_shadow_ratio, lower_shadow_ratio, context)
+                patterns.extend(hammer_patterns)
+                  # SHOOTING STAR FAMILY
+                shooting_star_patterns = self._detect_shooting_star_patterns(candle, body_ratio, upper_shadow_ratio, lower_shadow_ratio, context)
+                patterns.extend(shooting_star_patterns)
+                
+                # MARUBOZU PATTERNS
+                marubozu_patterns = self._detect_marubozu_patterns(candle, body_ratio, upper_shadow, lower_shadow, context)
+                patterns.extend(marubozu_patterns)
+                
+                # SPINNING TOP PATTERNS
+                spinning_top_patterns = self._detect_spinning_top_patterns(candle, body_ratio, upper_shadow_ratio, lower_shadow_ratio, context)
+                patterns.extend(spinning_top_patterns)
+                
+                self.logger.debug(
+                    "Single candle pattern analysis completed",
+                    extra={"patterns_found": len(patterns)}
+                )
+                
+                return patterns
+                
+            except Exception as e:
+                self.logger.error(
+                    "Error in single candle pattern analysis",
+                    exc_info=e,
+                    extra={
+                        "candle_timestamp": candle.timestamp,
+                        "error_type": type(e).__name__
+                    }
+                )
+                return []
+    
+    def _detect_doji_patterns(self, candle: CandleData, body_ratio: float, 
+                             upper_shadow_ratio: float, lower_shadow_ratio: float, 
+                             context: Dict) -> List[PatternResult]:
+        """Detect all Doji pattern variations"""
+        patterns = []
+        
+        # Standard Doji: Small body, any shadow length
+        if body_ratio <= 0.1:  # Body is ≤10% of total range
+            
+            # Long-Legged Doji: Long shadows on both sides
+            if upper_shadow_ratio >= 2.0 and lower_shadow_ratio >= 2.0:
+                strength = self._calculate_doji_strength(candle, context, 'long_legged')
+                patterns.append(PatternResult(
+                    pattern_name="Long-Legged Doji",
+                    pattern_type="neutral",
+                    strength_score=strength,
+                    confidence=0.8,
+                    confirmation_needed=True,
+                    description="Strong indecision with long shadows on both sides"
+                ))
+            
+            # Gravestone Doji: Long upper shadow, minimal lower shadow
+            elif upper_shadow_ratio >= 3.0 and lower_shadow_ratio <= 0.5:
+                strength = self._calculate_doji_strength(candle, context, 'gravestone')
+                pattern_type = "bearish" if context.get('trend') == 'uptrend' else "neutral"
+                patterns.append(PatternResult(
+                    pattern_name="Gravestone Doji",
+                    pattern_type=pattern_type,
+                    strength_score=strength,
+                    confidence=0.75,
+                    confirmation_needed=True,
+                    description="Bearish reversal signal in uptrend"
+                ))
+            
+            # Dragonfly Doji: Long lower shadow, minimal upper shadow
+            elif lower_shadow_ratio >= 3.0 and upper_shadow_ratio <= 0.5:
+                strength = self._calculate_doji_strength(candle, context, 'dragonfly')
+                pattern_type = "bullish" if context.get('trend') == 'downtrend' else "neutral"
+                patterns.append(PatternResult(
+                    pattern_name="Dragonfly Doji",
+                    pattern_type=pattern_type,
+                    strength_score=strength,
+                    confidence=0.75,
+                    confirmation_needed=True,
+                    description="Bullish reversal signal in downtrend"
+                ))
+            
+            # Standard Doji: Small body, moderate shadows
+            else:
+                strength = self._calculate_doji_strength(candle, context, 'standard')
+                patterns.append(PatternResult(
+                    pattern_name="Standard Doji",
+                    pattern_type="neutral",
+                    strength_score=strength,
+                    confidence=0.6,
+                    confirmation_needed=True,
+                    description="Market indecision, trend reversal possible"
+                ))
+        
+        return patterns
+    
+    def _detect_hammer_patterns(self, candle: CandleData, body_ratio: float,
+                               upper_shadow_ratio: float, lower_shadow_ratio: float,
+                               context: Dict) -> List[PatternResult]:
+        """Detect Hammer and Hanging Man patterns"""
+        patterns = []
+        
+        # Hammer/Hanging Man criteria: Small body, long lower shadow, small upper shadow
+        if (0.1 <= body_ratio <= 0.4 and  # Medium-small body
+            lower_shadow_ratio >= 2.0 and  # Long lower shadow
+            upper_shadow_ratio <= 1.0):     # Small upper shadow
+            
+            trend = context.get('trend', 'neutral')
+            
+            if trend == 'downtrend':
+                # Hammer in downtrend = Bullish reversal
+                strength = self._calculate_hammer_strength(candle, context, 'hammer')
+                patterns.append(PatternResult(
+                    pattern_name="Hammer",
+                    pattern_type="bullish",
+                    strength_score=strength,
+                    confidence=0.7,
+                    confirmation_needed=True,
+                    description="Bullish reversal signal in downtrend"
+                ))
+            
+            elif trend == 'uptrend':
+                # Hanging Man in uptrend = Bearish reversal
+                strength = self._calculate_hammer_strength(candle, context, 'hanging_man')
+                patterns.append(PatternResult(
+                    pattern_name="Hanging Man",
+                    pattern_type="bearish",
+                    strength_score=strength,
+                    confidence=0.65,
+                    confirmation_needed=True,
+                    description="Bearish reversal signal in uptrend"
+                ))
+        
+        # Inverted Hammer criteria: Small body, long upper shadow, small lower shadow
+        if (0.1 <= body_ratio <= 0.4 and  # Medium-small body
+            upper_shadow_ratio >= 2.0 and  # Long upper shadow
+            lower_shadow_ratio <= 1.0):     # Small lower shadow
+            
+            trend = context.get('trend', 'neutral')
+            
+            if trend == 'downtrend':
+                # Inverted Hammer in downtrend = Potential bullish reversal
+                strength = self._calculate_hammer_strength(candle, context, 'inverted_hammer')
+                patterns.append(PatternResult(
+                    pattern_name="Inverted Hammer",
+                    pattern_type="bullish",
+                    strength_score=strength,
+                    confidence=0.6,
+                    confirmation_needed=True,
+                    description="Potential bullish reversal in downtrend"
+                ))
+            
+            elif trend == 'uptrend':
+                # Shooting Star in uptrend = Bearish reversal
+                strength = self._calculate_hammer_strength(candle, context, 'shooting_star')
+                patterns.append(PatternResult(
+                    pattern_name="Shooting Star",
+                    pattern_type="bearish",
+                    strength_score=strength,
+                    confidence=0.7,
+                    confirmation_needed=True,
+                    description="Bearish reversal signal in uptrend"
+                ))
+        
+        return patterns
+    
+    def _detect_marubozu_patterns(self, candle: CandleData, body_ratio: float,
+                                 upper_shadow: float, lower_shadow: float,
+                                 context: Dict) -> List[PatternResult]:
+        """Detect Marubozu patterns (strong momentum candles)"""
+        patterns = []
+        
+        # Marubozu: Large body with minimal shadows
+        if body_ratio >= 0.8 and upper_shadow <= 0.02 and lower_shadow <= 0.02:
+            
+            is_bullish = candle.close > candle.open
+            pattern_type = "bullish" if is_bullish else "bearish"
+            
+            # Calculate strength based on volume and context
+            strength = self._calculate_marubozu_strength(candle, context, is_bullish)
+            
+            pattern_name = "Bullish Marubozu" if is_bullish else "Bearish Marubozu"
+            description = f"Strong {'bullish' if is_bullish else 'bearish'} momentum continuation"
+            
+            patterns.append(PatternResult(
+                pattern_name=pattern_name,
+                pattern_type=pattern_type,
+                strength_score=strength,
+                confidence=0.8,
+                confirmation_needed=False,  # Strong momentum patterns need less confirmation
+                description=description
+            ))
+        
+        return patterns
+    
+    # ================================
+    # TWO CANDLE PATTERNS (15 Patterns)
+    # ================================
+    
+    def _analyze_two_candle_patterns(self, candles: List[CandleData], context: Dict) -> List[PatternResult]:
+        """Analyze two-candle patterns"""
+        if len(candles) < 2:
+            return []
+            
+        patterns = []
+        prev_candle, curr_candle = candles[-2], candles[-1]
+        
+        # ENGULFING PATTERNS
+        patterns.extend(self._detect_engulfing_patterns(prev_candle, curr_candle, context))
+        
+        # HARAMI PATTERNS
+        patterns.extend(self._detect_harami_patterns(prev_candle, curr_candle, context))
+        
+        # PIERCING LINE & DARK CLOUD COVER
+        patterns.extend(self._detect_piercing_patterns(prev_candle, curr_candle, context))
+        
+        # TWEEZERS PATTERNS
+        patterns.extend(self._detect_tweezers_patterns(prev_candle, curr_candle, context))
+        
+        # BELT HOLD PATTERNS
+        patterns.extend(self._detect_belt_hold_patterns(prev_candle, curr_candle, context))
+        
+        return patterns
+    
+    def _detect_engulfing_patterns(self, prev_candle: CandleData, curr_candle: CandleData, 
+                                  context: Dict) -> List[PatternResult]:
+        """Detect Bullish and Bearish Engulfing patterns"""
+        patterns = []
+        
+        prev_body_size = abs(prev_candle.close - prev_candle.open)
+        curr_body_size = abs(curr_candle.close - curr_candle.open)
+        
+        # Bullish Engulfing: Previous bearish candle engulfed by current bullish candle
+        if (prev_candle.close < prev_candle.open and  # Previous bearish
+            curr_candle.close > curr_candle.open and  # Current bullish
+            curr_candle.open < prev_candle.close and  # Opens below previous close
+            curr_candle.close > prev_candle.open and  # Closes above previous open
+            curr_body_size > prev_body_size):         # Current body larger
+            
+            strength = self._calculate_engulfing_strength(prev_candle, curr_candle, context, True)
+            patterns.append(PatternResult(
+                pattern_name="Bullish Engulfing",
+                pattern_type="bullish",
+                strength_score=strength,
+                confidence=0.8,
+                confirmation_needed=False,
+                description="Strong bullish reversal pattern"
+            ))
+        
+        # Bearish Engulfing: Previous bullish candle engulfed by current bearish candle
+        elif (prev_candle.close > prev_candle.open and  # Previous bullish
+              curr_candle.close < curr_candle.open and  # Current bearish
+              curr_candle.open > prev_candle.close and  # Opens above previous close
+              curr_candle.close < prev_candle.open and  # Closes below previous open
+              curr_body_size > prev_body_size):         # Current body larger
+            
+            strength = self._calculate_engulfing_strength(prev_candle, curr_candle, context, False)
+            patterns.append(PatternResult(
+                pattern_name="Bearish Engulfing",
+                pattern_type="bearish",
+                strength_score=strength,
+                confidence=0.8,
+                confirmation_needed=False,
+                description="Strong bearish reversal pattern"
+            ))
+        
+        return patterns
+    
+    # ================================
+    # PATTERN STRENGTH CALCULATION
+    # ================================
+    
+    def _calculate_doji_strength(self, candle: CandleData, context: Dict, doji_type: str) -> float:
+        """Calculate Doji pattern strength (0-100)"""
+        base_strength = 50.0
+        
+        # Volume confirmation
+        volume_avg = context.get('volume_average_20', candle.volume)
+        if candle.volume > volume_avg * 1.5:
+            base_strength += 20
+        elif candle.volume < volume_avg * 0.5:
+            base_strength -= 15
+        
+        # Support/Resistance level confirmation
+        current_price = (candle.high + candle.low) / 2
+        sr_levels = context.get('support_resistance_levels', [])
+        
+        for level in sr_levels:
+            if abs(current_price - level) / current_price < 0.002:  # Within 20 pips
+                base_strength += 15
+                break
+        
+        # Trend context
+        trend = context.get('trend', 'neutral')
+        if doji_type in ['gravestone'] and trend == 'uptrend':
+            base_strength += 10
+        elif doji_type in ['dragonfly'] and trend == 'downtrend':
+            base_strength += 10
+        
+        return min(100.0, max(0.0, base_strength))
+    
+    def _calculate_hammer_strength(self, candle: CandleData, context: Dict, hammer_type: str) -> float:
+        """Calculate Hammer/Hanging Man pattern strength"""
+        base_strength = 60.0
+        
+        # Volume confirmation
+        volume_avg = context.get('volume_average_20', candle.volume)
+        if candle.volume > volume_avg * 1.2:
+            base_strength += 15
+        
+        # Trend context appropriateness
+        trend = context.get('trend', 'neutral')
+        if ((hammer_type == 'hammer' and trend == 'downtrend') or
+            (hammer_type == 'hanging_man' and trend == 'uptrend')):
+            base_strength += 20
+        
+        # Shadow length relative to recent range
+        shadow_length = min(candle.open, candle.close) - candle.low
+        recent_range = context.get('average_range_10', candle.high - candle.low)
+        
+        if shadow_length > recent_range * 0.5:
+            base_strength += 10
+        
+        return min(100.0, max(0.0, base_strength))
+    
+    def _calculate_engulfing_strength(self, prev_candle: CandleData, curr_candle: CandleData,
+                                     context: Dict, is_bullish: bool) -> float:
+        """Calculate Engulfing pattern strength"""
+        base_strength = 70.0
+        
+        # Size relationship
+        prev_body = abs(prev_candle.close - prev_candle.open)
+        curr_body = abs(curr_candle.close - curr_candle.open)
+        
+        size_ratio = curr_body / prev_body if prev_body > 0 else 1
+        if size_ratio > 2.0:
+            base_strength += 15
+        elif size_ratio < 1.2:
+            base_strength -= 10
+        
+        # Volume confirmation
+        volume_avg = context.get('volume_average_20', curr_candle.volume)
+        if curr_candle.volume > volume_avg * 1.3:
+            base_strength += 20
+        
+        # Trend context
+        trend = context.get('trend', 'neutral')
+        if ((is_bullish and trend == 'downtrend') or
+            (not is_bullish and trend == 'uptrend')):
+            base_strength += 15
+        
+        return min(100.0, max(0.0, base_strength))
+    
+    def _rank_patterns_by_strength(self, patterns: List[PatternResult], context: Dict) -> List[PatternResult]:
+        """Rank patterns by strength and filter weak patterns"""
+        # Sort by strength score descending
+        patterns.sort(key=lambda p: p.strength_score, reverse=True)
+        
+        # Filter out weak patterns (< 40 strength)
+        strong_patterns = [p for p in patterns if p.strength_score >= 40]
+        
+        return strong_patterns[:10]  # Return top 10 patterns maximum
+    
+    def _initialize_pattern_database(self) -> Dict:
+        """Initialize comprehensive pattern database"""
+        return {
+            'single_candle': [
+                'Standard Doji', 'Long-Legged Doji', 'Gravestone Doji', 'Dragonfly Doji',
+                'Hammer', 'Hanging Man', 'Inverted Hammer', 'Shooting Star',
+                'Bullish Marubozu', 'Bearish Marubozu', 'Spinning Top'
+            ],
+            'two_candle': [
+                'Bullish Engulfing', 'Bearish Engulfing', 'Bullish Harami', 'Bearish Harami',
+                'Piercing Line', 'Dark Cloud Cover', 'Tweezers Top', 'Tweezers Bottom',
+                'Belt Hold Bullish', 'Belt Hold Bearish'
+            ],
+            'three_candle': [
+                'Morning Star', 'Evening Star', 'Three White Soldiers', 'Three Black Crows',
+                'Three Inside Up', 'Three Inside Down', 'Three Outside Up', 'Three Outside Down'
+            ],
+            'complex_patterns': [
+                'Abandoned Baby', 'Island Reversal', 'Ladder Top', 'Ladder Bottom',
+                'Unique Three River Bottom', 'Three Stars in the South'
+            ]
+        }
+
+
+    def handle_service_error(self, error: Exception, context: Dict[str, Any] = None) -> None:
+        """Handle service errors with proper event emission and logging"""
+        try:
+            service_error = AIModelError(
+                message=str(error),
+                code=f"{self.__class__.__name__.upper()}_ERROR",
+                metadata={
+                    "file_path": "ai-platform/ai-models/market-analysis/pattern-recognition/japanese_candlesticks.py",
+                    "context": context or {},
+                    "timestamp": pd.Timestamp.now().isoformat(),
+                    "service_name": self.__class__.__name__
+                }
+            )
+            
+            # Emit error event for monitoring
+            self.emit('error', service_error)
+            
+            # Log error with correlation context
+            if hasattr(self, 'logger'):
+                self.logger.error(
+                    f"Service error in {self.__class__.__name__}: {str(error)}",
+                    extra={
+                        "error_code": service_error.code,
+                        "error_severity": service_error.severity.value,
+                        "error_category": service_error.category.value,
+                        "context": context
+                    }
+                )
+        except Exception as handling_error:
+            # Fallback error handling
+            print(f"Critical error in error handling: {handling_error}")
+    
+    def implement_circuit_breaker(self, service_name: str, failure_threshold: int = 5) -> CircuitBreaker:
+        """Implement circuit breaker for external service calls"""
+        return CircuitBreaker(
+            service_name=service_name,
+            failure_threshold=failure_threshold,
+            recovery_timeout=30,
+            on_failure=lambda error: self.emit('circuit_breaker_open', {'service': service_name, 'error': error})
+        )
+    
+    def graceful_degradation(self, primary_function, fallback_function, context: str = "operation"):
+        """Implement graceful degradation pattern"""
+        try:
+            return primary_function()
+        except Exception as error:
+            self.handle_service_error(error, {"context": context, "degradation": "fallback_used"})
+            
+            # Emit degradation event
+            self.emit('service_degradation', {
+                'context': context,
+                'primary_error': str(error),
+                'fallback_activated': True
+            })
+            
+            return fallback_function()
+
+# Export for use in other modules
+__all__ = ['JapaneseCandlestickPatterns', 'CandleData', 'PatternResult']

@@ -1,9 +1,41 @@
 // Pattern Recognition Engine - Chart pattern detection for trading signals
 // Detects head & shoulders, triangles, support/resistance, and other chart patterns
+// Bridge to Python AI pattern recognition for humanitarian forex trading platform
 
 import { Logger } from 'winston';
+import { spawn, ChildProcess } from 'child_process';
+import * as path from 'path';
+import { EventEmitter } from 'events';
 import { mean, standardDeviation } from 'simple-statistics';
 import { MarketData } from './TechnicalAnalysisEngine';
+
+// Communication interfaces for Python engine integration
+export interface PythonEngineInterface {
+  sendCommand(command: string, data: any): Promise<any>;
+  isConnected(): boolean;
+  disconnect(): Promise<void>;
+}
+
+export interface Platform3EngineConnection {
+  initialized: boolean;
+  pythonProcess?: ChildProcess;
+  communicationQueue: Map<string, any>;
+  eventEmitter: EventEmitter;
+}
+
+// Python Pattern Recognition Integration Interface
+export interface PythonPatternInterface {
+  detectPatterns(symbol: string, data: MarketData[]): Promise<PatternRecognitionResult>;
+  validatePattern(pattern: DetectedPattern): Promise<PatternValidation>;
+  getPatternProbability(patternType: string, data: MarketData[]): Promise<number>;
+}
+
+export interface PatternValidation {
+  valid: boolean;
+  confidence: number;
+  reliability: number;
+  expectedMove: number;
+}
 
 export interface PatternRecognitionResult {
   symbol: string;
@@ -81,27 +113,200 @@ export interface PatternSignal {
 export class PatternRecognitionEngine {
   private logger: Logger;
   private ready: boolean = false;
+  private pythonEngine: Platform3EngineConnection;
+  private pythonInterface: PythonEngineInterface;
 
   constructor(logger: Logger) {
     this.logger = logger;
+    this.pythonEngine = {
+      initialized: false,
+      communicationQueue: new Map(),
+      eventEmitter: new EventEmitter()
+    };
+    this.pythonInterface = this.createPythonInterface();
+  }
+
+  private createPythonInterface(): PythonEngineInterface {
+    return {
+      sendCommand: async (command: string, data: any) => {
+        return this.sendToPythonEngine(command, data);
+      },
+      isConnected: () => {
+        return this.pythonEngine.initialized && this.pythonEngine.pythonProcess !== undefined;
+      },
+      disconnect: async () => {
+        await this.disconnectPythonEngine();
+      }
+    };
+  }
+
+  private async sendToPythonEngine(command: string, data: any): Promise<any> {
+    if (!this.pythonEngine.initialized) {
+      throw new Error('Python pattern recognition engine not initialized');
+    }
+
+    return new Promise((resolve, reject) => {
+      const requestId = Math.random().toString(36).substr(2, 9);
+      const message = JSON.stringify({
+        id: requestId,
+        command,
+        data,
+        timestamp: Date.now(),
+        engine_type: 'pattern_recognition'
+      });
+
+      // Set up response handler
+      const timeout = setTimeout(() => {
+        this.pythonEngine.communicationQueue.delete(requestId);
+        reject(new Error(`Python pattern engine timeout for command: ${command}`));
+      }, 35000); // 35 second timeout for pattern analysis
+
+      this.pythonEngine.communicationQueue.set(requestId, {
+        resolve,
+        reject,
+        timeout
+      });
+
+      // Send to Python process
+      if (this.pythonEngine.pythonProcess && this.pythonEngine.pythonProcess.stdin) {
+        this.pythonEngine.pythonProcess.stdin.write(message + '\n');
+      } else {
+        clearTimeout(timeout);
+        this.pythonEngine.communicationQueue.delete(requestId);
+        reject(new Error('Python pattern process not available'));
+      }
+    });
+  }
+
+  private async disconnectPythonEngine(): Promise<void> {
+    if (this.pythonEngine.pythonProcess) {
+      this.pythonEngine.pythonProcess.kill();
+      this.pythonEngine.pythonProcess = undefined;
+    }
+    this.pythonEngine.initialized = false;
+    this.pythonEngine.communicationQueue.clear();
   }
 
   async initialize(): Promise<void> {
-    this.logger.info('Initializing Pattern Recognition Engine...');
+    this.logger.info('🚀 Initializing Pattern Recognition Engine for humanitarian trading...');
     
     try {
+      // Initialize Python pattern recognition engine connection
+      await this.initializePythonEngine();
+      
       // Test pattern detection algorithms
       const testData = this.generateTestData();
       const peaks = this.findPeaksAndTroughs(testData);
       
       if (peaks.peaks.length > 0 && peaks.troughs.length > 0) {
+        // Test Python pattern engine integration
+        await this.testPythonPatternEngineIntegration();
+        
         this.ready = true;
-        this.logger.info('✅ Pattern Recognition Engine initialized');
+        this.logger.info('✅ Pattern Recognition Engine initialized with Python bridge');
       } else {
         throw new Error('Pattern detection test failed');
       }
     } catch (error) {
       this.logger.error('❌ Pattern Recognition Engine initialization failed:', error);
+      throw error;
+    }
+  }
+
+  private async initializePythonEngine(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const pythonScriptPath = path.join(__dirname, '../../ai-platform/coordination/engine/platform3_engine.py');
+      
+      this.logger.info(`Starting Python pattern recognition engine: ${pythonScriptPath}`);
+      
+      const pythonProcess = spawn('python', [pythonScriptPath, '--mode=pattern-recognition'], {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+
+      this.pythonEngine.pythonProcess = pythonProcess;
+
+      // Handle Python process output
+      pythonProcess.stdout?.on('data', (data) => {
+        const lines = data.toString().split('\n').filter((line: string) => line.trim());
+        
+        for (const line of lines) {
+          try {
+            const response = JSON.parse(line);
+            this.handlePythonResponse(response);
+          } catch (error) {
+            this.logger.debug('Python pattern output:', line);
+          }
+        }
+      });
+
+      pythonProcess.stderr?.on('data', (data) => {
+        this.logger.error('Python pattern engine error:', data.toString());
+      });
+
+      pythonProcess.on('close', (code) => {
+        this.logger.warn(`Python pattern engine process closed with code ${code}`);
+        this.pythonEngine.initialized = false;
+      });
+
+      pythonProcess.on('error', (error) => {
+        this.logger.error('Python pattern engine process error:', error);
+        reject(error);
+      });
+
+      // Wait for initialization confirmation
+      setTimeout(() => {
+        if (pythonProcess.pid) {
+          this.pythonEngine.initialized = true;
+          resolve();
+        } else {
+          reject(new Error('Python pattern engine failed to start'));
+        }
+      }, 4000);
+    });
+  }
+
+  private handlePythonResponse(response: any): void {
+    if (response.id && this.pythonEngine.communicationQueue.has(response.id)) {
+      const { resolve, reject, timeout } = this.pythonEngine.communicationQueue.get(response.id);
+      clearTimeout(timeout);
+      this.pythonEngine.communicationQueue.delete(response.id);
+
+      if (response.error) {
+        reject(new Error(response.error));
+      } else {
+        resolve(response.result);
+      }
+    }
+  }
+
+  private async testPythonPatternEngineIntegration(): Promise<void> {
+    this.logger.info('🧪 Testing Python pattern recognition engine integration...');
+    
+    try {
+      // Test basic communication
+      const pingResult = await this.pythonInterface.sendCommand('ping', { 
+        message: 'pattern_integration_test',
+        engine_type: 'pattern_recognition'
+      });
+      if (pingResult.status !== 'pong') {
+        throw new Error('Python pattern engine ping test failed');
+      }
+
+      // Test pattern detection
+      const testData = this.generateTestData();
+      const patternResult = await this.pythonInterface.sendCommand('detect_advanced_patterns', {
+        market_data: testData,
+        pattern_types: ['head_and_shoulders', 'double_top', 'triangle'],
+        ai_enhancement: true
+      });
+
+      if (!patternResult || !Array.isArray(patternResult.patterns)) {
+        throw new Error('Python pattern detection test failed');
+      }
+
+      this.logger.info('✅ Python pattern recognition engine integration test passed');
+    } catch (error) {
+      this.logger.error('❌ Python pattern engine integration test failed:', error);
       throw error;
     }
   }
@@ -119,7 +324,62 @@ export class PatternRecognitionEngine {
       throw new Error('Insufficient data for pattern recognition (minimum 50 periods required)');
     }
 
-    this.logger.debug(`Detecting patterns for ${symbol} with ${marketData.length} data points`);
+    this.logger.debug(`🔍 Detecting humanitarian trading patterns for ${symbol} with ${marketData.length} data points`);
+
+    try {
+      // Try Python AI-enhanced pattern detection first
+      const pythonPatterns = await this.getPythonEnhancedPatterns(symbol, marketData);
+      
+      if (pythonPatterns) {
+        this.logger.info(`✅ AI-enhanced pattern detection completed for ${symbol}`);
+        return pythonPatterns;
+      }
+    } catch (error) {
+      this.logger.warn('Python pattern detection failed, using local analysis:', error);
+    }
+
+    // Fallback to local pattern detection
+    return this.generateLocalPatternAnalysis(symbol, marketData);
+  }
+
+  private async getPythonEnhancedPatterns(symbol: string, marketData: MarketData[]): Promise<PatternRecognitionResult | null> {
+    try {
+      const result = await this.pythonInterface.sendCommand('enhanced_pattern_detection', {
+        symbol,
+        market_data: marketData,
+        pattern_types: [
+          'head_and_shoulders', 'inverse_head_and_shoulders',
+          'double_top', 'double_bottom',
+          'ascending_triangle', 'descending_triangle', 'symmetrical_triangle',
+          'flag', 'pennant', 'wedge', 'channel', 'cup_and_handle'
+        ],
+        ai_enhancement: true,
+        humanitarian_mode: true,
+        confidence_threshold: 0.6
+      });
+
+      if (result && result.patterns && Array.isArray(result.patterns)) {
+        return {
+          symbol,
+          timestamp: Date.now(),
+          patterns: result.patterns.map((p: any) => ({
+            ...p,
+            confidence: p.confidence * 1.1 // AI patterns get confidence boost
+          })),
+          supportLevels: result.support_levels || [],
+          resistanceLevels: result.resistance_levels || [],
+          trendLines: result.trend_lines || [],
+          signals: result.signals || []
+        };
+      }
+    } catch (error) {
+      this.logger.debug('Python enhanced pattern detection unavailable:', error);
+    }
+
+    return null;
+  }
+
+  private async generateLocalPatternAnalysis(symbol: string, marketData: MarketData[]): Promise<PatternRecognitionResult> {
 
     // Find peaks and troughs
     const peaksAndTroughs = this.findPeaksAndTroughs(marketData);
@@ -727,6 +987,86 @@ export class PatternRecognitionEngine {
         open: price,
         high: price + Math.random() * 0.005,
         low: price - Math.random() * 0.005,
+        close: price,
+        volume: 1000 + Math.random() * 5000
+      });
+    }
+    
+    return data;
+  }
+
+  // Integration testing methods for humanitarian mission validation
+  async runIntegrationTests(): Promise<boolean> {
+    this.logger.info('🧪 Running Pattern Recognition Engine integration tests...');
+
+    try {
+      // Test 1: Python pattern engine connectivity
+      const pingTest = await this.pythonInterface.sendCommand('ping', { 
+        test: 'pattern_integration',
+        engine_type: 'pattern_recognition'
+      });
+      if (pingTest.status !== 'pong') {
+        throw new Error('Python pattern engine ping test failed');
+      }
+
+      // Test 2: Pattern detection with sample data
+      const sampleData: MarketData[] = this.generateSamplePatternData();
+      const patternResult = await this.detectPatterns('TEST_SYMBOL', sampleData);
+      
+      if (!patternResult || !patternResult.patterns || patternResult.patterns.length === 0) {
+        throw new Error('Pattern detection test failed');
+      }
+
+      // Test 3: Support/resistance detection test
+      if (patternResult.supportLevels.length === 0 || patternResult.resistanceLevels.length === 0) {
+        throw new Error('Support/resistance detection test failed');
+      }
+
+      // Test 4: AI enhancement validation
+      const aiTest = await this.pythonInterface.sendCommand('validate_ai_enhancement', {
+        module: 'pattern_recognition',
+        test_type: 'advanced_patterns'
+      });
+      
+      if (!aiTest.enabled) {
+        throw new Error('AI enhancement not enabled in Python pattern engine');
+      }
+
+      // Test 5: Humanitarian mode validation
+      const humanitarianTest = await this.pythonInterface.sendCommand('validate_humanitarian_pattern_mode', {});
+      if (!humanitarianTest.enabled) {
+        throw new Error('Humanitarian pattern mode not enabled in Python engine');
+      }
+
+      this.logger.info('✅ All Pattern Recognition Engine integration tests passed');
+      return true;
+    } catch (error) {
+      this.logger.error('❌ Pattern integration tests failed:', error);
+      return false;
+    }
+  }
+
+  private generateSamplePatternData(): MarketData[] {
+    const data: MarketData[] = [];
+    let price = 1.2000;
+    
+    // Generate data with a potential double bottom pattern
+    for (let i = 0; i < 50; i++) {
+      if (i < 20) {
+        price -= 0.001 + (Math.random() * 0.001);
+      } else if (i < 30) {
+        price += 0.0015 + (Math.random() * 0.001);
+      } else if (i < 40) {
+        price -= 0.001 + (Math.random() * 0.001);
+      } else {
+        price += 0.002 + (Math.random() * 0.001);
+      }
+
+      data.push({
+        timestamp: Date.now() - (50 - i) * 60000,
+        open: price - 0.0005,
+        high: price + 0.001,
+        low: price - 0.001,
         close: price,
         volume: 1000 + Math.random() * 5000
       });

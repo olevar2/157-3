@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Hurst Exponent Indicator
 Advanced implementation for market efficiency analysis and trend persistence
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 class MarketRegime(Enum):
     """Market regime types based on Hurst Exponent"""
     MEAN_REVERTING = "mean_reverting"      # H < 0.5
-    RANDOM_WALK = "random_walk"            # H ≈ 0.5
+    RANDOM_WALK = "random_walk"            # H ~= 0.5
     TRENDING = "trending"                  # H > 0.5
     STRONG_TRENDING = "strong_trending"    # H > 0.7
     STRONG_MEAN_REVERTING = "strong_mean_reverting"  # H < 0.3
@@ -89,7 +90,7 @@ class HurstExponent:
         self.trending_threshold = 0.5
         self.strong_trending_threshold = 0.7
         self.strong_mean_reverting_threshold = 0.3
-        self.random_walk_tolerance = 0.05  # ±0.05 around 0.5
+        self.random_walk_tolerance = 0.05  # plus_minus0.05 around 0.5
 
         # Performance tracking
         self.signal_history = []

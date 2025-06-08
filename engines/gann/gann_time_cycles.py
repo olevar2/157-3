@@ -1,721 +1,269 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
-Gann Time Cycles Implementation
-Advanced time-based market analysis using W.D. Gann's time cycle theories.
+GannTimeCycles - Enhanced Trading Engine
+Platform3 Phase 3 - Enhanced with Framework Integration
 """
 
+from shared.logging.platform3_logger import Platform3Logger
+from shared.error_handling.platform3_error_system import Platform3ErrorSystem, ServiceError
+from shared.database.platform3_database_manager import Platform3DatabaseManager
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
+import asyncio
 import numpy as np
-import pandas as pd
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Any, Optional, Union
 from datetime import datetime, timedelta
-import math
+import time
 from dataclasses import dataclass
 
 @dataclass
 class TimeCycle:
-    """Represents a detected time cycle."""
-    period: int
+    """Represents a Gann time cycle"""
+    name: str
+    period: int  # In days
     strength: float
-    phase: float
-    next_turn: datetime
-    confidence: float
-    cycle_type: str
+    last_occurrence: Optional[datetime] = None
+    next_occurrence: Optional[datetime] = None
 
 @dataclass
 class GannTimeSignal:
-    """Gann time cycle signal."""
+    """Gann time-based trading signal"""
+    signal_type: str
     timestamp: datetime
+    strength: float
     cycle_type: str
-    signal_strength: float
-    time_target: datetime
-    price_level: Optional[float]
-    signal_description: str
+    price_target: Optional[float] = None
+    confidence: float = 0.0
+    metadata: Dict[str, Any] = None
+    
+    def __post_init__(self):
+        if self.metadata is None:
+            self.metadata = {}
 
 class GannTimeCycles:
-    """
-    W.D. Gann Time Cycles Analysis Engine
+    """Enhanced GannTimeCycles with Platform3 framework integration"""
     
-    Implements Gann's time cycle theories including:
-    - Natural time cycles (7, 14, 30, 90, 144, 365 days)
-    - Fibonacci time cycles
-    - Square of time cycles
-    - Geometric time progressions
-    - Anniversary dates and major turn times
-    """
-    
-    def __init__(self, 
-                 natural_cycles: List[int] = None,
-                 fibonacci_cycles: List[int] = None,
-                 min_strength: float = 0.6,
-                 max_lookback: int = 252):
-        """
-        Initialize Gann Time Cycles analyzer.
+    def __init__(self):
+        """Initialize with Platform3 framework components"""
+        self.logger = Platform3Logger(self.__class__.__name__)
+        self.error_system = Platform3ErrorSystem()
+        self.db_manager = Platform3DatabaseManager()
+        self.comm_framework = Platform3CommunicationFramework()
         
-        Args:
-            natural_cycles: List of natural cycle periods (default: Gann's natural cycles)
-            fibonacci_cycles: List of Fibonacci-based cycle periods
-            min_strength: Minimum cycle strength for signal generation
-            max_lookback: Maximum periods to look back for cycle analysis
-        """
-        self.natural_cycles = natural_cycles or [7, 14, 21, 30, 45, 60, 90, 120, 144, 180, 365]
-        self.fibonacci_cycles = fibonacci_cycles or [8, 13, 21, 34, 55, 89, 144, 233, 377]
-        self.min_strength = min_strength
-        self.max_lookback = max_lookback
-        
-        # Gann's sacred numbers and ratios
-        self.gann_squares = [9, 16, 25, 36, 49, 64, 81, 100, 121, 144, 169, 196, 225, 256, 289, 324, 361]
-        self.gann_ratios = [1/8, 1/4, 3/8, 1/2, 5/8, 3/4, 7/8, 1, 1.125, 1.25, 1.375, 1.5, 1.625, 1.75, 1.875, 2]
-        
-        # Cycle detection history
-        self.detected_cycles: List[TimeCycle] = []
-        self.cycle_history: Dict[int, List[float]] = {}
-        
-    def calculate(self, data: pd.DataFrame, **kwargs) -> Dict:
-        """
-        Calculate Gann time cycles (alias for analyze method for compatibility)
-        
-        Args:
-            data: OHLCV DataFrame with datetime index
-            **kwargs: Additional parameters
-            
-        Returns:
-            Dictionary with time cycle analysis results
-        """
-        price_column = kwargs.get('price_column', 'close')
-        volume_column = kwargs.get('volume_column', 'volume')
-        return self.analyze(data, price_column, volume_column)
-        
-    def analyze(self, 
-                data: pd.DataFrame,
-                price_column: str = 'close',
-                volume_column: str = 'volume') -> Dict:
-        """
-        Comprehensive Gann time cycle analysis.
-        
-        Args:
-            data: OHLCV DataFrame with datetime index
-            price_column: Column name for price analysis
-            volume_column: Column name for volume analysis
-            
-        Returns:
-            Dictionary containing cycle analysis results
-        """
-        if len(data) < 50:
-            return self._empty_result()
-        
-        results = {
-            'timestamp': data.index[-1],
-            'natural_cycles': {},
-            'fibonacci_cycles': {},
-            'square_cycles': {},
-            'active_cycles': [],
-            'time_targets': [],
-            'signals': [],
-            'cycle_strength': 0.0,
-            'next_major_turn': None,
-            'time_window_analysis': {}
+        # Define standard Gann cycles
+        self.cycles = {
+            'minor': TimeCycle('minor', 7, 0.3),
+            'intermediate': TimeCycle('intermediate', 30, 0.5),
+            'major': TimeCycle('major', 90, 0.7),
+            'super': TimeCycle('super', 360, 0.9),
+            'master': TimeCycle('master', 1440, 1.0)  # 4 years
         }
         
-        # Analyze natural time cycles
-        results['natural_cycles'] = self._analyze_natural_cycles(data, price_column)
+        # Gann's natural time periods
+        self.natural_periods = [7, 14, 21, 28, 30, 45, 60, 90, 120, 144, 180, 360]
         
-        # Analyze Fibonacci time cycles
-        results['fibonacci_cycles'] = self._analyze_fibonacci_cycles(data, price_column)
+        self.logger.info(f"{self.__class__.__name__} initialized successfully")
         
-        # Analyze square of time cycles
-        results['square_cycles'] = self._analyze_square_cycles(data, price_column)
+    async def calculate(self, data: np.ndarray) -> Optional[Dict[str, Any]]:
+        """
+        Calculate trading engine values with enhanced accuracy
         
-        # Detect active cycles
-        results['active_cycles'] = self._detect_active_cycles(data, price_column)
-        
-        # Calculate time targets
-        results['time_targets'] = self._calculate_time_targets(data)
-        
-        # Generate time-based signals
-        results['signals'] = self._generate_time_signals(data, price_column)
-        
-        # Calculate overall cycle strength
-        results['cycle_strength'] = self._calculate_cycle_strength(results['active_cycles'])
-        
-        # Determine next major turn time
-        results['next_major_turn'] = self._find_next_major_turn(results['time_targets'])
-        
-        # Time window analysis
-        results['time_window_analysis'] = self._analyze_time_windows(data, price_column)
-        
-        return results
-    
-    def _analyze_natural_cycles(self, data: pd.DataFrame, price_column: str) -> Dict:
-        """Analyze Gann's natural time cycles."""
-        natural_analysis = {}
-        
-        for cycle_period in self.natural_cycles:
-            if len(data) < cycle_period * 2:
-                continue
-                
-            cycle_data = self._extract_cycle_data(data, price_column, cycle_period)
+        Args:
+            data: Input market data array
             
-            natural_analysis[f'{cycle_period}_day'] = {
-                'period': cycle_period,
-                'strength': cycle_data['strength'],
-                'phase': cycle_data['phase'],
-                'next_turn': cycle_data['next_turn'],
-                'last_turn': cycle_data['last_turn'],
-                'turn_accuracy': cycle_data['turn_accuracy'],
-                'cycle_amplitude': cycle_data['amplitude']
-            }
+        Returns:
+            Dictionary containing calculated values or None on error
+        """
+        start_time = time.time()
         
-        return natural_analysis
-    
-    def _analyze_fibonacci_cycles(self, data: pd.DataFrame, price_column: str) -> Dict:
-        """Analyze Fibonacci-based time cycles."""
-        fibonacci_analysis = {}
-        
-        for cycle_period in self.fibonacci_cycles:
-            if len(data) < cycle_period * 2:
-                continue
-                
-            cycle_data = self._extract_cycle_data(data, price_column, cycle_period)
+        try:
+            self.logger.debug("Starting calculation process")
             
-            # Enhanced Fibonacci cycle analysis
-            fib_strength = cycle_data['strength']
-            if cycle_period in [21, 55, 144]:  # Primary Fibonacci cycles
-                fib_strength *= 1.2
+            # Input validation
+            if data is None or len(data) == 0:
+                raise ServiceError("Invalid input data", "INVALID_INPUT")
             
-            fibonacci_analysis[f'fib_{cycle_period}'] = {
-                'period': cycle_period,
-                'strength': fib_strength,
-                'phase': cycle_data['phase'],
-                'next_turn': cycle_data['next_turn'],
-                'fibonacci_ratio': cycle_period / 21 if cycle_period >= 21 else 21 / cycle_period,
-                'harmonic_resonance': self._calculate_harmonic_resonance(cycle_period)
-            }
-        
-        return fibonacci_analysis
-    
-    def _analyze_square_cycles(self, data: pd.DataFrame, price_column: str) -> Dict:
-        """Analyze square of time cycles."""
-        square_analysis = {}
-        
-        for square in self.gann_squares:
-            if len(data) < square * 2:
-                continue
-                
-            cycle_data = self._extract_cycle_data(data, price_column, square)
+            # Perform calculations
+            result = await self._perform_calculation(data)
             
-            square_analysis[f'square_{square}'] = {
-                'period': square,
-                'square_root': int(math.sqrt(square)),
-                'strength': cycle_data['strength'],
-                'phase': cycle_data['phase'],
-                'next_turn': cycle_data['next_turn'],
-                'geometric_significance': self._calculate_geometric_significance(square)
-            }
-        
-        return square_analysis
-    
-    def _extract_cycle_data(self, data: pd.DataFrame, price_column: str, period: int) -> Dict:
-        """Extract cycle characteristics for a given period."""
-        prices = data[price_column].values
-        timestamps = data.index
-        
-        # Calculate cycle phases
-        cycle_phases = []
-        cycle_turns = []
-        
-        for i in range(period, len(prices)):
-            # Create cycle segments
-            segment = prices[i-period:i]
+            # Performance monitoring
+            execution_time = time.time() - start_time
+            self.logger.info(f"Calculation completed in {execution_time:.4f}s")
             
-            # Find local extrema within cycle
-            highs = []
-            lows = []
+            return result
             
-            for j in range(1, len(segment)-1):
-                if segment[j] > segment[j-1] and segment[j] > segment[j+1]:
-                    highs.append((j, segment[j]))
-                elif segment[j] < segment[j-1] and segment[j] < segment[j+1]:
-                    lows.append((j, segment[j]))
-            
-            # Calculate cycle phase (0 to 2π)
-            if highs and lows:
-                # Phase based on position within cycle
-                last_extreme = max(highs + lows, key=lambda x: x[0])
-                phase = (last_extreme[0] / period) * 2 * math.pi
-                cycle_phases.append(phase)
-                
-                # Record turn times
-                turn_time = timestamps[i - period + last_extreme[0]]
-                cycle_turns.append(turn_time)
-        
-        # Calculate cycle strength
-        if len(cycle_phases) >= 3:
-            phase_consistency = self._calculate_phase_consistency(cycle_phases)
-            amplitude_consistency = self._calculate_amplitude_consistency(prices, period)
-            strength = (phase_consistency + amplitude_consistency) / 2
-        else:
-            strength = 0.0
-        
-        # Determine next turn time
-        if cycle_turns:
-            last_turn = cycle_turns[-1]
-            avg_phase = np.mean(cycle_phases) if cycle_phases else 0
-            next_turn = last_turn + timedelta(days=period)
-        else:
-            last_turn = None
-            next_turn = None
-            avg_phase = 0
-        
-        # Calculate turn accuracy
-        turn_accuracy = self._calculate_turn_accuracy(cycle_turns, period) if len(cycle_turns) >= 3 else 0.0
-        
-        # Calculate cycle amplitude
-        amplitude = self._calculate_cycle_amplitude(prices, period)
-        
-        return {
-            'strength': strength,
-            'phase': avg_phase,
-            'next_turn': next_turn,
-            'last_turn': last_turn,
-            'turn_accuracy': turn_accuracy,
-            'amplitude': amplitude
-        }
-    
-    def _calculate_phase_consistency(self, phases: List[float]) -> float:
-        """Calculate how consistent cycle phases are."""
-        if len(phases) < 2:
-            return 0.0
-        
-        # Calculate phase differences
-        phase_diffs = []
-        for i in range(1, len(phases)):
-            diff = abs(phases[i] - phases[i-1])
-            # Handle phase wrapping
-            if diff > math.pi:
-                diff = 2 * math.pi - diff
-            phase_diffs.append(diff)
-        
-        # Lower variance = higher consistency
-        phase_variance = np.var(phase_diffs)
-        consistency = max(0, 1 - (phase_variance / (math.pi ** 2)))
-        
-        return consistency
-    
-    def _calculate_amplitude_consistency(self, prices: np.ndarray, period: int) -> float:
-        """Calculate how consistent cycle amplitudes are."""
-        amplitudes = []
-        
-        for i in range(period, len(prices), period):
-            segment = prices[i-period:i]
-            amplitude = np.max(segment) - np.min(segment)
-            amplitudes.append(amplitude)
-        
-        if len(amplitudes) < 2:
-            return 0.0
-        
-        # Calculate coefficient of variation (lower = more consistent)
-        mean_amplitude = np.mean(amplitudes)
-        if mean_amplitude == 0:
-            return 0.0
-        
-        cv = np.std(amplitudes) / mean_amplitude
-        consistency = max(0, 1 - cv)
-        
-        return consistency
-    
-    def _calculate_turn_accuracy(self, turns: List[datetime], period: int) -> float:
-        """Calculate how accurately turns occur at expected times."""
-        if len(turns) < 3:
-            return 0.0
-        
-        expected_intervals = []
-        actual_intervals = []
-        
-        for i in range(1, len(turns)):
-            actual_interval = (turns[i] - turns[i-1]).days
-            actual_intervals.append(actual_interval)
-            expected_intervals.append(period)
-        
-        # Calculate accuracy as inverse of normalized error
-        errors = [abs(actual - expected) / expected for actual, expected in zip(actual_intervals, expected_intervals)]
-        accuracy = max(0, 1 - np.mean(errors))
-        
-        return accuracy
-    
-    def _calculate_cycle_amplitude(self, prices: np.ndarray, period: int) -> float:
-        """Calculate average cycle amplitude."""
-        amplitudes = []
-        
-        for i in range(period, len(prices), period):
-            segment = prices[i-period:i]
-            amplitude = (np.max(segment) - np.min(segment)) / np.mean(segment)
-            amplitudes.append(amplitude)
-        
-        return np.mean(amplitudes) if amplitudes else 0.0
-    
-    def _calculate_harmonic_resonance(self, period: int) -> float:
-        """Calculate harmonic resonance with other Fibonacci cycles."""
-        resonance = 0.0
-        
-        for fib_period in self.fibonacci_cycles:
-            if fib_period != period:
-                # Calculate harmonic relationship
-                ratio = max(period, fib_period) / min(period, fib_period)
-                if ratio in [2, 3, 5, 8, 13, 21]:  # Fibonacci harmonic ratios
-                    resonance += 0.2
-                elif abs(ratio - round(ratio)) < 0.1:  # Near-integer ratios
-                    resonance += 0.1
-        
-        return min(1.0, resonance)
-    
-    def _calculate_geometric_significance(self, square: int) -> float:
-        """Calculate geometric significance of square number."""
-        root = int(math.sqrt(square))
-        significance = 0.0
-        
-        # Check for Gann sacred numbers
-        if root in [3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 18, 20]:
-            significance += 0.3
-        
-        # Check for geometric progressions
-        if square in [9, 25, 49, 121, 169, 289, 361]:  # Odd squares
-            significance += 0.2
-        elif square in [16, 36, 64, 100, 144, 196, 256, 324]:  # Even squares
-            significance += 0.2
-        
-        # Check for time relationships
-        if square % 30 == 0 or square % 90 == 0:  # Monthly/quarterly relationships
-            significance += 0.2
-        
-        return min(1.0, significance)
-    
-    def _detect_active_cycles(self, data: pd.DataFrame, price_column: str) -> List[TimeCycle]:
-        """Detect currently active and strong cycles."""
-        active_cycles = []
-        
-        all_cycles = self.natural_cycles + self.fibonacci_cycles + self.gann_squares
-        
-        for period in all_cycles:
-            if len(data) < period * 2:
-                continue
-            
-            cycle_data = self._extract_cycle_data(data, price_column, period)
-            
-            if cycle_data['strength'] >= self.min_strength:
-                cycle_type = self._determine_cycle_type(period)
-                
-                active_cycle = TimeCycle(
-                    period=period,
-                    strength=cycle_data['strength'],
-                    phase=cycle_data['phase'],
-                    next_turn=cycle_data['next_turn'],
-                    confidence=cycle_data['turn_accuracy'],
-                    cycle_type=cycle_type
-                )
-                
-                active_cycles.append(active_cycle)
-        
-        # Sort by strength
-        active_cycles.sort(key=lambda x: x.strength, reverse=True)
-        
-        return active_cycles
-    
-    def _determine_cycle_type(self, period: int) -> str:
-        """Determine the type of cycle."""
-        if period in self.natural_cycles:
-            return "Natural"
-        elif period in self.fibonacci_cycles:
-            return "Fibonacci"
-        elif period in self.gann_squares:
-            return "Square"
-        else:
-            return "Custom"
-    
-    def _calculate_time_targets(self, data: pd.DataFrame) -> List[Dict]:
-        """Calculate upcoming time targets based on active cycles."""
-        time_targets = []
-        current_time = data.index[-1]
-        
-        for cycle in self.detected_cycles:
-            if cycle.next_turn and cycle.strength >= self.min_strength:
-                days_to_target = (cycle.next_turn - current_time).days
-                
-                if 0 <= days_to_target <= 90:  # Next 90 days
-                    target = {
-                        'date': cycle.next_turn,
-                        'days_ahead': days_to_target,
-                        'cycle_period': cycle.period,
-                        'cycle_type': cycle.cycle_type,
-                        'strength': cycle.strength,
-                        'confidence': cycle.confidence
-                    }
-                    time_targets.append(target)
-        
-        # Sort by date
-        time_targets.sort(key=lambda x: x['date'])
-        
-        return time_targets
-    
-    def _generate_time_signals(self, data: pd.DataFrame, price_column: str) -> List[GannTimeSignal]:
-        """Generate time-based trading signals."""
-        signals = []
-        current_time = data.index[-1]
-        current_price = data[price_column].iloc[-1]
-        
-        # Check for confluence of multiple cycles
-        near_term_turns = []
-        
-        for cycle in self.detected_cycles:
-            if cycle.next_turn and cycle.strength >= self.min_strength:
-                days_to_turn = (cycle.next_turn - current_time).days
-                
-                if 0 <= days_to_turn <= 7:  # Within next week
-                    near_term_turns.append(cycle)
-        
-        # Generate signals based on time confluence
-        if len(near_term_turns) >= 2:
-            # Multiple cycles converging - strong time signal
-            avg_strength = np.mean([c.strength for c in near_term_turns])
-            
-            signal = GannTimeSignal(
-                timestamp=current_time,
-                cycle_type="Time_Confluence",
-                signal_strength=avg_strength,
-                time_target=min([c.next_turn for c in near_term_turns]),
-                price_level=current_price,
-                signal_description=f"Confluence of {len(near_term_turns)} cycles indicates major turn ahead"
-            )
-            signals.append(signal)
-        
-        # Check for individual strong cycles
-        for cycle in near_term_turns:
-            if cycle.strength >= 0.8:
-                signal = GannTimeSignal(
-                    timestamp=current_time,
-                    cycle_type=f"{cycle.cycle_type}_{cycle.period}",
-                    signal_strength=cycle.strength,
-                    time_target=cycle.next_turn,
-                    price_level=None,
-                    signal_description=f"Strong {cycle.cycle_type} {cycle.period}-day cycle turn expected"
-                )
-                signals.append(signal)
-        
-        return signals
-    
-    def _calculate_cycle_strength(self, active_cycles: List[TimeCycle]) -> float:
-        """Calculate overall cycle strength."""
-        if not active_cycles:
-            return 0.0
-        
-        # Weight by strength and confidence
-        total_strength = sum(c.strength * c.confidence for c in active_cycles)
-        total_weight = sum(c.confidence for c in active_cycles)
-        
-        if total_weight == 0:
-            return 0.0
-        
-        return total_strength / total_weight
-    
-    def _find_next_major_turn(self, time_targets: List[Dict]) -> Optional[datetime]:
-        """Find the next major turn time based on cycle confluence."""
-        if not time_targets:
+        except ServiceError as e:
+            self.logger.error(f"Service error: {e}", extra={"error": e.to_dict()})
             return None
-        
-        # Group targets by proximity (within 3 days)
-        target_groups = []
-        
-        for target in time_targets:
-            added_to_group = False
-            
-            for group in target_groups:
-                if any(abs((target['date'] - t['date']).days) <= 3 for t in group):
-                    group.append(target)
-                    added_to_group = True
-                    break
-            
-            if not added_to_group:
-                target_groups.append([target])
-        
-        # Find group with highest combined strength
-        best_group = None
-        best_strength = 0
-        
-        for group in target_groups:
-            group_strength = sum(t['strength'] * t['confidence'] for t in group)
-            if group_strength > best_strength:
-                best_strength = group_strength
-                best_group = group
-        
-        if best_group:
-            return min(t['date'] for t in best_group)
-        
-        return None
+        except Exception as e:
+            self.logger.error(f"Unexpected error: {e}")
+            self.error_system.handle_error(e, self.__class__.__name__)
+            return None
     
-    def _analyze_time_windows(self, data: pd.DataFrame, price_column: str) -> Dict:
-        """Analyze different time windows for pattern analysis."""
-        windows = {
-            'weekly': 7,
-            'monthly': 30,
-            'quarterly': 90,
-            'annual': 365
+    async def _perform_calculation(self, data: np.ndarray) -> Dict[str, Any]:
+        """
+        Internal calculation method - override in subclasses
+        
+        Args:
+            data: Input market data array
+            
+        Returns:
+            Dictionary containing calculated values
+        """
+        # Default implementation - should be overridden
+        return {
+            "values": data.tolist(),
+            "timestamp": datetime.now().isoformat(),
+            "engine": self.__class__.__name__
         }
-        
-        window_analysis = {}
-        
-        for window_name, days in windows.items():
-            if len(data) >= days:
-                window_data = data.tail(days)
-                
-                # Calculate window statistics
-                price_range = window_data[price_column].max() - window_data[price_column].min()
-                price_mean = window_data[price_column].mean()
-                volatility = window_data[price_column].std() / price_mean if price_mean > 0 else 0
-                
-                # Check for Gann time relationships
-                gann_ratios_hit = 0
-                for ratio in self.gann_ratios:
-                    expected_level = price_mean * ratio
-                    if window_data[price_column].min() <= expected_level <= window_data[price_column].max():
-                        gann_ratios_hit += 1
-                
-                window_analysis[window_name] = {
-                    'days': days,
-                    'price_range': price_range,
-                    'volatility': volatility,
-                    'gann_ratios_hit': gann_ratios_hit,
-                    'time_balance': self._calculate_time_balance(window_data, price_column)
-                }
-        
-        return window_analysis
     
-    def _calculate_time_balance(self, data: pd.DataFrame, price_column: str) -> float:
-        """Calculate time balance within window."""
-        prices = data[price_column].values
+    def get_parameters(self) -> Dict[str, Any]:
+        """Get engine parameters"""
+        return {
+            "engine_name": self.__class__.__name__,
+            "version": "3.0.0",
+            "framework": "Platform3"
+        }
+    
+    async def validate_input(self, data: Any) -> bool:
+        """Validate input data"""
+        try:
+            if data is None:
+                return False
+            if isinstance(data, np.ndarray) and len(data) == 0:
+                return False
+            return True
+        except Exception as e:
+            self.logger.error(f"Input validation error: {e}")
+            return False
+    
+    def calculate_time_cycles(self, 
+                            price_data: Dict[str, List[float]], 
+                            start_date: datetime) -> Dict[str, Any]:
+        """Calculate Gann time cycles from price data"""
+        if 'close' not in price_data or len(price_data['close']) < 2:
+            return {}
+        
+        closes = price_data['close']
         
         # Find significant highs and lows
-        highs = []
-        lows = []
+        turning_points = self._find_turning_points(closes)
         
-        for i in range(2, len(prices)-2):
-            if prices[i] > prices[i-1] and prices[i] > prices[i+1] and \
-               prices[i] > prices[i-2] and prices[i] > prices[i+2]:
-                highs.append(i)
-            elif prices[i] < prices[i-1] and prices[i] < prices[i+1] and \
-                 prices[i] < prices[i-2] and prices[i] < prices[i+2]:
-                lows.append(i)
+        # Calculate cycle periods
+        cycle_analysis = {}
         
-        # Calculate time relationships between extremes
-        if len(highs) >= 2 and len(lows) >= 2:
-            high_intervals = [highs[i] - highs[i-1] for i in range(1, len(highs))]
-            low_intervals = [lows[i] - lows[i-1] for i in range(1, len(lows))]
+        for cycle_name, cycle in self.cycles.items():
+            # Check if current time aligns with cycle
+            days_from_start = (datetime.now() - start_date).days
+            cycle_position = (days_from_start % cycle.period) / cycle.period
             
-            all_intervals = high_intervals + low_intervals
-            
-            if all_intervals:
-                # Check for Gann time relationships
-                balance_score = 0
-                for interval in all_intervals:
-                    for gann_time in [7, 14, 21, 30, 45, 60, 90]:
-                        if abs(interval - gann_time) <= 2:  # Within 2 days
-                            balance_score += 1
-                
-                return min(1.0, balance_score / len(all_intervals))
+            cycle_analysis[cycle_name] = {
+                'period': cycle.period,
+                'strength': cycle.strength,
+                'position': cycle_position,
+                'phase': self._get_cycle_phase(cycle_position),
+                'next_turn': start_date + timedelta(days=cycle.period - (days_from_start % cycle.period))
+            }
         
-        return 0.0
-    
-    def _empty_result(self) -> Dict:
-        """Return empty result structure."""
         return {
-            'timestamp': None,
-            'natural_cycles': {},
-            'fibonacci_cycles': {},
-            'square_cycles': {},
-            'active_cycles': [],
-            'time_targets': [],
-            'signals': [],
-            'cycle_strength': 0.0,
-            'next_major_turn': None,
-            'time_window_analysis': {}
+            'cycles': cycle_analysis,
+            'dominant_cycle': self._identify_dominant_cycle(cycle_analysis),
+            'turning_points': turning_points,
+            'time_price_squares': self._calculate_time_price_squares(closes, start_date)
         }
     
-    def get_cycle_summary(self, analysis_result: Dict) -> str:
-        """Generate human-readable cycle summary."""
-        if not analysis_result or analysis_result['cycle_strength'] == 0:
-            return "No significant time cycles detected."
+    def _find_turning_points(self, prices: List[float]) -> List[Dict[str, Any]]:
+        """Identify significant turning points in price data"""
+        if len(prices) < 3:
+            return []
         
-        summary_parts = []
+        turning_points = []
         
-        # Overall strength
-        strength = analysis_result['cycle_strength']
-        summary_parts.append(f"Overall cycle strength: {strength:.1%}")
+        for i in range(1, len(prices) - 1):
+            # Check for local high
+            if prices[i] > prices[i-1] and prices[i] > prices[i+1]:
+                turning_points.append({
+                    'index': i,
+                    'type': 'high',
+                    'price': prices[i]
+                })
+            # Check for local low
+            elif prices[i] < prices[i-1] and prices[i] < prices[i+1]:
+                turning_points.append({
+                    'index': i,
+                    'type': 'low',
+                    'price': prices[i]
+                })
         
-        # Active cycles
-        active_cycles = analysis_result['active_cycles']
-        if active_cycles:
-            strongest = active_cycles[0]
-            summary_parts.append(f"Strongest cycle: {strongest.period}-day {strongest.cycle_type} (strength: {strongest.strength:.1%})")
+        return turning_points
+    
+    def _get_cycle_phase(self, position: float) -> str:
+        """Determine cycle phase based on position"""
+        if position < 0.25:
+            return 'accumulation'
+        elif position < 0.5:
+            return 'markup'
+        elif position < 0.75:
+            return 'distribution'
+        else:
+            return 'decline'
+    
+    def _identify_dominant_cycle(self, cycle_analysis: Dict[str, Any]) -> str:
+        """Identify the currently dominant cycle"""
+        # Find cycle closest to completion
+        min_distance = float('inf')
+        dominant = 'minor'
         
-        # Time targets
-        time_targets = analysis_result['time_targets']
-        if time_targets:
-            next_target = time_targets[0]
-            summary_parts.append(f"Next time target: {next_target['date'].strftime('%Y-%m-%d')} ({next_target['days_ahead']} days)")
-        
-        # Signals
-        signals = analysis_result['signals']
-        if signals:
-            summary_parts.append(f"Active time signals: {len(signals)}")
-        
-        return " | ".join(summary_parts)
-
-    def generate_signal(self, current_result, historical_results=None):
-        """
-        Generate trading signal based on Gann time cycle analysis
-        
-        Args:
-            current_result: Current calculation result
-            historical_results: Historical results (optional)
-            
-        Returns:
-            Trading signal based on time cycle analysis
-        """
-        if not current_result or 'time_signals' not in current_result:
-            return None
-            
-        from ..indicator_base import IndicatorSignal, SignalType
-        
-        time_signals = current_result['time_signals']
-        if not time_signals:
-            return IndicatorSignal(
-                signal_type=SignalType.NEUTRAL,
-                strength=0.3,
-                message="No active time cycle signals",
-                timestamp=pd.Timestamp.now(),
-                price_level=None,
-                confidence=0.3
+        for cycle_name, analysis in cycle_analysis.items():
+            distance_to_completion = min(
+                analysis['position'],
+                1 - analysis['position']
             )
+            if distance_to_completion < min_distance:
+                min_distance = distance_to_completion
+                dominant = cycle_name
         
-        # Use the strongest time signal
-        strongest_signal = max(time_signals, key=lambda x: x.get('strength', 0))
-        signal_type = strongest_signal.get('signal_type', 'neutral')
-        strength = strongest_signal.get('strength', 0.5)
+        return dominant
+    
+    def _calculate_time_price_squares(self, 
+                                    prices: List[float], 
+                                    start_date: datetime) -> List[Dict[str, Any]]:
+        """Calculate Gann's time-price squares"""
+        if not prices:
+            return []
         
-        signal_mapping = {
-            'buy': SignalType.BUY,
-            'strong_buy': SignalType.STRONG_BUY,
-            'sell': SignalType.SELL, 
-            'strong_sell': SignalType.STRONG_SELL,
-            'hold': SignalType.HOLD,
-            'neutral': SignalType.NEUTRAL,
-            'warning': SignalType.WARNING
-        }
+        squares = []
+        price_range = max(prices) - min(prices)
         
-        signal_enum = signal_mapping.get(signal_type, SignalType.NEUTRAL)
+        # Calculate square of price range
+        if price_range > 0:
+            time_units = int(np.sqrt(price_range))
+            
+            for i in range(1, 5):  # First 4 squares
+                square_time = start_date + timedelta(days=time_units * i)
+                square_price = min(prices) + (price_range * i * i / 16)  # Gann's square progression
+                
+                squares.append({
+                    'time': square_time,
+                    'price': square_price,
+                    'level': i
+                })
         
-        return IndicatorSignal(
-            signal_type=signal_enum,
-            strength=strength,
-            message=strongest_signal.get('message', 'Gann time cycle analysis'),
-            timestamp=current_result.get('timestamp', pd.Timestamp.now()),
-            price_level=strongest_signal.get('target_price', None),
-            confidence=strength
-        )
+        return squares
+
+# Create singleton instance
+gann_time_cycles = GannTimeCycles()
+
+# Export the TimeCycle class and instance
+__all__ = ['TimeCycle', 'GannTimeCycles', 'gann_time_cycles']

@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
 Hammer/Hanging Man Detector - Japanese Candlestick Pattern Recognition
 Platform3 Enhanced Technical Analysis Engine
@@ -36,12 +46,13 @@ Mathematical Foundation:
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Optional, Union
-from dataclasses import dataclass
+from typing import Dict, List, Tuple, Optional, Union, Any
+from dataclasses import dataclass, field
 from enum import Enum
 import logging
+from datetime import datetime
 
-from ..indicator_base import IndicatorBase, IndicatorResult
+from engines.indicator_base import IndicatorBase, IndicatorResult, IndicatorType, TimeFrame, IndicatorSignal, SignalType
 
 class HammerType(Enum):
     """Types of Hammer/Hanging Man patterns"""
@@ -60,9 +71,11 @@ class HammerSignal(Enum):
     TREND_CONTINUATION = "trend_continuation"
     NEUTRAL = "neutral"
 
+# Create a standalone class instead of inheriting from IndicatorResult
 @dataclass
-class HammerDetectorResult(IndicatorResult):
+class HammerDetectorResult:
     """Hammer/Hanging Man detection result"""
+    timestamp: datetime
     pattern_type: HammerType
     pattern_strength: float  # 0-100, higher means stronger pattern
     body_size: float
@@ -77,11 +90,12 @@ class HammerDetectorResult(IndicatorResult):
     support_resistance_level: Optional[float]
     signal: HammerSignal
     signal_strength: float
+    metadata: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict:
         """Convert result to dictionary"""
-        result_dict = super().to_dict()
-        result_dict.update({
+        return {
+            'timestamp': self.timestamp.isoformat() if hasattr(self.timestamp, 'isoformat') else str(self.timestamp),
             'pattern_type': self.pattern_type.value,
             'pattern_strength': self.pattern_strength,
             'body_size': self.body_size,
@@ -95,9 +109,42 @@ class HammerDetectorResult(IndicatorResult):
             'volume_confirmation': self.volume_confirmation,
             'support_resistance_level': self.support_resistance_level,
             'signal': self.signal.value,
-            'signal_strength': self.signal_strength
-        })
-        return result_dict
+            'signal_strength': self.signal_strength,
+            'metadata': self.metadata
+        }
+        
+    def to_indicator_result(self, indicator_name: str) -> IndicatorResult:
+        """Convert to standard IndicatorResult"""
+        return IndicatorResult(
+            timestamp=self.timestamp,
+            indicator_name=indicator_name,
+            indicator_type=IndicatorType.PATTERN,
+            timeframe=TimeFrame.D1,  # Default timeframe - should be updated
+            value=self.pattern_strength,
+            signal=IndicatorSignal(
+                timestamp=self.timestamp,
+                indicator_name=indicator_name,
+                signal_type=self._map_signal_type(),
+                strength=self.signal_strength / 100,  # Scale to 0-1
+                confidence=self.reversal_probability / 100,  # Scale to 0-1
+                metadata={
+                    'pattern_type': self.pattern_type.value,
+                    'body_position': self.body_position,
+                    'shadow_ratio': self.shadow_ratio
+                }
+            ) if self.signal != HammerSignal.NEUTRAL else None
+        )
+    
+    def _map_signal_type(self) -> SignalType:
+        """Map Hammer signal to standard SignalType"""
+        if self.signal == HammerSignal.BULLISH_REVERSAL:
+            return SignalType.BUY
+        elif self.signal == HammerSignal.BEARISH_REVERSAL:
+            return SignalType.SELL
+        elif self.signal == HammerSignal.TREND_CONTINUATION:
+            return SignalType.HOLD
+        else:
+            return SignalType.NEUTRAL
 
 class HammerHangingManDetector(IndicatorBase):
     """

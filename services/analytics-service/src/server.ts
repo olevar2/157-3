@@ -9,14 +9,15 @@ import winston from 'winston';
 import dotenv from 'dotenv';
 import cron from 'node-cron';
 
-import { TechnicalAnalysisEngine } from './engines/TechnicalAnalysisEngine';
-import { MLModelEngine } from './engines/MLModelEngine';
-import { PatternRecognitionEngine } from './engines/PatternRecognitionEngine';
-import { RiskAnalysisEngine } from './engines/RiskAnalysisEngine';
+import { TechnicalAnalysisEngine } from '../../../engines/typescript_engines/TechnicalAnalysisEngine';
+import { MLModelEngine } from '../../../engines/typescript_engines/MLModelEngine';
+import { PatternRecognitionEngine } from '../../../engines/typescript_engines/PatternRecognitionEngine';
+import { RiskAnalysisEngine } from '../../../engines/typescript_engines/RiskAnalysisEngine';
 import { MarketDataCollector } from './services/MarketDataCollector';
 import { RecommendationEngine } from './services/RecommendationEngine';
 import { AnalyticsCache } from './services/AnalyticsCache';
 import { AuthenticationMiddleware } from './middleware/AuthenticationMiddleware';
+import { PythonEngineClient } from '../../../shared/PythonEngineClient';
 
 // Load environment variables
 dotenv.config();
@@ -73,20 +74,43 @@ const recommendationEngine = new RecommendationEngine(logger);
 const analyticsCache = new AnalyticsCache(logger);
 const authMiddleware = new AuthenticationMiddleware(logger);
 
+// Initialize Python engine client for AI integration
+const pythonClient = new PythonEngineClient({
+  baseURL: process.env.PYTHON_ENGINE_URL || 'http://localhost:8000',
+  timeout: 5000,
+  maxRetries: 3,
+  enableHealthChecks: true
+});
+
 // Health check
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    service: 'analytics-service',
-    timestamp: new Date().toISOString(),
-    engines: {
-      technicalAnalysis: technicalAnalysis.isReady(),
-      mlModel: mlModel.isReady(),
-      patternRecognition: patternRecognition.isReady(),
-      riskAnalysis: riskAnalysis.isReady()
-    },
-    uptime: process.uptime()
-  });
+app.get('/health', async (req, res) => {
+  try {
+    // Check Python engine health
+    const pythonHealth = await pythonClient.checkHealth().catch(() => null);
+    
+    res.json({
+      status: 'healthy',
+      service: 'analytics-service',
+      timestamp: new Date().toISOString(),
+      engines: {
+        technicalAnalysis: technicalAnalysis.isReady(),
+        mlModel: mlModel.isReady(),
+        patternRecognition: patternRecognition.isReady(),
+        riskAnalysis: riskAnalysis.isReady(),
+        pythonEngines: pythonHealth ? pythonHealth.status === 'healthy' : false
+      },
+      pythonEngineStatus: pythonHealth || { status: 'unavailable' },
+      uptime: process.uptime()
+    });
+  } catch (error) {
+    logger.error('Health check error:', error);
+    res.status(503).json({
+      status: 'unhealthy',
+      service: 'analytics-service',
+      error: 'Health check failed',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Service info
@@ -104,6 +128,83 @@ app.get('/api/info', (req, res) => {
     supportedSymbols: ['EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'USDCHF', 'NZDUSD', 'EURGBP'],
     timestamp: new Date().toISOString()
   });
+});
+
+// AI-Enhanced Trading Signals Endpoint (Python + TypeScript)
+app.get('/api/v1/ai/signals/:symbol', authMiddleware.authenticate, async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const { timeframe = '1h', risk_level = 'medium' } = req.query;
+
+    const cacheKey = `ai_signals:${symbol}:${timeframe}:${risk_level}`;
+    const cached = await analyticsCache.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
+    // Get market data
+    const marketData = await marketDataCollector.getHistoricalData(symbol, timeframe as string, 100);
+    
+    // Parallel execution of TypeScript and Python analysis
+    const [
+      tsAnalysis,
+      pythonSignals,
+      pythonMarketAnalysis
+    ] = await Promise.allSettled([
+      // TypeScript engines
+      technicalAnalysis.analyze(symbol, marketData),
+      // Python AI engines
+      pythonClient.getTradingSignals({
+        symbol,
+        timeframe: timeframe as string,
+        current_price: marketData[marketData.length - 1]?.close,
+        risk_level: risk_level as string
+      }),
+      pythonClient.getMarketAnalysis({
+        symbol,
+        timeframe: timeframe as string,
+        indicators: ['rsi', 'macd', 'bollinger', 'sma', 'ema']
+      })
+    ]);
+
+    // Combine TypeScript and Python analysis
+    const combinedAnalysis = {
+      symbol,
+      timeframe,
+      timestamp: new Date().toISOString(),
+      typescript_analysis: tsAnalysis.status === 'fulfilled' ? tsAnalysis.value : null,
+      python_signals: pythonSignals.status === 'fulfilled' ? pythonSignals.value : null,
+      python_market_analysis: pythonMarketAnalysis.status === 'fulfilled' ? pythonMarketAnalysis.value : null,
+      combined_recommendation: 'analyzing...', // Will be enhanced
+      confidence_score: 0.0
+    };
+
+    // Enhanced recommendation logic combining both engines
+    if (combinedAnalysis.typescript_analysis && combinedAnalysis.python_signals) {
+      const tsSignal = combinedAnalysis.typescript_analysis.recommendation;
+      const pySignal = combinedAnalysis.python_signals.action;
+      
+      // Simple consensus logic
+      if (tsSignal === pySignal) {
+        combinedAnalysis.combined_recommendation = tsSignal;
+        combinedAnalysis.confidence_score = Math.min(
+          combinedAnalysis.typescript_analysis.confidence || 0.5,
+          combinedAnalysis.python_signals.confidence
+        );
+      } else {
+        combinedAnalysis.combined_recommendation = 'hold';
+        combinedAnalysis.confidence_score = 0.3; // Lower confidence for conflicting signals
+      }
+    }
+
+    // Cache for 2 minutes (high-frequency trading)
+    await analyticsCache.set(cacheKey, combinedAnalysis, 120);
+    
+    res.json(combinedAnalysis);
+  } catch (error) {
+    logger.error('AI-enhanced signals error:', error);
+    res.status(500).json({ error: 'AI signal generation failed' });
+  }
 });
 
 // Technical Analysis Endpoints
@@ -329,6 +430,32 @@ async function initializeEngines() {
     await recommendationEngine.initialize();
     await analyticsCache.initialize();
     
+    // Initialize Python engine client and test connection
+    logger.info('Testing Python engine connection...');
+    const pythonConnected = await pythonClient.testConnection();
+    if (pythonConnected) {
+      logger.info('✅ Python engines connected successfully');
+      
+      // Set up Python engine event monitoring
+      pythonClient.on('health_check', (data) => {
+        if (!data.healthy) {
+          logger.warn('Python engine health check failed:', data.error);
+        }
+      });
+      
+      pythonClient.on('request_error', (data) => {
+        logger.error('Python engine request error:', data);
+      });
+      
+      pythonClient.on('request_completed', (data) => {
+        if (data.duration_ms > 1000) { // Log slow requests
+          logger.warn(`Slow Python engine request: ${data.method} ${data.url} took ${data.duration_ms}ms`);
+        }
+      });
+    } else {
+      logger.warn('⚠️ Python engines not available - running in TypeScript-only mode');
+    }
+    
     logger.info('✅ All analytics engines initialized successfully');
   } catch (error) {
     logger.error('❌ Failed to initialize analytics engines:', error);
@@ -364,11 +491,13 @@ function schedulePeriodicTasks() {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
+  pythonClient.close();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   logger.info('SIGINT received, shutting down gracefully');
+  pythonClient.close();
   process.exit(0);
 });
 

@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+from shared.logging.platform3_logger import Platform3Logger
+from shared.error_handling.platform3_error_system import Platform3ErrorSystem, ServiceError
+from shared.database.platform3_database_manager import Platform3DatabaseManager
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
+import asyncio
+import numpy as np
+from typing import Dict, List, Any, Optional, Union
+from datetime import datetime, timedelta
+import time
 """
 Gann Analysis Module Package
 Complete Gann analysis toolkit for precise geometric price analysis.
@@ -50,9 +60,13 @@ from .gann_time_cycles import (
 )
 
 from .price_time_relationships import (
-    PriceTimeRelationships,
-    PriceTimeRelationship,
-    GannSquareLevel
+    PriceTimeRelationships
+)
+
+from .GannAnglesCalculator import (
+    GannAnglesCalculator,
+    GannAngle,
+    GannCalculationResult
 )
 
 __all__ = [
@@ -62,6 +76,7 @@ __all__ = [
     'GannFanLines',
     'GannTimeCycles',
     'PriceTimeRelationships',
+    'GannAnglesCalculator',
     
     # Pattern components
     'GannPattern',
@@ -75,14 +90,14 @@ __all__ = [
     'GannAngle',
     'GannLine',
     'GannFanAnalysis',
+    'GannCalculationResult',
     
     # Time cycle components
     'TimeCycle',
     'GannTimeSignal',
     
     # Price-time components
-    'PriceTimeRelationship',
-    'GannSquareLevel'
+    'PriceTimeRelationships'
 ]
 
 __version__ = "1.0.0"

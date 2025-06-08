@@ -1,223 +1,202 @@
 """
-Williams %R Momentum Indicator
-A momentum oscillator that measures overbought/oversold levels.
-Part of Platform3's 67-indicator humanitarian trading system.
+Williams %R
+===========
+
+Williams %R is a momentum indicator that measures overbought and oversold levels.
+It oscillates between 0 and -100, with readings above -20 indicating overbought 
+conditions and readings below -80 indicating oversold conditions.
+
+Author: Platform3 AI System
+Created: June 3, 2025
 """
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from typing import List, Optional
-from datetime import datetime
-from indicator_base import (
-    MomentumIndicator, IndicatorResult, IndicatorSignal, MarketData, 
-    SignalType, TimeFrame, highest_high, lowest_low
-)
+import numpy as np
+import pandas as pd
+from typing import Dict, Optional
 
-class WilliamsR(MomentumIndicator):
+# Fix import - use absolute import with fallback
+try:
+    from engines.indicator_base import IndicatorBase
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from indicator_base import IndicatorBase
+
+
+class WilliamsR(IndicatorBase):
     """
-    Williams %R momentum oscillator.
+    Williams %R indicator.
     
-    Williams %R is a momentum indicator that measures overbought and oversold levels.
-    It oscillates between 0 and -100, where readings above -20 indicate overbought
-    conditions and readings below -80 indicate oversold conditions.
-    
-    Formula: %R = ((Highest High - Close) / (Highest High - Lowest Low)) * -100
+    Williams %R compares the closing price to the high-low range over 
+    a specific period, typically 14 periods.
     """
     
-    def __init__(self, timeframe: TimeFrame, lookback_periods: int = 14):
+    def __init__(self, 
+                 period: int = 14,
+                 overbought_level: float = -20.0,
+                 oversold_level: float = -80.0):
         """
         Initialize Williams %R indicator.
         
         Args:
-            timeframe: Timeframe for analysis
-            lookback_periods: Period for highest high and lowest low calculation (default 14)        """
-        super().__init__("Williams %R", timeframe, lookback_periods=lookback_periods)
-        self.period = lookback_periods
-        self.overbought_level = -20
-        self.oversold_level = -80
-    
-    def calculate(self, data: List[MarketData]) -> IndicatorResult:
+            period: Period for Williams %R calculation
+            overbought_level: Level indicating overbought condition
+            oversold_level: Level indicating oversold condition
         """
-        Calculate Williams %R value.
+        super().__init__()
+        
+        self.period = period
+        self.overbought_level = overbought_level
+        self.oversold_level = oversold_level
+        
+        # Validation
+        if period <= 0:
+            raise ValueError("period must be positive")
+        if not -100 <= oversold_level < overbought_level <= 0:
+            raise ValueError("Invalid overbought/oversold levels")
+    
+    def calculate(self, data: pd.DataFrame) -> Dict:
+        """
+        Calculate Williams %R values.
         
         Args:
-            data: List of MarketData objects
+            data: DataFrame with 'high', 'low', 'close' columns
             
         Returns:
-            IndicatorResult with Williams %R calculation
+            Dictionary containing Williams %R values and signals
         """
-        if len(data) < self.period:
-            raise ValueError(f"Insufficient data for Williams %R calculation. Need {self.period} periods, got {len(data)}")
-        
-        start_time = datetime.now()
-        
         try:
-            # Get the calculation period data
-            calc_data = data[-self.period:]
-            current_close = data[-1].close
+            # Validate input data using parent class method
+            if isinstance(data, pd.DataFrame):
+                if data.empty:
+                    raise ValueError("Empty DataFrame provided")
+                
+                # Check required columns manually
+                required_columns = ['high', 'low', 'close']
+                missing = []
+                for col in required_columns:
+                    if col not in data.columns:
+                        missing.append(col)
+                if missing:
+                    raise ValueError(f"Missing required columns: {missing}")
+            else:
+                validation_result = super()._validate_data(data)
+                if not validation_result:
+                    raise ValueError("Invalid input data format")
             
-            # Calculate highest high and lowest low over the period
-            highest = highest_high(calc_data, self.period)
-            lowest = lowest_low(calc_data, self.period)
+            if len(data) < self.period:
+                raise ValueError(f"Insufficient data: need at least {self.period} periods")
+            
+            # Convert to numpy arrays for calculation
+            high = data['high'].values
+            low = data['low'].values
+            close = data['close'].values
             
             # Calculate Williams %R
-            if highest == lowest:
-                williams_r = -50  # Neutral when no range
-            else:
-                williams_r = ((highest - current_close) / (highest - lowest)) * -100
+            williams_r = self._calculate_williams_r(high, low, close)
             
-            # Ensure value is within expected range
-            williams_r = max(-100, min(0, williams_r))
+            # Generate signals
+            signals = self._generate_signals(williams_r)
             
-            calculation_time = (datetime.now() - start_time).total_seconds() * 1000
+            # Calculate additional metrics
+            metrics = self._calculate_metrics(williams_r)
             
-            result = IndicatorResult(
-                timestamp=data[-1].timestamp,
-                indicator_name=self.name,
-                indicator_type=self.indicator_type,
-                timeframe=self.timeframe,
-                value=williams_r,
-                raw_data={
-                    'williams_r': williams_r,
-                    'highest_high': highest,
-                    'lowest_low': lowest,
-                    'close': current_close,
-                    'period': self.period
-                },
-                calculation_time_ms=calculation_time
-            )
-            
-            # Generate signal
-            signal = self.generate_signal(result, [])
-            if signal:
-                result.signal = signal
-                
-            self.update_status(self.status)
-            return result
+            return {
+                'williams_r': williams_r,
+                'signals': signals,
+                'metrics': metrics,
+                'interpretation': self._interpret_signals(williams_r[-1], signals[-1])
+            }
             
         except Exception as e:
-            self.update_status(self.status, str(e))
-            raise ValueError(f"Williams %R calculation failed: {e}")
+            self.logger.error(f"Error calculating Williams %R: {e}")
+            raise
     
-    def generate_signal(self, current_result: IndicatorResult, 
-                       historical_results: List[IndicatorResult]) -> Optional[IndicatorSignal]:
-        """
-        Generate trading signals based on Williams %R levels.
+    def _calculate_williams_r(self, high: np.ndarray, low: np.ndarray, close: np.ndarray) -> np.ndarray:
+        """Calculate Williams %R values."""
+        williams_r = np.full(len(close), np.nan)
         
-        Args:
-            current_result: Current Williams %R calculation
-            historical_results: Previous results (not used in basic implementation)
+        for i in range(self.period - 1, len(close)):
+            # Get the period's high and low
+            period_high = np.max(high[i - self.period + 1:i + 1])
+            period_low = np.min(low[i - self.period + 1:i + 1])
             
-        Returns:
-            IndicatorSignal if conditions are met
-        """
-        williams_r = current_result.value
+            # Calculate Williams %R
+            if period_high != period_low:
+                williams_r[i] = ((period_high - close[i]) / (period_high - period_low)) * -100
+            else:
+                williams_r[i] = -50  # Neutral when no range
         
-        # Determine signal based on overbought/oversold levels
-        if williams_r >= self.overbought_level:
-            # Overbought - potential sell signal
-            strength = min(1.0, abs(williams_r) / 20)  # Normalize strength
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.SELL,
-                strength=strength,
-                confidence=0.7,
-                metadata={
-                    'williams_r': williams_r,
-                    'level': 'overbought',
-                    'threshold': self.overbought_level
-                }
-            )
-        elif williams_r <= self.oversold_level:
-            # Oversold - potential buy signal
-            strength = min(1.0, abs(williams_r) / 80)  # Normalize strength
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.BUY,
-                strength=strength,
-                confidence=0.7,
-                metadata={
-                    'williams_r': williams_r,
-                    'level': 'oversold',
-                    'threshold': self.oversold_level
-                }
-            )
+        return williams_r
+    
+    def _generate_signals(self, williams_r: np.ndarray) -> np.ndarray:
+        """Generate trading signals based on Williams %R."""
+        signals = np.zeros(len(williams_r))
         
-        # Check for divergence signals if historical data available
-        if len(historical_results) >= 2:
-            prev_result = historical_results[-1]
-            if hasattr(prev_result, 'value'):
-                # Momentum shift detection
-                if williams_r > prev_result.value and williams_r < self.oversold_level:
-                    return IndicatorSignal(
-                        timestamp=current_result.timestamp,
-                        indicator_name=self.name,
-                        signal_type=SignalType.BUY,
-                        strength=0.5,
-                        confidence=0.6,
-                        metadata={
-                            'williams_r': williams_r,
-                            'level': 'momentum_shift_up',
-                            'previous': prev_result.value
-                        }
-                    )
-                elif williams_r < prev_result.value and williams_r > self.overbought_level:
-                    return IndicatorSignal(
-                        timestamp=current_result.timestamp,
-                        indicator_name=self.name,
-                        signal_type=SignalType.SELL,
-                        strength=0.5,
-                        confidence=0.6,
-                        metadata={
-                            'williams_r': williams_r,
-                            'level': 'momentum_shift_down',
-                            'previous': prev_result.value
-                        }
-                    )
+        for i in range(1, len(williams_r)):
+            if np.isnan(williams_r[i]) or np.isnan(williams_r[i-1]):
+                continue
+            
+            # Oversold bounce signal
+            if (williams_r[i-1] <= self.oversold_level and 
+                williams_r[i] > self.oversold_level):
+                signals[i] = 1
+            
+            # Overbought reversal signal
+            elif (williams_r[i-1] >= self.overbought_level and 
+                  williams_r[i] < self.overbought_level):
+                signals[i] = -1
         
-        return None
+        return signals
+    
+    def _calculate_metrics(self, williams_r: np.ndarray) -> Dict:
+        """Calculate additional Williams %R metrics."""
+        valid_values = williams_r[~np.isnan(williams_r)]
+        
+        if len(valid_values) == 0:
+            return {}
+        
+        # Time in different zones
+        overbought_pct = np.sum(valid_values >= self.overbought_level) / len(valid_values) * 100
+        oversold_pct = np.sum(valid_values <= self.oversold_level) / len(valid_values) * 100
+        neutral_pct = 100 - overbought_pct - oversold_pct
+        
+        # Current momentum
+        recent_values = valid_values[-min(5, len(valid_values)):]
+        momentum = np.mean(np.diff(recent_values)) if len(recent_values) > 1 else 0
+        
+        return {
+            'current_value': williams_r[-1] if not np.isnan(williams_r[-1]) else None,
+            'overbought_percentage': overbought_pct,
+            'oversold_percentage': oversold_pct,
+            'neutral_percentage': neutral_pct,
+            'momentum': momentum,
+            'volatility': np.std(valid_values),
+            'mean_value': np.mean(valid_values)
+        }
+    
+    def _interpret_signals(self, current_wr: float, current_signal: int) -> str:
+        """Provide human-readable interpretation."""
+        if np.isnan(current_wr):
+            return "Insufficient data for Williams %R calculation"
+        
+        if current_wr >= self.overbought_level:
+            condition = "OVERBOUGHT"
+        elif current_wr <= self.oversold_level:
+            condition = "OVERSOLD"
+        else:
+            condition = "NEUTRAL"
+        
+        signal_desc = {
+            1: "BUY signal generated",
+            -1: "SELL signal generated", 
+            0: "No signal"
+        }.get(current_signal, "No signal")
+        
+        return f"Williams %R: {current_wr:.2f} ({condition}) - {signal_desc}"
 
-# Test function for validation
-def test_williams_r():
-    """Test Williams %R calculation with sample data."""
-    from datetime import datetime, timedelta
-    
-    # Create sample market data
-    base_time = datetime.now()
-    test_data = []
-    
-    # Generate test data with known pattern
-    prices = [100, 101, 102, 103, 104, 105, 104, 103, 102, 101, 100, 99, 98, 97, 96, 97, 98, 99, 100, 101]
-    
-    for i, price in enumerate(prices):
-        test_data.append(MarketData(
-            timestamp=base_time + timedelta(minutes=i),
-            open=price,
-            high=price + 0.5,
-            low=price - 0.5,
-            close=price,
-            volume=1000,
-            timeframe=TimeFrame.M1
-        ))
-    
-    # Test Williams %R calculation
-    williams_r = WilliamsR(TimeFrame.M1, lookback_periods=14)
-    result = williams_r.calculate(test_data)
-    
-    print(f"Williams %R Test Results:")
-    print(f"Value: {result.value:.2f}")
-    print(f"Calculation time: {result.calculation_time_ms:.2f}ms")
-    print(f"Raw data: {result.raw_data}")
-    
-    if result.signal:
-        print(f"Signal: {result.signal.signal_type.value} (strength: {result.signal.strength:.2f})")
-    else:
-        print("No signal generated")
-    
-    return result
 
-if __name__ == "__main__":
-    test_williams_r()
+def create_williams_r(period: int = 14, **kwargs) -> WilliamsR:
+    """Factory function to create Williams %R indicator."""
+    return WilliamsR(period=period, **kwargs)

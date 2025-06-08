@@ -1,8 +1,42 @@
 // Risk Analysis Engine - Portfolio risk metrics and position sizing
 // Provides comprehensive risk assessment and portfolio optimization
+// Bridge to Python AI risk models for humanitarian forex trading platform
 
 import { Logger } from 'winston';
+import { spawn, ChildProcess } from 'child_process';
+import * as path from 'path';
+import { EventEmitter } from 'events';
 import { mean, standardDeviation, variance } from 'simple-statistics';
+
+// Communication interfaces for Python engine integration
+export interface PythonEngineInterface {
+  sendCommand(command: string, data: any): Promise<any>;
+  isConnected(): boolean;
+  disconnect(): Promise<void>;
+}
+
+export interface Platform3EngineConnection {
+  initialized: boolean;
+  pythonProcess?: ChildProcess;
+  communicationQueue: Map<string, any>;
+  eventEmitter: EventEmitter;
+}
+
+// Python Risk Analysis Integration Interface
+export interface PythonRiskInterface {
+  calculatePortfolioRisk(positions: any[], marketData: any): Promise<PortfolioRisk>;
+  assessPositionRisk(position: any, marketData: any): Promise<PositionRisk>;
+  optimizePositionSizing(signals: any[], accountBalance: number): Promise<PositionSizeRecommendation[]>;
+}
+
+export interface PositionSizeRecommendation {
+  symbol: string;
+  recommendedSize: number;
+  maxRisk: number;
+  stopLoss: number;
+  takeProfit: number;
+  confidence: number;
+}
 
 export interface RiskAnalysisResult {
   timestamp: number;
@@ -86,6 +120,8 @@ export interface Position {
 export class RiskAnalysisEngine {
   private logger: Logger;
   private ready: boolean = false;
+  private pythonEngine: Platform3EngineConnection;
+  private pythonInterface: PythonEngineInterface;
   private riskLimits = {
     maxPositionRisk: 0.02,    // 2% per position
     maxPortfolioRisk: 0.20,   // 20% total portfolio
@@ -97,24 +133,195 @@ export class RiskAnalysisEngine {
 
   constructor(logger: Logger) {
     this.logger = logger;
+    this.pythonEngine = {
+      initialized: false,
+      communicationQueue: new Map(),
+      eventEmitter: new EventEmitter()
+    };
+    this.pythonInterface = this.createPythonInterface();
+  }
+
+  private createPythonInterface(): PythonEngineInterface {
+    return {
+      sendCommand: async (command: string, data: any) => {
+        return this.sendToPythonEngine(command, data);
+      },
+      isConnected: () => {
+        return this.pythonEngine.initialized && this.pythonEngine.pythonProcess !== undefined;
+      },
+      disconnect: async () => {
+        await this.disconnectPythonEngine();
+      }
+    };
+  }
+
+  private async sendToPythonEngine(command: string, data: any): Promise<any> {
+    if (!this.pythonEngine.initialized) {
+      throw new Error('Python risk analysis engine not initialized');
+    }
+
+    return new Promise((resolve, reject) => {
+      const requestId = Math.random().toString(36).substr(2, 9);
+      const message = JSON.stringify({
+        id: requestId,
+        command,
+        data,
+        timestamp: Date.now(),
+        engine_type: 'risk_analysis'
+      });
+
+      // Set up response handler
+      const timeout = setTimeout(() => {
+        this.pythonEngine.communicationQueue.delete(requestId);
+        reject(new Error(`Python risk engine timeout for command: ${command}`));
+      }, 30000); // 30 second timeout
+
+      this.pythonEngine.communicationQueue.set(requestId, {
+        resolve,
+        reject,
+        timeout
+      });
+
+      // Send to Python process
+      if (this.pythonEngine.pythonProcess && this.pythonEngine.pythonProcess.stdin) {
+        this.pythonEngine.pythonProcess.stdin.write(message + '\n');
+      } else {
+        clearTimeout(timeout);
+        this.pythonEngine.communicationQueue.delete(requestId);
+        reject(new Error('Python risk process not available'));
+      }
+    });
+  }
+
+  private async disconnectPythonEngine(): Promise<void> {
+    if (this.pythonEngine.pythonProcess) {
+      this.pythonEngine.pythonProcess.kill();
+      this.pythonEngine.pythonProcess = undefined;
+    }
+    this.pythonEngine.initialized = false;
+    this.pythonEngine.communicationQueue.clear();
   }
 
   async initialize(): Promise<void> {
-    this.logger.info('Initializing Risk Analysis Engine...');
+    this.logger.info('🚀 Initializing Risk Analysis Engine for humanitarian trading...');
     
     try {
+      // Initialize Python risk analysis engine connection
+      await this.initializePythonEngine();
+      
       // Test risk calculations
       const testPositions = this.generateTestPositions();
       const testRisk = await this.analyzePortfolio(testPositions, 100000);
       
       if (testRisk.portfolioRisk.riskScore >= 0) {
+        // Test Python risk engine integration
+        await this.testPythonRiskEngineIntegration();
+        
         this.ready = true;
-        this.logger.info('✅ Risk Analysis Engine initialized');
+        this.logger.info('✅ Risk Analysis Engine initialized with Python AI bridge');
       } else {
         throw new Error('Risk calculation test failed');
       }
     } catch (error) {
       this.logger.error('❌ Risk Analysis Engine initialization failed:', error);
+      throw error;
+    }
+  }
+
+  private async initializePythonEngine(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const pythonScriptPath = path.join(__dirname, '../../ai-platform/coordination/engine/platform3_engine.py');
+      
+      this.logger.info(`Starting Python risk analysis engine: ${pythonScriptPath}`);
+      
+      const pythonProcess = spawn('python', [pythonScriptPath, '--mode=risk-analysis'], {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+
+      this.pythonEngine.pythonProcess = pythonProcess;
+
+      // Handle Python process output
+      pythonProcess.stdout?.on('data', (data) => {
+        const lines = data.toString().split('\n').filter((line: string) => line.trim());
+        
+        for (const line of lines) {
+          try {
+            const response = JSON.parse(line);
+            this.handlePythonResponse(response);
+          } catch (error) {
+            this.logger.debug('Python risk output:', line);
+          }
+        }
+      });
+
+      pythonProcess.stderr?.on('data', (data) => {
+        this.logger.error('Python risk engine error:', data.toString());
+      });
+
+      pythonProcess.on('close', (code) => {
+        this.logger.warn(`Python risk engine process closed with code ${code}`);
+        this.pythonEngine.initialized = false;
+      });
+
+      pythonProcess.on('error', (error) => {
+        this.logger.error('Python risk engine process error:', error);
+        reject(error);
+      });
+
+      // Wait for initialization confirmation
+      setTimeout(() => {
+        if (pythonProcess.pid) {
+          this.pythonEngine.initialized = true;
+          resolve();
+        } else {
+          reject(new Error('Python risk engine failed to start'));
+        }
+      }, 3000);
+    });
+  }
+
+  private handlePythonResponse(response: any): void {
+    if (response.id && this.pythonEngine.communicationQueue.has(response.id)) {
+      const { resolve, reject, timeout } = this.pythonEngine.communicationQueue.get(response.id);
+      clearTimeout(timeout);
+      this.pythonEngine.communicationQueue.delete(response.id);
+
+      if (response.error) {
+        reject(new Error(response.error));
+      } else {
+        resolve(response.result);
+      }
+    }
+  }
+
+  private async testPythonRiskEngineIntegration(): Promise<void> {
+    this.logger.info('🧪 Testing Python risk analysis engine integration...');
+    
+    try {
+      // Test basic communication
+      const pingResult = await this.pythonInterface.sendCommand('ping', { 
+        message: 'risk_integration_test',
+        engine_type: 'risk_analysis'
+      });
+      if (pingResult.status !== 'pong') {
+        throw new Error('Python risk engine ping test failed');
+      }
+
+      // Test risk calculation
+      const testPositions = this.generateTestPositions().slice(0, 3);
+      const riskResult = await this.pythonInterface.sendCommand('calculate_ai_portfolio_risk', {
+        positions: testPositions,
+        balance: 100000,
+        risk_limits: this.riskLimits
+      });
+
+      if (!riskResult || typeof riskResult.total_risk !== 'number') {
+        throw new Error('Python risk calculation test failed');
+      }
+
+      this.logger.info('✅ Python risk analysis engine integration test passed');
+    } catch (error) {
+      this.logger.error('❌ Python risk engine integration test failed:', error);
       throw error;
     }
   }
@@ -604,5 +811,65 @@ export class RiskAnalysisEngine {
         stopLoss: 1.2700
       }
     ];
+  }
+  
+  // Integration testing methods for humanitarian mission validation
+  async runIntegrationTests(): Promise<boolean> {
+    this.logger.info('🧪 Running Risk Analysis Engine integration tests...');
+
+    try {
+      // Test 1: Python risk engine connectivity
+      const pingTest = await this.pythonInterface.sendCommand('ping', { 
+        test: 'risk_integration',
+        engine_type: 'risk_analysis'
+      });
+      if (pingTest.status !== 'pong') {
+        throw new Error('Python risk engine ping test failed');
+      }
+
+      // Test 2: Risk analysis with sample positions
+      const samplePositions = this.generateTestPositions();
+      const riskResult = await this.analyzePortfolio(samplePositions, 100000);
+      
+      if (!riskResult || !riskResult.portfolioRisk || !riskResult.positionRisks) {
+        throw new Error('Risk analysis test failed');
+      }
+
+      // Test 3: Position sizing validation
+      const sizingTest = await this.pythonInterface.sendCommand('optimize_position_sizing', {
+        positions: samplePositions,
+        account_balance: 100000,
+        risk_limits: this.riskLimits,
+        humanitarian_mode: true
+      });
+      
+      if (!sizingTest.recommendations || !Array.isArray(sizingTest.recommendations)) {
+        throw new Error('Position sizing optimization test failed');
+      }
+
+      // Test 4: AI risk enhancement validation
+      const aiEnhancedTest = await this.pythonInterface.sendCommand('validate_ai_risk_enhancement', {
+        test_type: 'portfolio_optimization',
+        humanitarian_focus: true
+      });
+      
+      if (!aiEnhancedTest.enabled) {
+        throw new Error('AI risk enhancement validation failed');
+      }
+
+      // Test 5: Humanitarian mode validation
+      const humanitarianTest = await this.pythonInterface.sendCommand('validate_humanitarian_mode', {
+        module: 'risk_analysis'
+      });
+      if (!humanitarianTest.enabled) {
+        throw new Error('Humanitarian mode not enabled in Python risk engine');
+      }
+
+      this.logger.info('✅ All Risk Analysis Engine integration tests passed');
+      return true;
+    } catch (error) {
+      this.logger.error('❌ Risk integration tests failed:', error);
+      return false;
+    }
   }
 }

@@ -1,0 +1,242 @@
+{
+  "timestamp": "2025-06-03T02:49:26.385268",
+  "summary": {
+    "total_indicators": 72,
+    "passed_indicators": 0,
+    "pass_rate": 0.0,
+    "average_performance_ms": 0,
+    "ai_integration_status": "pass",
+    "typescript_integration_status": "pass"
+  },
+  "categories": {
+    "momentum": {
+      "indicators_tested": 11,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing awesome_oscillator.py: 'NoneType' object has no attribute 'get'",
+        "Error testing cci.py: 'NoneType' object has no attribute 'get'",
+        "Error testing commodity_channel_index.py: 'NoneType' object has no attribute 'get'",
+        "Error testing detrended_price_oscillator.py: 'NoneType' object has no attribute 'get'",
+        "Error testing mfi.py: 'NoneType' object has no attribute 'get'",
+        "Error testing percentage_price_oscillator.py: 'NoneType' object has no attribute 'get'",
+        "Error testing roc.py: 'NoneType' object has no attribute 'get'",
+        "Error testing trix.py: 'NoneType' object has no attribute 'get'",
+        "Error testing true_strength_index.py: 'NoneType' object has no attribute 'get'",
+        "Error testing ultimate_oscillator.py: 'NoneType' object has no attribute 'get'",
+        "Error testing williams_r.py: 'NoneType' object has no attribute 'get'"
+      ],
+      "pass_rate": 0.0
+    },
+    "trend": {
+      "indicators_tested": 8,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing aroon_indicator.py: 'NoneType' object has no attribute 'get'",
+        "Error testing average_true_range.py: 'NoneType' object has no attribute 'get'",
+        "Error testing bollinger_bands.py: 'NoneType' object has no attribute 'get'",
+        "Error testing directional_movement_system.py: 'NoneType' object has no attribute 'get'",
+        "Error testing donchian_channels.py: 'NoneType' object has no attribute 'get'",
+        "Error testing keltner_channels.py: 'NoneType' object has no attribute 'get'",
+        "Error testing parabolic_sar.py: 'NoneType' object has no attribute 'get'",
+        "Error testing vortex_indicator.py: 'NoneType' object has no attribute 'get'"
+      ],
+      "pass_rate": 0.0
+    },
+    "volume": {
+      "indicators_tested": 10,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing accumulation_distribution.py: 'NoneType' object has no attribute 'get'",
+        "Error testing chaikin_money_flow.py: 'NoneType' object has no attribute 'get'",
+        "Error testing obv.py: 'NoneType' object has no attribute 'get'",
+        "Error testing OrderFlowImbalance.py: 'NoneType' object has no attribute 'get'",
+        "Error testing SmartMoneyIndicators.py: 'NoneType' object has no attribute 'get'",
+        "Error testing TickVolumeIndicators.py: 'NoneType' object has no attribute 'get'",
+        "Error testing VolumeProfiles.py: 'NoneType' object has no attribute 'get'",
+        "Error testing VolumeSpreadAnalysis.py: 'NoneType' object has no attribute 'get'",
+        "Error testing volume_price_trend.py: 'NoneType' object has no attribute 'get'",
+        "Error testing vwap.py: 'NoneType' object has no attribute 'get'"
+      ],
+      "pass_rate": 0.0
+    },
+    "volatility": {
+      "indicators_tested": 3,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing historical_volatility.py: 'NoneType' object has no attribute 'get'",
+        "Error testing keltner_channels.py: 'NoneType' object has no attribute 'get'",
+        "Error testing volatility_index.py: 'NoneType' object has no attribute 'get'"
+      ],
+      "pass_rate": 0.0
+    },
+    "pattern": {
+      "indicators_tested": 8,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing doji_recognition.py: 'NoneType' object has no attribute 'get'",
+        "Error testing elliott_wave_analysis.py: 'NoneType' object has no attribute 'get'",
+        "Error testing engulfing_pattern.py: 'NoneType' object has no attribute 'get'",
+        "Error testing fibonacci_retracement_extension.py: 'NoneType' object has no attribute 'get'",
+        "Error testing gann_angles_time_cycles.py: 'NoneType' object has no attribute 'get'",
+        "Error testing hammer_hanging_man.py: 'NoneType' object has no attribute 'get'",
+        "Error testing harami_pattern.py: 'NoneType' object has no attribute 'get'",
+        "Error testing japanese_candlestick_patterns.py: 'NoneType' object has no attribute 'get'"
+      ],
+      "pass_rate": 0.0
+    },
+    "statistical": {
+      "indicators_tested": 4,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing correlation_analysis.py: 'NoneType' object has no attribute 'get'",
+        "Error testing linear_regression_channels.py: 'NoneType' object has no attribute 'get'",
+        "Error testing standard_deviation_channels.py: 'NoneType' object has no attribute 'get'",
+        "Error testing z_score.py: 'NoneType' object has no attribute 'get'"
+      ],
+      "pass_rate": 0.0
+    },
+    "fractal": {
+      "indicators_tested": 3,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing chaos_theory_indicators.py: 'NoneType' object has no attribute 'get'",
+        "Error testing fractal_dimension_calculator.py: 'NoneType' object has no attribute 'get'",
+        "Error testing self_similarity_detector.py: 'NoneType' object has no attribute 'get'"
+      ],
+      "pass_rate": 0.0
+    },
+    "elliott_wave": {
+      "indicators_tested": 3,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing fibonacci_wave_projections.py: 'NoneType' object has no attribute 'get'",
+        "Error testing impulse_corrective_classifier.py: 'NoneType' object has no attribute 'get'",
+        "Error testing wave_count_calculator.py: 'NoneType' object has no attribute 'get'"
+      ],
+      "pass_rate": 0.0
+    },
+    "gann": {
+      "indicators_tested": 5,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing GannPatternDetector.py: 'NoneType' object has no attribute 'get'",
+        "Error testing gann_fan_lines.py: 'NoneType' object has no attribute 'get'",
+        "Error testing gann_square_of_nine.py: 'NoneType' object has no attribute 'get'",
+        "Error testing gann_time_cycles.py: 'NoneType' object has no attribute 'get'",
+        "Error testing price_time_relationships.py: 'NoneType' object has no attribute 'get'"
+      ],
+      "pass_rate": 0.0
+    },
+    "fibonacci": {
+      "indicators_tested": 5,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing ConfluenceDetector.py: 'NoneType' object has no attribute 'get'",
+        "Error testing FibonacciExtension.py: 'NoneType' object has no attribute 'get'",
+        "Error testing FibonacciRetracement.py: 'NoneType' object has no attribute 'get'",
+        "Error testing ProjectionArcCalculator.py: 'NoneType' object has no attribute 'get'",
+        "Error testing TimeZoneAnalysis.py: 'NoneType' object has no attribute 'get'"
+      ],
+      "pass_rate": 0.0
+    },
+    "cycle": {
+      "indicators_tested": 8,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing Alligator.py: 'NoneType' object has no attribute 'get'",
+        "Error testing cycle_period_identification.py: 'NoneType' object has no attribute 'get'",
+        "Error testing dominant_cycle_analysis.py: 'NoneType' object has no attribute 'get'",
+        "Error testing FisherTransform.py: 'NoneType' object has no attribute 'get'",
+        "Error testing HurstExponent.py: 'NoneType' object has no attribute 'get'",
+        "Error testing hurst_exponent.py: 'NoneType' object has no attribute 'get'",
+        "Error testing market_regime_detection.py: 'NoneType' object has no attribute 'get'",
+        "Error testing phase_analysis.py: 'NoneType' object has no attribute 'get'"
+      ],
+      "pass_rate": 0.0
+    },
+    "divergence": {
+      "indicators_tested": 4,
+      "indicators_passed": 0,
+      "performance": [],
+      "issues": [
+        "Error testing hidden_divergence_detector.py: 'NoneType' object has no attribute 'get'",
+        "Error testing momentum_divergence_scanner.py: 'NoneType' object has no attribute 'get'",
+        "Error testing multi_timeframe_divergence.py: 'NoneType' object has no attribute 'get'",
+        "Error testing price_volume_divergence.py: 'NoneType' object has no attribute 'get'"
+      ],
+      "pass_rate": 0.0
+    }
+  },
+  "ai_integration": {
+    "ai_platform_available": true,
+    "ai_platform_manager": true,
+    "adaptive_strategy_generator": true,
+    "decision_master": true,
+    "execution_expert": true,
+    "indicator_integration_ready": true,
+    "ai_manager_initialized": true
+  },
+  "typescript_integration": {
+    "typescript_integration_available": true,
+    "tests_passed": 2,
+    "tests_failed": 2,
+    "tests_total": 4,
+    "pass_rate": 0.5,
+    "details": {
+      "python_indicator_latency": {
+        "status": "pass",
+        "latency_ms": 0.18999999156221747
+      },
+      "data_serialization": {
+        "status": "pass",
+        "latency_ms": 0.27889999910257757
+      },
+      "concurrent_requests": {
+        "status": "fail",
+        "latency_ms": 5.237800010945648,
+        "requests": 10
+      },
+      "websocket_simulation": {
+        "status": "fail",
+        "latency_ms": 15.503100003115833
+      }
+    },
+    "latency_performance": {
+      "meets_1ms_target": false,
+      "performance_issues": [
+        "concurrent_requests: 5.238ms",
+        "websocket_simulation: 15.503ms"
+      ],
+      "recommendations": [
+        "Optimize concurrent_requests (current: 5.238ms)",
+        "Optimize websocket_simulation (current: 15.503ms)"
+      ]
+    }
+  },
+  "recommendations": [
+    "Improve momentum indicators (pass rate: 0.0%)",
+    "Improve trend indicators (pass rate: 0.0%)",
+    "Improve volume indicators (pass rate: 0.0%)",
+    "Improve volatility indicators (pass rate: 0.0%)",
+    "Improve pattern indicators (pass rate: 0.0%)",
+    "Improve statistical indicators (pass rate: 0.0%)",
+    "Improve fractal indicators (pass rate: 0.0%)",
+    "Improve elliott_wave indicators (pass rate: 0.0%)",
+    "Improve gann indicators (pass rate: 0.0%)",
+    "Improve fibonacci indicators (pass rate: 0.0%)",
+    "Improve cycle indicators (pass rate: 0.0%)",
+    "Improve divergence indicators (pass rate: 0.0%)",
+    "Improve TypeScript-Python bridge (pass rate: 50.0%)"
+  ]
+}

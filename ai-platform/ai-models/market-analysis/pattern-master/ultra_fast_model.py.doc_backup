@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""
+UltraFastModel Implementation
+Enhanced with Platform3 logging and error handling framework
+"""
+
+import os
+import sys
+import numpy as np
+from typing import List, Dict, Any, Optional
+from dataclasses import dataclass
+
+# Add shared modules to path
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
+from shared.logging.platform3_logger import Platform3Logger, log_performance, LogMetadata
+from shared.error_handling.platform3_error_system import BaseService, ServiceError, ValidationError
+
+from engines.base_types import MarketData, IndicatorResult, IndicatorType, BaseIndicator
+
+
+@dataclass
+class UltraFastModelConfig:
+    """Configuration for UltraFastModel"""
+    period: int = 14
+    threshold: float = 0.001
+
+
+class UltraFastModel(BaseIndicator, BaseService):
+    """
+    UltraFastModel Implementation
+    
+    Enhanced with Platform3 logging and error handling framework.
+    """
+    
+    def __init__(self, config: Optional[UltraFastModelConfig] = None):
+        BaseIndicator.__init__(self, IndicatorType.MOMENTUM)
+        BaseService.__init__(self, service_name="ultrafastmodel")
+        
+        self.config = config or UltraFastModelConfig()
+        self.values: List[float] = []
+        
+        # Initialize logging
+        self.logger = Platform3Logger.get_logger(
+            name=f"indicators.ultrafastmodel",
+            service_context={"component": "technical_analysis", "indicator": "ultrafastmodel"}
+        )
+    
+    @log_performance("calculate_indicator")
+    def calculate(self, data: List[MarketData]) -> IndicatorResult:
+        """Calculate UltraFastModel indicator values"""
+        try:
+            # Validate input
+            if not data:
+                raise ValidationError("Empty data provided to UltraFastModel")
+            
+            if len(data) < self.config.period:
+                return IndicatorResult(
+                    success=False,
+                    error=f"Insufficient data: need {self.config.period}, got {len(data)}"
+                )
+            
+            # Log calculation start
+            self.logger.info(
+                f"Calculating UltraFastModel for {len(data)} data points",
+                extra=LogMetadata.create_calculation_context(
+                    indicator_name="UltraFastModel",
+                    data_points=len(data),
+                    period=self.config.period
+                ).to_dict()
+            )
+            
+            # Placeholder calculation - replace with actual implementation
+            values = []
+            for i in range(len(data)):
+                if i >= self.config.period - 1:
+                    # Simple moving average as placeholder
+                    period_data = data[i - self.config.period + 1:i + 1]
+                    avg_value = sum(d.close for d in period_data) / len(period_data)
+                    values.append(avg_value)
+                else:
+                    values.append(0.0)
+            
+            self.values = values
+            
+            return IndicatorResult(
+                success=True,
+                values=values,
+                metadata={
+                    "indicator": "UltraFastModel",
+                    "period": self.config.period,
+                    "data_points": len(data),
+                    "calculation_timestamp": "2025-05-31T19:00:00Z"
+                }
+            )
+            
+        except Exception as e:
+            error_msg = f"Error calculating UltraFastModel: {str(e)}"
+            self.logger.error(error_msg, extra=LogMetadata.create_error_context(
+                error_type="calculation_error",
+                error_details=str(e),
+                indicator_name="UltraFastModel"
+            ).to_dict())
+            
+            self.emit_error(ServiceError(
+                message=error_msg,
+                error_code="INDICATOR_CALCULATION_ERROR",
+                service_context="UltraFastModel"
+            ))
+            
+            return IndicatorResult(success=False, error=error_msg)
+    
+    def get_current_value(self) -> Optional[float]:
+        """Get the most recent indicator value"""
+        return self.values[-1] if self.values else None
+    
+    def reset(self):
+        """Reset indicator state"""
+        self.values.clear()
+        self.logger.info(f"UltraFastModel indicator reset")

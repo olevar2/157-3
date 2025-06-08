@@ -1,0 +1,55 @@
+{
+  "start_time": "2025-06-02 13:53:10.123218",
+  "indicators_tested": 82,
+  "indicators_passed": 0,
+  "indicators_failed": 15,
+  "ai_models_tested": 0,
+  "ai_models_passed": 0,
+  "engines_tested": 0,
+  "engines_passed": 0,
+  "performance_metrics": {
+    "realtime_latency": {
+      "average_ms": 0.0018870001076720655,
+      "max_ms": 0.007299997378140688,
+      "min_ms": 0.0016999838408082724
+    },
+    "risk_management": {
+      "position_size": 10.0,
+      "risk_amount": 200.0,
+      "calculation_valid": true
+    }
+  },
+  "errors": [
+    "ERROR: fibonacci_wave_projections.py - attempted relative import with no known parent package",
+    "ERROR: impulse_corrective_classifier.py - attempted relative import with no known parent package",
+    "ERROR: self_similarity_detector.py - attempted relative import with no known parent package",
+    "ERROR: gann_fan_lines.py - attempted relative import with no known parent package",
+    "ERROR: gann_square_of_nine.py - attempted relative import with no known parent package",
+    "ERROR: trix.py - attempted relative import with no known parent package",
+    "ERROR: doji_recognition.py - attempted relative import with no known parent package",
+    "ERROR: engulfing_pattern.py - attempted relative import with no known parent package",
+    "ERROR: hammer_hanging_man.py - attempted relative import with no known parent package",
+    "ERROR: harami_pattern.py - attempted relative import with no known parent package",
+    "ERROR: keltner_channels.py - attempted relative import with no known parent package",
+    "ERROR: vortex_indicator.py - attempted relative import with no known parent package",
+    "ERROR: accumulation_distribution.py - attempted relative import with no known parent package",
+    "ERROR: chaikin_money_flow.py - attempted relative import with no known parent package",
+    "ERROR: volume_price_trend.py - attempted relative import with no known parent package",
+    "Platform3 Engine test failed: attempted relative import with no known parent package"
+  ],
+  "warnings": [
+    "AI Platform Manager import failed: No module named 'ai_services'",
+    "Platform3 Engine test failed: attempted relative import with no known parent package"
+  ],
+  "summary": {
+    "indicator_success_rate": 0.0,
+    "ai_model_success_rate": 0.0,
+    "engine_success_rate": 0.0,
+    "overall_health_score": 0.0,
+    "total_errors": 16,
+    "total_warnings": 2,
+    "ready_for_production": false
+  },
+  "end_time": "2025-06-02 13:53:15.169718",
+  "total_duration": 5.0465
+}

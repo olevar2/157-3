@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
 Engulfing Pattern Scanner - Japanese Candlestick Pattern Recognition
 Platform3 Enhanced Technical Analysis Engine
@@ -35,12 +45,13 @@ Mathematical Foundation:
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Optional, Union
-from dataclasses import dataclass
+from typing import Dict, List, Tuple, Optional, Union, Any
+from dataclasses import dataclass, field
 from enum import Enum
 import logging
+from datetime import datetime
 
-from ..indicator_base import IndicatorBase, IndicatorResult
+from engines.indicator_base import IndicatorBase, IndicatorResult, IndicatorType, TimeFrame, IndicatorSignal, SignalType
 
 class EngulfingType(Enum):
     """Types of Engulfing patterns"""
@@ -68,9 +79,11 @@ class CandlestickData:
     body_size: float
     is_bullish: bool
     
+# Create a standalone class instead of inheriting from IndicatorResult
 @dataclass
-class EngulfingPatternResult(IndicatorResult):
+class EngulfingPatternResult:
     """Engulfing Pattern detection result"""
+    timestamp: datetime
     pattern_type: EngulfingType
     pattern_strength: float  # 0-100, higher means stronger pattern
     engulfing_ratio: float  # How much larger the engulfing candle is
@@ -83,11 +96,12 @@ class EngulfingPatternResult(IndicatorResult):
     support_resistance_level: Optional[float]
     signal: EngulfingSignal
     signal_strength: float
+    metadata: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict:
         """Convert result to dictionary"""
-        result_dict = super().to_dict()
-        result_dict.update({
+        return {
+            'timestamp': self.timestamp.isoformat() if hasattr(self.timestamp, 'isoformat') else str(self.timestamp),
             'pattern_type': self.pattern_type.value,
             'pattern_strength': self.pattern_strength,
             'engulfing_ratio': self.engulfing_ratio,
@@ -115,9 +129,41 @@ class EngulfingPatternResult(IndicatorResult):
             'volume_ratio': self.volume_ratio,
             'support_resistance_level': self.support_resistance_level,
             'signal': self.signal.value,
-            'signal_strength': self.signal_strength
-        })
-        return result_dict
+            'signal_strength': self.signal_strength,
+            'metadata': self.metadata
+        }
+        
+    def to_indicator_result(self, indicator_name: str) -> IndicatorResult:
+        """Convert to standard IndicatorResult"""
+        return IndicatorResult(
+            timestamp=self.timestamp,
+            indicator_name=indicator_name,
+            indicator_type=IndicatorType.PATTERN,
+            timeframe=TimeFrame.D1,  # Default timeframe - should be updated
+            value=self.pattern_strength,
+            signal=IndicatorSignal(
+                timestamp=self.timestamp,
+                indicator_name=indicator_name,
+                signal_type=self._map_signal_type(),
+                strength=self.signal_strength / 100,  # Scale to 0-1
+                confidence=self.reversal_probability / 100,  # Scale to 0-1
+                metadata={
+                    'pattern_type': self.pattern_type.value,
+                    'engulfing_ratio': self.engulfing_ratio
+                }
+            ) if self.signal != EngulfingSignal.NEUTRAL else None
+        )
+    
+    def _map_signal_type(self) -> SignalType:
+        """Map Engulfing signal to standard SignalType"""
+        if self.signal in [EngulfingSignal.STRONG_BULLISH_REVERSAL, EngulfingSignal.BULLISH_REVERSAL]:
+            return SignalType.BUY
+        elif self.signal in [EngulfingSignal.STRONG_BEARISH_REVERSAL, EngulfingSignal.BEARISH_REVERSAL]:
+            return SignalType.SELL
+        elif self.signal == EngulfingSignal.TREND_CONTINUATION:
+            return SignalType.HOLD
+        else:
+            return SignalType.NEUTRAL
 
 class EngulfingPatternScanner(IndicatorBase):
     """
@@ -128,6 +174,7 @@ class EngulfingPatternScanner(IndicatorBase):
     """
     
     def __init__(self, 
+                 config: Optional[Dict[str, Any]] = None, # Added config
                  min_engulfing_ratio: float = 1.1,
                  trend_period: int = 10,
                  volume_lookback: int = 10,
@@ -137,13 +184,15 @@ class EngulfingPatternScanner(IndicatorBase):
         Initialize Engulfing Pattern Scanner
         
         Args:
+            config: Optional[Dict[str, Any]]
+                Configuration object for the indicator.
             min_engulfing_ratio: Minimum ratio for engulfing body size (default: 1.1)
             trend_period: Period for trend context analysis (default: 10)
             volume_lookback: Period for volume confirmation (default: 10)
             min_body_size_ratio: Minimum body size relative to range (default: 0.3)
             support_resistance_tolerance: Tolerance for S/R level detection (default: 2%)
         """
-        super().__init__("Engulfing Pattern Scanner")
+        super().__init__(config=config) # Pass config to super
         self.min_engulfing_ratio = min_engulfing_ratio
         self.trend_period = trend_period
         self.volume_lookback = volume_lookback

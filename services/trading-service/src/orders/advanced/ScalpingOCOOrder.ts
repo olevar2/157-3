@@ -20,7 +20,7 @@
 
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import { Logger } from 'winston'; // Assuming winston logger is used project-wide
+import axios from 'axios';
 
 // --- Re-defined and Enhanced Shared Types (Ideally from a central types file) ---
 export enum OrderSide {

@@ -1,772 +1,177 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
-Wave Count Calculator - Advanced Elliott Wave Counting and Classification
-========================================================================
+Enhanced Elliott Wave Count Calculator - Advanced Wave Pattern Recognition
+Platform3 Phase 3 - Enhanced Elliott Wave Analysis
 
-This module implements comprehensive Elliott Wave analysis including:
-- Automated wave counting using multiple methods
-- Impulse and corrective wave identification
-- Wave degree classification
-- Fibonacci ratio validation
-- Wave structure analysis
-- Confidence scoring for wave counts
-
-Key Features:
-- Multi-timeframe wave counting
-- Zigzag pattern detection
-- Wave proportion analysis
-- Fibonacci validation
-- Nested wave structure recognition
-- Alternative count scenarios
-
-Author: Platform3 Development Team
-Date: May 29, 2025
+The Enhanced Elliott Wave Calculator identifies Elliott Wave patterns in price action,
+including impulse waves (1-2-3-4-5) and corrective waves (A-B-C). It provides
+automated wave counting, pattern recognition, and trading signals based on Elliott Wave Theory.
 """
 
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
+from shared.logging.platform3_logger import Platform3Logger
+from shared.error_handling.platform3_error_system import Platform3ErrorSystem, ServiceError
+from shared.database.platform3_database_manager import Platform3DatabaseManager
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
+import asyncio
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Optional, Union
-from scipy import signal
-from scipy.optimize import minimize_scalar
+from typing import Dict, List, Any, Optional, Union, Tuple
+from datetime import datetime, timedelta
+from dataclasses import dataclass
+import time
+import math
 import warnings
+warnings.filterwarnings('ignore')
 
-class WaveCountCalculator:
+@dataclass
+class WavePoint:
+    """Elliott Wave point data structure"""
+    index: int              # Data index
+    price: float           # Price level
+    time: datetime         # Timestamp
+    wave_label: str        # Wave label (1, 2, 3, 4, 5, A, B, C)
+    wave_type: str         # 'impulse' or 'corrective'
+    wave_degree: str       # 'primary', 'intermediate', 'minor'
+    is_high: bool          # True for high, False for low
+
+@dataclass
+class ElliottWavePattern:
+    """Complete Elliott Wave pattern structure"""
+    pattern_type: str               # 'impulse', 'corrective', 'diagonal'
+    wave_sequence: List[WavePoint]  # Ordered list of wave points
+    completion_status: str          # 'incomplete', 'complete', 'extended'
+    fibonacci_ratios: Dict[str, float]  # Key Fibonacci relationships
+    current_wave: str              # Current wave position
+    next_expected_target: float    # Next target level
+    invalidation_level: float     # Pattern invalidation price
+    confidence_score: float       # Pattern confidence (0-1)
+    time_analysis: Dict[str, Any]  # Time relationships
+    trading_signals: Dict[str, Any]  # Trading recommendations
+
+class EnhancedElliottWaveCalculator:
     """
-    Advanced Elliott Wave counting and analysis system.
+    Enhanced Elliott Wave Analysis Engine
     
-    This class provides comprehensive Elliott Wave analysis including:
-    - Automated wave identification and counting
-    - Impulse vs corrective wave classification
-    - Fibonacci ratio validation
-    - Wave structure analysis and confidence scoring
+    Features:
+    - Automatic wave identification and labeling
+    - Impulse and corrective pattern recognition
+    - Fibonacci ratio analysis for wave relationships
+    - Time-based wave analysis
+    - Trading signal generation based on wave position
+    - Multi-degree wave analysis (Primary, Intermediate, Minor)
+    - Pattern validation using Elliott Wave rules
     """
     
-    def __init__(self, 
-                 min_wave_length: int = 5,
-                 max_wave_count: int = 8,
-                 fibonacci_tolerance: float = 0.1,
-                 confidence_threshold: float = 0.6,
-                 zigzag_threshold: float = 0.05):
+    def __init__(self, lookback_period: int = 200, min_wave_size: float = 0.01,
+                 fibonacci_tolerance: float = 0.1):
+        """Initialize Enhanced Elliott Wave Calculator with Platform3 framework"""
+        self.logger = Platform3Logger(self.__class__.__name__)
+        self.error_system = Platform3ErrorSystem()
+        self.db_manager = Platform3DatabaseManager()
+        self.comm_framework = Platform3CommunicationFramework()
+        
+        self.lookback_period = lookback_period
+        self.min_wave_size = min_wave_size  # Minimum wave size as percentage
+        self.fibonacci_tolerance = fibonacci_tolerance  # Tolerance for Fibonacci ratios
+        
+        # Elliott Wave Fibonacci ratios
+        self.fibonacci_ratios = {
+            'retracement': [0.236, 0.382, 0.500, 0.618, 0.786],
+            'extension': [1.000, 1.272, 1.382, 1.618, 2.618],
+            'time': [0.618, 1.000, 1.618, 2.618]
+        }
+        
+        # Wave rules for validation
+        self.wave_rules = {
+            'impulse': {
+                'wave_2_max_retrace': 1.0,      # Wave 2 cannot retrace more than 100% of wave 1
+                'wave_4_max_retrace': 1.0,      # Wave 4 cannot retrace more than 100% of wave 3
+                'wave_3_min_extension': 1.0,    # Wave 3 must be at least equal to wave 1
+                'wave_4_overlap_wave_1': False  # Wave 4 cannot overlap wave 1 price territory
+            },
+            'corrective': {
+                'abc_proportions': True,        # ABC waves should have reasonable proportions
+                'retracement_levels': [0.382, 0.618, 0.786]  # Common retracement levels
+            }
+        }
+        
+        self.logger.info(f"Enhanced Elliott Wave Calculator initialized - Lookback: {self.lookback_period}")
+    
+    async def calculate(self, data: Union[np.ndarray, pd.DataFrame]) -> Optional[Dict[str, Any]]:
         """
-        Initialize the Wave Count Calculator.
+        Calculate Elliott Wave analysis
         
-        Parameters:
-        -----------
-        min_wave_length : int
-            Minimum length for a valid wave (default: 5 periods)
-        max_wave_count : int
-            Maximum number of waves to identify (default: 8)
-        fibonacci_tolerance : float
-            Tolerance for Fibonacci ratio validation (default: 0.1 = 10%)
-        confidence_threshold : float
-            Minimum confidence for wave count validation (default: 0.6)
-        zigzag_threshold : float
-            Minimum price change threshold for zigzag (default: 0.05 = 5%)
-        """
-        self.min_wave_length = min_wave_length
-        self.max_wave_count = max_wave_count
-        self.fibonacci_tolerance = fibonacci_tolerance
-        self.confidence_threshold = confidence_threshold
-        self.zigzag_threshold = zigzag_threshold
-        
-        # Fibonacci ratios for wave validation
-        self.fibonacci_ratios = [0.236, 0.382, 0.5, 0.618, 0.786, 1.0, 1.272, 1.414, 1.618, 2.0, 2.618]
-        
-        # Wave pattern templates
-        self.impulse_pattern = [1, -1, 1, -1, 1]  # 5-wave impulse
-        self.corrective_pattern = [1, -1, 1]      # 3-wave correction
-        
-    def calculate(self, 
-                  data: Union[pd.Series, np.ndarray],
-                  price_column: str = 'close') -> Dict[str, Union[int, float, List, Dict]]:
-        """
-        Perform comprehensive Elliott Wave counting and analysis.
-        
-        Parameters:
-        -----------
-        data : pd.Series or np.ndarray
-            Price data for wave analysis
-        price_column : str
-            Column name if data is DataFrame (default: 'close')
+        Args:
+            data: Price data (OHLC DataFrame or close price array)
             
         Returns:
-        --------
-        Dict containing:
-            - wave_count: Number of waves identified
-            - wave_structure: List of wave information
-            - wave_type: 'impulse', 'corrective', or 'complex'
-            - current_wave: Current wave number and characteristics
-            - wave_confidence: Confidence score (0-1)
-            - fibonacci_ratios: Fibonacci ratio analysis
-            - wave_targets: Projected wave targets
-            - alternative_counts: Alternative wave count scenarios
+            Dictionary containing Elliott Wave analysis and patterns
         """
+        start_time = time.time()
+        
         try:
-            # Data validation and preprocessing
-            if isinstance(data, pd.DataFrame):
-                prices = data[price_column].values
-            else:
-                prices = np.array(data)
-                
-            if len(prices) < self.min_wave_length * 3:
-                raise ValueError(f"Insufficient data: need at least {self.min_wave_length * 3} periods")
-                
-            # Remove NaN values
-            prices = prices[~np.isnan(prices)]
+            self.logger.debug("Starting Elliott Wave analysis")
             
-            # Identify significant turning points using zigzag
-            zigzag_points = self._calculate_zigzag(prices)
+            # Prepare and validate data
+            price_data, high_data, low_data = self._prepare_data(data)
+            if price_data is None:
+                raise ServiceError("Invalid price data", "INVALID_DATA")
             
-            if len(zigzag_points) < 4:
-                return self._return_empty_results("Insufficient turning points for wave analysis")
+            # Find significant swing points (pivot highs and lows)
+            swing_points = await self._find_swing_points(high_data, low_data)
+            if len(swing_points) < 8:  # Need at least 8 points for Elliott Wave analysis
+                self.logger.warning("Insufficient swing points for Elliott Wave analysis")
+                return self._create_empty_result()
             
-            # Generate wave counts
-            primary_count = self._generate_primary_wave_count(zigzag_points, prices)
-            alternative_counts = self._generate_alternative_counts(zigzag_points, prices)
+            # Identify potential Elliott Wave patterns
+            wave_patterns = await self._identify_wave_patterns(swing_points)
             
-            # Validate wave counts using Elliott Wave rules
-            validated_count = self._validate_wave_count(primary_count, prices)
+            # Validate patterns using Elliott Wave rules
+            validated_patterns = await self._validate_wave_patterns(wave_patterns)
             
-            # Analyze Fibonacci relationships
-            fibonacci_analysis = self._analyze_fibonacci_ratios(validated_count)
+            # Analyze current market position
+            current_analysis = await self._analyze_current_position(
+                price_data, swing_points, validated_patterns
+            )
             
-            # Calculate wave targets and projections
-            wave_targets = self._calculate_wave_targets(validated_count, fibonacci_analysis)
+            # Generate trading signals based on wave position
+            trading_signals = await self._generate_wave_signals(
+                validated_patterns, price_data[-1] if len(price_data) > 0 else 0
+            )
             
-            # Determine current wave position
-            current_wave_info = self._identify_current_wave(validated_count, prices)
+            # Calculate Fibonacci relationships
+            fibonacci_analysis = await self._analyze_fibonacci_relationships(validated_patterns)
             
-            # Calculate confidence score
-            confidence_score = self._calculate_wave_confidence(validated_count, fibonacci_analysis)
-            
-            return {
-                'wave_count': len(validated_count['waves']),
-                'wave_structure': validated_count['waves'],
-                'wave_type': validated_count['structure_type'],
-                'current_wave': current_wave_info,
-                'wave_confidence': confidence_score,
-                'fibonacci_ratios': fibonacci_analysis,
-                'wave_targets': wave_targets,
-                'alternative_counts': alternative_counts,
-                'zigzag_points': zigzag_points,
-                'wave_degree': validated_count.get('wave_degree', 'Minor'),
-                'completion_status': validated_count.get('completion_status', 'In Progress')
+            result = {
+                'wave_patterns': [self._pattern_to_dict(p) for p in validated_patterns],
+                'pattern_count': len(validated_patterns),
+                'swing_points': [self._point_to_dict(p) for p in swing_points[-20:]],  # Last 20 points
+                'current_analysis': current_analysis,
+                'trading_signals': trading_signals,
+                'fibonacci_analysis': fibonacci_analysis,
+                'wave_statistics': self._calculate_wave_statistics(validated_patterns),
+                'calculation_time': time.time() - start_time,
+                'timestamp': datetime.now().isoformat()
             }
             
+            self.logger.info(f"Elliott Wave analysis completed - Found {len(validated_patterns)} patterns "
+                           f"in {result['calculation_time']:.4f}s")
+            return result
+            
+        except ServiceError as e:
+            self.logger.error(f"Service error in Elliott Wave analysis: {e}")
+            return None
         except Exception as e:
-            return self._return_empty_results(f"Error: {str(e)}")
-    
-    def _calculate_zigzag(self, prices: np.ndarray) -> List[Dict]:
-        """Calculate zigzag turning points for wave identification."""
-        try:
-            if len(prices) < 3:
-                return []
-            
-            # Find local maxima and minima
-            maxima_indices, _ = signal.find_peaks(prices, distance=self.min_wave_length)
-            minima_indices, _ = signal.find_peaks(-prices, distance=self.min_wave_length)
-            
-            # Combine and sort all turning points
-            all_turning_points = []
-            
-            for idx in maxima_indices:
-                all_turning_points.append({
-                    'index': idx,
-                    'price': prices[idx],
-                    'type': 'peak'
-                })
-            
-            for idx in minima_indices:
-                all_turning_points.append({
-                    'index': idx,
-                    'price': prices[idx],
-                    'type': 'trough'
-                })
-            
-            # Sort by index
-            all_turning_points.sort(key=lambda x: x['index'])
-            
-            if len(all_turning_points) < 2:
-                return []
-            
-            # Apply zigzag filter based on percentage threshold
-            zigzag_points = [all_turning_points[0]]  # Start with first point
-            
-            for i in range(1, len(all_turning_points)):
-                current_point = all_turning_points[i]
-                last_point = zigzag_points[-1]
-                
-                # Calculate percentage change
-                price_change = abs(current_point['price'] - last_point['price']) / last_point['price']
-                
-                # Only include if change exceeds threshold and alternates direction
-                if price_change >= self.zigzag_threshold:
-                    # Check if direction alternates
-                    if len(zigzag_points) == 1:
-                        zigzag_points.append(current_point)
-                    else:
-                        prev_direction = zigzag_points[-1]['price'] - zigzag_points[-2]['price']
-                        curr_direction = current_point['price'] - zigzag_points[-1]['price']
-                        
-                        # Directions should alternate (opposite signs)
-                        if (prev_direction > 0 and curr_direction < 0) or (prev_direction < 0 and curr_direction > 0):
-                            zigzag_points.append(current_point)
-                        elif abs(curr_direction) > abs(prev_direction):
-                            # Replace last point if current move is larger
-                            zigzag_points[-1] = current_point
-            
-            return zigzag_points
-            
-        except Exception as e:
-            return []
-    
-    def _generate_primary_wave_count(self, zigzag_points: List[Dict], prices: np.ndarray) -> Dict:
-        """Generate the primary Elliott Wave count."""
-        try:
-            if len(zigzag_points) < 4:
-                return {'waves': [], 'structure_type': 'insufficient_data'}
-            
-            waves = []
-            
-            # Generate waves from zigzag points
-            for i in range(len(zigzag_points) - 1):
-                start_point = zigzag_points[i]
-                end_point = zigzag_points[i + 1]
-                
-                # Determine wave direction
-                if end_point['price'] > start_point['price']:
-                    direction = 'up'
-                    wave_type = 'impulse' if i % 2 == 0 else 'corrective'
-                else:
-                    direction = 'down'
-                    wave_type = 'impulse' if i % 2 == 1 else 'corrective'
-                
-                # Calculate wave metrics
-                wave_length = end_point['index'] - start_point['index']
-                price_change = end_point['price'] - start_point['price']
-                percentage_change = (price_change / start_point['price']) * 100
-                
-                wave = {
-                    'wave_number': i + 1,
-                    'start_index': start_point['index'],
-                    'end_index': end_point['index'],
-                    'start_price': start_point['price'],
-                    'end_price': end_point['price'],
-                    'direction': direction,
-                    'wave_type': wave_type,
-                    'length': wave_length,
-                    'price_change': price_change,
-                    'percentage_change': percentage_change,
-                    'amplitude': abs(price_change)
-                }
-                
-                waves.append(wave)
-            
-            # Classify overall structure
-            structure_type = self._classify_wave_structure(waves)
-            
-            return {
-                'waves': waves,
-                'structure_type': structure_type,
-                'wave_degree': self._determine_wave_degree(waves),
-                'completion_status': self._determine_completion_status(waves)
-            }
-            
-        except Exception as e:
-            return {'waves': [], 'structure_type': 'error', 'error': str(e)}
-    
-    def _classify_wave_structure(self, waves: List[Dict]) -> str:
-        """Classify the overall wave structure (impulse, corrective, or complex)."""
-        try:
-            if len(waves) < 3:
-                return 'insufficient_waves'
-            
-            # Count up and down waves
-            up_waves = sum(1 for wave in waves if wave['direction'] == 'up')
-            down_waves = sum(1 for wave in waves if wave['direction'] == 'down')
-            
-            # Check for 5-wave impulse pattern
-            if len(waves) == 5:
-                directions = [wave['direction'] for wave in waves]
-                if (directions == ['up', 'down', 'up', 'down', 'up'] or
-                    directions == ['down', 'up', 'down', 'up', 'down']):
-                    return 'impulse'
-            
-            # Check for 3-wave corrective pattern
-            elif len(waves) == 3:
-                directions = [wave['direction'] for wave in waves]
-                if (directions == ['up', 'down', 'up'] or
-                    directions == ['down', 'up', 'down']):
-                    return 'corrective'
-            
-            # Check for complex corrections
-            elif len(waves) > 5:
-                return 'complex_correction'
-            
-            return 'developing'
-            
-        except Exception:
-            return 'unknown'
-    
-    def _determine_wave_degree(self, waves: List[Dict]) -> str:
-        """Determine the degree of the wave pattern."""
-        try:
-            if not waves:
-                return 'Unknown'
-            
-            # Calculate average wave length
-            avg_length = np.mean([wave['length'] for wave in waves])
-            
-            # Classify based on time duration
-            if avg_length < 10:
-                return 'Subminuette'
-            elif avg_length < 25:
-                return 'Minuette'
-            elif avg_length < 50:
-                return 'Minute'
-            elif avg_length < 100:
-                return 'Minor'
-            elif avg_length < 200:
-                return 'Intermediate'
-            else:
-                return 'Primary'
-                
-        except Exception:
-            return 'Unknown'
-    
-    def _determine_completion_status(self, waves: List[Dict]) -> str:
-        """Determine if the wave pattern is complete or developing."""
-        try:
-            if not waves:
-                return 'Unknown'
-            
-            wave_count = len(waves)
-            
-            if wave_count == 5:
-                return 'Complete Impulse'
-            elif wave_count == 3:
-                return 'Complete Correction'
-            elif wave_count < 5:
-                return 'Developing Impulse'
-            else:
-                return 'Complex Pattern'
-                
-        except Exception:
-            return 'Unknown'
-    
-    def _generate_alternative_counts(self, zigzag_points: List[Dict], prices: np.ndarray) -> List[Dict]:
-        """Generate alternative wave count scenarios."""
-        try:
-            alternatives = []
-            
-            # Alternative 1: Different zigzag threshold
-            alt_threshold = self.zigzag_threshold * 1.5
-            original_threshold = self.zigzag_threshold
-            self.zigzag_threshold = alt_threshold
-            
-            alt_zigzag = self._calculate_zigzag(prices)
-            if len(alt_zigzag) >= 4:
-                alt_count = self._generate_primary_wave_count(alt_zigzag, prices)
-                alternatives.append({
-                    'scenario': 'Higher Threshold',
-                    'threshold': alt_threshold,
-                    'wave_count': alt_count
-                })
-            
-            # Alternative 2: Lower threshold
-            alt_threshold = self.zigzag_threshold * 0.7
-            self.zigzag_threshold = alt_threshold
-            
-            alt_zigzag = self._calculate_zigzag(prices)
-            if len(alt_zigzag) >= 4:
-                alt_count = self._generate_primary_wave_count(alt_zigzag, prices)
-                alternatives.append({
-                    'scenario': 'Lower Threshold',
-                    'threshold': alt_threshold,
-                    'wave_count': alt_count
-                })
-            
-            # Restore original threshold
-            self.zigzag_threshold = original_threshold
-            
-            # Alternative 3: Different starting point
-            if len(zigzag_points) > 6:
-                # Start from second significant point
-                alt_points = zigzag_points[2:]
-                alt_count = self._generate_primary_wave_count(alt_points, prices)
-                alternatives.append({
-                    'scenario': 'Alternative Start',
-                    'wave_count': alt_count
-                })
-            
-            return alternatives
-            
-        except Exception:
-            return []
-    
-    def _validate_wave_count(self, wave_count: Dict, prices: np.ndarray) -> Dict:
-        """Validate wave count using Elliott Wave rules."""
-        try:
-            waves = wave_count.get('waves', [])
-            if len(waves) < 3:
-                return wave_count
-            
-            # Apply Elliott Wave rules
-            validation_results = []
-            
-            # Rule 1: Wave 2 never retraces more than 100% of wave 1
-            if len(waves) >= 2:
-                wave1 = waves[0]
-                wave2 = waves[1]
-                retracement = abs(wave2['price_change']) / abs(wave1['price_change'])
-                if retracement <= 1.0:
-                    validation_results.append({'rule': 'Wave 2 retracement', 'valid': True, 'value': retracement})
-                else:
-                    validation_results.append({'rule': 'Wave 2 retracement', 'valid': False, 'value': retracement})
-            
-            # Rule 2: Wave 3 is never the shortest among waves 1, 3, and 5
-            if len(waves) >= 5 and wave_count['structure_type'] == 'impulse':
-                wave1_amp = waves[0]['amplitude']
-                wave3_amp = waves[2]['amplitude']
-                wave5_amp = waves[4]['amplitude']
-                
-                wave3_shortest = wave3_amp < wave1_amp and wave3_amp < wave5_amp
-                validation_results.append({'rule': 'Wave 3 not shortest', 'valid': not wave3_shortest})
-            
-            # Rule 3: Wave 4 never enters the price territory of wave 1
-            if len(waves) >= 4:
-                wave1 = waves[0]
-                wave4 = waves[3]
-                
-                if wave1['direction'] == 'up':
-                    overlap = wave4['end_price'] <= wave1['end_price']
-                else:
-                    overlap = wave4['end_price'] >= wave1['end_price']
-                
-                validation_results.append({'rule': 'Wave 4 no overlap', 'valid': not overlap})
-            
-            # Calculate overall validation score
-            valid_rules = sum(1 for result in validation_results if result['valid'])
-            total_rules = len(validation_results)
-            validation_score = valid_rules / total_rules if total_rules > 0 else 0.0
-            
-            # Add validation information to wave count
-            validated_count = wave_count.copy()
-            validated_count['validation_results'] = validation_results
-            validated_count['validation_score'] = validation_score
-            validated_count['is_valid'] = validation_score >= 0.7
-            
-            return validated_count
-            
-        except Exception as e:
-            wave_count['validation_error'] = str(e)
-            return wave_count
-    
-    def _analyze_fibonacci_ratios(self, wave_count: Dict) -> Dict:
-        """Analyze Fibonacci relationships between waves."""
-        try:
-            waves = wave_count.get('waves', [])
-            if len(waves) < 3:
-                return {'ratios': [], 'fibonacci_score': 0.0}
-            
-            fibonacci_relationships = []
-            
-            # Analyze relationships between consecutive waves
-            for i in range(len(waves) - 1):
-                wave_a = waves[i]
-                wave_b = waves[i + 1]
-                
-                if wave_a['amplitude'] > 0 and wave_b['amplitude'] > 0:
-                    ratio = wave_b['amplitude'] / wave_a['amplitude']
-                    
-                    # Find closest Fibonacci ratio
-                    closest_fib = min(self.fibonacci_ratios, key=lambda x: abs(x - ratio))
-                    deviation = abs(ratio - closest_fib) / closest_fib
-                    
-                    if deviation <= self.fibonacci_tolerance:
-                        fibonacci_relationships.append({
-                            'wave_a': i + 1,
-                            'wave_b': i + 2,
-                            'actual_ratio': ratio,
-                            'fibonacci_ratio': closest_fib,
-                            'deviation': deviation,
-                            'is_fibonacci': True
-                        })
-                    else:
-                        fibonacci_relationships.append({
-                            'wave_a': i + 1,
-                            'wave_b': i + 2,
-                            'actual_ratio': ratio,
-                            'fibonacci_ratio': closest_fib,
-                            'deviation': deviation,
-                            'is_fibonacci': False
-                        })
-            
-            # Analyze alternate wave relationships (1-3, 3-5, etc.)
-            for i in range(0, len(waves) - 2, 2):
-                wave_a = waves[i]
-                wave_c = waves[i + 2]
-                
-                if wave_a['amplitude'] > 0 and wave_c['amplitude'] > 0:
-                    ratio = wave_c['amplitude'] / wave_a['amplitude']
-                    closest_fib = min(self.fibonacci_ratios, key=lambda x: abs(x - ratio))
-                    deviation = abs(ratio - closest_fib) / closest_fib
-                    
-                    fibonacci_relationships.append({
-                        'wave_a': i + 1,
-                        'wave_b': i + 3,
-                        'actual_ratio': ratio,
-                        'fibonacci_ratio': closest_fib,
-                        'deviation': deviation,
-                        'is_fibonacci': deviation <= self.fibonacci_tolerance,
-                        'relationship_type': 'alternate'
-                    })
-            
-            # Calculate Fibonacci score
-            fib_relationships = [r for r in fibonacci_relationships if r['is_fibonacci']]
-            fibonacci_score = len(fib_relationships) / len(fibonacci_relationships) if fibonacci_relationships else 0.0
-            
-            return {
-                'ratios': fibonacci_relationships,
-                'fibonacci_score': fibonacci_score,
-                'fibonacci_count': len(fib_relationships),
-                'total_relationships': len(fibonacci_relationships)
-            }
-            
-        except Exception as e:
-            return {'ratios': [], 'fibonacci_score': 0.0, 'error': str(e)}
-    
-    def _calculate_wave_targets(self, wave_count: Dict, fibonacci_analysis: Dict) -> Dict:
-        """Calculate projected wave targets based on Elliott Wave theory."""
-        try:
-            waves = wave_count.get('waves', [])
-            if len(waves) < 2:
-                return {'targets': [], 'projections': []}
-            
-            targets = []
-            projections = []
-            
-            # Get the last completed wave
-            last_wave = waves[-1]
-            
-            # Project targets based on Fibonacci relationships
-            if len(waves) >= 3:
-                # For wave 5 projection (if we have waves 1-3)
-                wave1 = waves[0]
-                wave3 = waves[2]
-                
-                # Common ratios for wave 5
-                fib_ratios = [0.618, 1.0, 1.618]
-                
-                for ratio in fib_ratios:
-                    if wave1['direction'] == wave3['direction']:  # Same direction waves
-                        target_amplitude = wave1['amplitude'] * ratio
-                        
-                        if last_wave['direction'] == 'up':
-                            target_price = last_wave['end_price'] + target_amplitude
-                        else:
-                            target_price = last_wave['end_price'] - target_amplitude
-                        
-                        targets.append({
-                            'wave_target': len(waves) + 1,
-                            'target_price': target_price,
-                            'fibonacci_ratio': ratio,
-                            'base_wave': 'Wave 1',
-                            'confidence': 0.7 if ratio == 1.0 else 0.6
-                        })
-            
-            # Retracement targets for corrective waves
-            if len(waves) >= 1:
-                last_impulse = waves[-1]
-                retracement_levels = [0.236, 0.382, 0.5, 0.618, 0.786]
-                
-                for level in retracement_levels:
-                    retracement_amount = last_impulse['amplitude'] * level
-                    
-                    if last_impulse['direction'] == 'up':
-                        target_price = last_impulse['end_price'] - retracement_amount
-                    else:
-                        target_price = last_impulse['end_price'] + retracement_amount
-                    
-                    projections.append({
-                        'type': 'retracement',
-                        'level': level,
-                        'target_price': target_price,
-                        'base_wave': len(waves),
-                        'confidence': 0.8 if level in [0.382, 0.618] else 0.6
-                    })
-            
-            return {
-                'targets': targets,
-                'projections': projections,
-                'target_count': len(targets) + len(projections)
-            }
-            
-        except Exception as e:
-            return {'targets': [], 'projections': [], 'error': str(e)}
-    
-    def _identify_current_wave(self, wave_count: Dict, prices: np.ndarray) -> Dict:
-        """Identify the current wave position and characteristics."""
-        try:
-            waves = wave_count.get('waves', [])
-            if not waves:
-                return {'current_wave': None, 'wave_progress': 0.0}
-            
-            last_wave = waves[-1]
-            current_price = prices[-1]
-            
-            # Determine if we're in a continuation or new wave
-            if last_wave['direction'] == 'up':
-                continuing = current_price > last_wave['end_price']
-            else:
-                continuing = current_price < last_wave['end_price']
-            
-            if continuing:
-                # We're extending the last wave
-                wave_progress = abs(current_price - last_wave['start_price']) / (last_wave['amplitude'] + 1e-10)
-                current_wave_info = {
-                    'wave_number': last_wave['wave_number'],
-                    'wave_type': 'extending',
-                    'direction': last_wave['direction'],
-                    'progress': min(wave_progress, 2.0),  # Can extend beyond 100%
-                    'current_price': current_price,
-                    'wave_start_price': last_wave['start_price']
-                }
-            else:
-                # We're starting a new wave
-                next_wave_number = len(waves) + 1
-                next_direction = 'down' if last_wave['direction'] == 'up' else 'up'
-                
-                # Calculate progress in new wave
-                new_wave_amplitude = abs(current_price - last_wave['end_price'])
-                expected_amplitude = last_wave['amplitude'] * 0.618  # Typical retracement
-                progress = new_wave_amplitude / (expected_amplitude + 1e-10)
-                
-                current_wave_info = {
-                    'wave_number': next_wave_number,
-                    'wave_type': 'new',
-                    'direction': next_direction,
-                    'progress': min(progress, 1.0),
-                    'current_price': current_price,
-                    'wave_start_price': last_wave['end_price']
-                }
-            
-            # Add context based on wave count
-            structure_type = wave_count.get('structure_type', 'unknown')
-            if structure_type == 'impulse' and len(waves) == 5:
-                current_wave_info['pattern_status'] = 'Impulse complete, expecting correction'
-            elif structure_type == 'corrective' and len(waves) == 3:
-                current_wave_info['pattern_status'] = 'Correction complete, expecting impulse'
-            else:
-                current_wave_info['pattern_status'] = f'{structure_type.title()} pattern developing'
-            
-            return current_wave_info
-            
-        except Exception as e:
-            return {'current_wave': None, 'wave_progress': 0.0, 'error': str(e)}
-    
-    def _calculate_wave_confidence(self, wave_count: Dict, fibonacci_analysis: Dict) -> float:
-        """Calculate overall confidence in the wave count."""
-        try:
-            # Factors affecting confidence
-            confidence_factors = []
-            
-            # Validation score
-            validation_score = wave_count.get('validation_score', 0.0)
-            confidence_factors.append(validation_score * 0.4)
-            
-            # Fibonacci score
-            fibonacci_score = fibonacci_analysis.get('fibonacci_score', 0.0)
-            confidence_factors.append(fibonacci_score * 0.3)
-            
-            # Wave count completeness
-            waves = wave_count.get('waves', [])
-            if len(waves) in [3, 5]:  # Complete patterns
-                completeness_score = 1.0
-            elif len(waves) >= 4:
-                completeness_score = 0.8
-            else:
-                completeness_score = 0.5
-            confidence_factors.append(completeness_score * 0.2)
-            
-            # Structure clarity
-            structure_type = wave_count.get('structure_type', 'unknown')
-            if structure_type in ['impulse', 'corrective']:
-                structure_score = 1.0
-            elif structure_type == 'complex_correction':
-                structure_score = 0.7
-            else:
-                structure_score = 0.3
-            confidence_factors.append(structure_score * 0.1)
-            
-            # Calculate weighted confidence
-            total_confidence = sum(confidence_factors)
-            return max(0.0, min(1.0, total_confidence))
-            
-        except Exception:
-            return 0.0
-    
-    def _return_empty_results(self, error_msg: str = "") -> Dict:
-        """Return empty results structure."""
-        return {
-            'wave_count': 0,
-            'wave_structure': [],
-            'wave_type': 'unknown',
-            'current_wave': {'current_wave': None, 'wave_progress': 0.0},
-            'wave_confidence': 0.0,
-            'fibonacci_ratios': {'ratios': [], 'fibonacci_score': 0.0},
-            'wave_targets': {'targets': [], 'projections': []},
-            'alternative_counts': [],
-            'zigzag_points': [],
-            'error': error_msg
-        }
-
-# Example usage and testing
-if __name__ == "__main__":
-    # Generate sample data with Elliott Wave-like pattern
-    np.random.seed(42)
-    
-    # Create 5-wave impulse pattern
-    wave_data = []
-    base_price = 100
-    
-    # Wave 1 (up)
-    wave1 = np.linspace(base_price, base_price + 10, 20) + np.random.normal(0, 0.5, 20)
-    wave_data.extend(wave1)
-    
-    # Wave 2 (down, retraces 0.618 of wave 1)
-    wave2 = np.linspace(wave1[-1], wave1[-1] - 6.18, 12) + np.random.normal(0, 0.3, 12)
-    wave_data.extend(wave2)
-    
-    # Wave 3 (up, extends 1.618 times wave 1)
-    wave3 = np.linspace(wave2[-1], wave2[-1] + 16.18, 30) + np.random.normal(0, 0.4, 30)
-    wave_data.extend(wave3)
-    
-    # Wave 4 (down, shallow retracement)
-    wave4 = np.linspace(wave3[-1], wave3[-1] - 4, 15) + np.random.normal(0, 0.3, 15)
-    wave_data.extend(wave4)
-    
-    # Wave 5 (up, similar to wave 1)
-    wave5 = np.linspace(wave4[-1], wave4[-1] + 9.5, 18) + np.random.normal(0, 0.4, 18)
-    wave_data.extend(wave5)
-    
-    signal_data = np.array(wave_data)
-    
-    # Initialize wave counter
-    wave_counter = WaveCountCalculator(
-        min_wave_length=5,
-        zigzag_threshold=0.03,
-        fibonacci_tolerance=0.15
-    )
-    
-    # Analyze Elliott Waves
-    results = wave_counter.calculate(signal_data)
-    
-    print("Elliott Wave Count Results:")
-    print(f"Wave Count: {results['wave_count']}")
-    print(f"Wave Structure: {results['wave_type']}")
-    print(f"Wave Confidence: {results['wave_confidence']:.3f}")
-    print(f"Fibonacci Score: {results['fibonacci_ratios']['fibonacci_score']:.3f}")
-    print(f"Current Wave: {results['current_wave'].get('wave_number', 'N/A')}")
-    print(f"Pattern Status: {results['current_wave'].get('pattern_status', 'Unknown')}")
-    print(f"Zigzag Points: {len(results['zigzag_points'])}")
-    print(f"Alternative Counts: {len(results['alternative_counts'])}")
+            self.logger.error(f"Unexpected error in Elliott Wave analysis: {e}")
+            self.error_system.handle_error(e, self.__class__.__name__)
+            return None

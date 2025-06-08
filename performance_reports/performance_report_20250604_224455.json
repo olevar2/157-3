@@ -1,0 +1,70 @@
+{
+  "test_timestamp": "2025-06-04T22:44:55.218036",
+  "overall_score": 61.986089016877195,
+  "passes_all_benchmarks": false,
+  "total_operations": 4000,
+  "test_duration_seconds": 49.1323,
+  "performance_metrics": [
+    {
+      "name": "Average Latency",
+      "value": 117.78799107399854,
+      "unit": "ms",
+      "benchmark": 50.0,
+      "passes_benchmark": false,
+      "improvement_percent": 0.0
+    },
+    {
+      "name": "System Availability",
+      "value": 99.4,
+      "unit": "%",
+      "benchmark": 99.9,
+      "passes_benchmark": false,
+      "improvement_percent": 0.0
+    },
+    {
+      "name": "Peak Memory Usage",
+      "value": 5226.0234375,
+      "unit": "MB",
+      "benchmark": 2048.0,
+      "passes_benchmark": false,
+      "improvement_percent": 0.0
+    },
+    {
+      "name": "Peak CPU Usage",
+      "value": 86.3,
+      "unit": "%",
+      "benchmark": 80.0,
+      "passes_benchmark": false,
+      "improvement_percent": 0.0
+    },
+    {
+      "name": "Operations Throughput",
+      "value": 81.4128383975511,
+      "unit": "ops/sec",
+      "benchmark": 100.0,
+      "passes_benchmark": false,
+      "improvement_percent": 0.0
+    },
+    {
+      "name": "Error Rate",
+      "value": 0.6,
+      "unit": "%",
+      "benchmark": 0.1,
+      "passes_benchmark": false,
+      "improvement_percent": 0.0
+    }
+  ],
+  "recommendations": [
+    "\u26a1 Optimize latency: Current 117.8ms exceeds benchmark 50.0ms. Consider caching, connection pooling, or algorithm optimization.",
+    "\ud83d\udd04 Improve availability: Current 99.40% below benchmark 99.90%. Implement redundancy, failover mechanisms, and error handling improvements.",
+    "\ud83d\udcbe Optimize memory usage: Current 5226.0MB exceeds benchmark 2048.0MB. Consider memory pooling, garbage collection tuning, or data structure optimization.",
+    "\u2699\ufe0f Optimize CPU usage: Current 86.3% exceeds benchmark 80.0%. Consider algorithm optimization, parallel processing, or workload distribution.",
+    "\ud83d\ude80 Improve throughput: Current 81.4 ops/sec below benchmark 100.0 ops/sec. Consider async processing, batching, or horizontal scaling.",
+    "\ud83d\udd27 Reduce error rate: Current 0.60% exceeds benchmark 0.10%. Improve error handling, input validation, and system stability.",
+    "\ud83d\udcc8 High-frequency trading optimization needed: Consider message batching, in-memory processing, and reduced I/O operations.",
+    "\ud83c\udf10 Network resilience improvement needed: Implement retry mechanisms, circuit breakers, and local caching for network operations.",
+    "\u26a1 Failure recovery enhancement needed: Improve isolation, implement bulkheads, and enhance graceful degradation.",
+    "\ud83d\udcbb Resource management optimization needed: Implement resource limits, monitoring, and dynamic scaling capabilities."
+  ],
+  "historical_comparison": null
+}

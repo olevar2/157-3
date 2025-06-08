@@ -1,3 +1,7 @@
+import axios from 'axios';
+import { EventEmitter } from 'events';
+import { v4 as uuidv4 } from 'uuid';
+
 /**
  * Smart Order Router
  * Intelligent order routing for optimal execution and minimal slippage
@@ -15,10 +19,6 @@
  * - Reduced execution costs
  * - Enhanced fill rates and execution quality
  */
-
-import { EventEmitter } from 'events';
-import { v4 as uuidv4 } from 'uuid';
-import { Logger } from 'winston';
 
 export interface VenueQuote {
   venueId: string;
@@ -84,15 +84,15 @@ export interface ExecutionResult {
 }
 
 export class SmartOrderRouter extends EventEmitter {
-  private logger: Logger;
+  private pythonEngineUrl: string;
   private venues: Map<string, VenueQuote> = new Map();
   private routingHistory: Map<string, RoutingDecision> = new Map();
   private performanceMetrics: Map<string, any> = new Map();
 
-  constructor(logger: Logger) {
+  constructor() {
     super();
-    this.logger = logger;
-    this.logger.info('Smart Order Router initialized');
+    this.pythonEngineUrl = process.env.PYTHON_ENGINE_URL || 'http://localhost:8000';
+    console.log('Smart Order Router initialized');
   }
 
   /**
@@ -115,14 +115,14 @@ export class SmartOrderRouter extends EventEmitter {
       this.routingHistory.set(request.id, decision);
 
       const routingTime = performance.now() - startTime;
-      this.logger.info(`Order routed in ${routingTime.toFixed(2)}ms: ${request.id} -> ${decision.selectedVenue}`);
+      console.log(`Order routed in ${routingTime.toFixed(2)}ms: ${request.id} -> ${decision.selectedVenue}`);
 
       this.emit('orderRouted', { request, decision, routingTime });
 
       return decision;
 
     } catch (error) {
-      this.logger.error(`Error routing order ${request.id}:`, error);
+      console.error(`Error routing order ${request.id}:`, error);
       this.emit('routingError', { request, error });
       throw error;
     }

@@ -1,0 +1,330 @@
+import numpy as np
+import pandas as pd
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+
+from models.market_data import OHLCV
+from engines.base_pattern import BasePatternEngine
+
+"""
+Three Inside Up/Down Pattern Detection Engine
+
+Three Inside Up (Bullish reversal):
+- First candle: Long bearish candle
+- Second candle: Harami bullish candle (small bullish inside first candle)
+- Third candle: Bullish candle that closes above first candle's high
+
+Three Inside Down (Bearish reversal):
+- First candle: Long bullish candle
+- Second candle: Harami bearish candle (small bearish inside first candle)
+- Third candle: Bearish candle that closes below first candle's low
+"""
+
+from typing import List, Dict, Any, Optional
+from dataclasses import dataclass
+# from ..base_pattern import BasePatternEngine  # Fixed import
+# from ...models.market_data import OHLCV  # Fixed import
+# from ...utils.pattern_validation import PatternValidator  # Fixed import
+
+
+@dataclass
+class ThreeInsideSignal:
+    """Signal data for Three Inside Up/Down patterns"""
+    pattern_type: str  # 'three_inside_up' or 'three_inside_down'
+    confidence: float
+    entry_price: float
+    stop_loss: float
+    target_price: float
+    timestamp: str
+    candles_involved: List[OHLCV]
+    harami_ratio: float
+    breakout_strength: float
+    strength: str  # 'weak', 'moderate', 'strong'
+
+
+class ThreeInsidePatternEngine(BasePatternEngine):
+    """
+    Three Inside Up/Down Pattern Detection and Signal Generation Engine
+    
+    Detects both bullish and bearish three-candle reversal patterns
+    """
+    
+    def __init__(self, min_first_body_ratio: float = 0.6, max_harami_ratio: float = 0.8, min_breakout: float = 0.1):
+        super().__init__()
+        self.min_first_body_ratio = min_first_body_ratio  # Minimum body ratio for first candle
+        self.max_harami_ratio = max_harami_ratio  # Maximum size of harami relative to first candle
+        self.min_breakout = min_breakout  # Minimum breakout distance as % of first candle range
+
+        
+    def detect_three_inside_pattern(self, candles: List[OHLCV]) -> Optional[Dict[str, Any]]:
+        """
+        Detect Three Inside Up/Down pattern in the given candles
+        
+        Args:
+            candles: List of OHLCV data (minimum 3 candles needed)
+            
+        Returns:
+            Pattern detection result or None if no pattern found
+        """
+        if len(candles) < 3:
+            return None
+            
+        # Get the last three candles
+        first_candle = candles[-3]
+        second_candle = candles[-2]
+        third_candle = candles[-1]
+        
+        # Check for three inside up pattern
+        inside_up_result = self._detect_three_inside_up(first_candle, second_candle, third_candle)
+        if inside_up_result:
+            return inside_up_result
+            
+        # Check for three inside down pattern
+        inside_down_result = self._detect_three_inside_down(first_candle, second_candle, third_candle)
+        if inside_down_result:
+            return inside_down_result
+            
+        return None
+        
+    def _detect_three_inside_up(self, first: OHLCV, second: OHLCV, third: OHLCV) -> Optional[Dict[str, Any]]:
+        """Detect three inside up pattern"""
+        # First candle should be long bearish
+        if not self._is_long_bearish(first):
+            return None
+            
+        # Second candle should be bullish harami inside first candle
+        if not self._is_bullish_harami(first, second):
+            return None
+            
+        # Third candle should be bullish and close above first candle's high
+        if third.close <= third.open:  # Must be bullish
+            return None
+            
+        if third.close <= first.high:  # Must break above first candle's high
+            return None
+            
+        # Calculate harami ratio
+        first_body_size = first.open - first.close
+        second_body_size = second.close - second.open
+        harami_ratio = second_body_size / first_body_size if first_body_size > 0 else 0
+        
+        # Calculate breakout strength
+        breakout_distance = third.close - first.high
+        first_range = first.high - first.low
+        breakout_strength = (breakout_distance / first_range) * 100 if first_range > 0 else 0
+        
+        if breakout_strength < self.min_breakout:
+            return None
+            
+        # Calculate pattern strength
+        strength = self._calculate_pattern_strength(harami_ratio, breakout_strength)
+        
+        return {
+            'pattern_type': 'three_inside_up',
+            'confidence': self._calculate_confidence(first, second, third, harami_ratio, breakout_strength),
+            'harami_ratio': harami_ratio,
+            'breakout_strength': breakout_strength,
+            'strength': strength,
+            'candles': [first, second, third]
+        }
+        
+    def _detect_three_inside_down(self, first: OHLCV, second: OHLCV, third: OHLCV) -> Optional[Dict[str, Any]]:
+        """Detect three inside down pattern"""
+        # First candle should be long bullish
+        if not self._is_long_bullish(first):
+            return None
+            
+        # Second candle should be bearish harami inside first candle
+        if not self._is_bearish_harami(first, second):
+            return None
+            
+        # Third candle should be bearish and close below first candle's low
+        if third.close >= third.open:  # Must be bearish
+            return None
+            
+        if third.close >= first.low:  # Must break below first candle's low
+            return None
+            
+        # Calculate harami ratio
+        first_body_size = first.close - first.open
+        second_body_size = second.open - second.close
+        harami_ratio = second_body_size / first_body_size if first_body_size > 0 else 0
+        
+        # Calculate breakout strength
+        breakout_distance = first.low - third.close
+        first_range = first.high - first.low
+        breakout_strength = (breakout_distance / first_range) * 100 if first_range > 0 else 0
+        
+        if breakout_strength < self.min_breakout:
+            return None
+            
+        # Calculate pattern strength
+        strength = self._calculate_pattern_strength(harami_ratio, breakout_strength)
+        
+        return {
+            'pattern_type': 'three_inside_down',
+            'confidence': self._calculate_confidence(first, second, third, harami_ratio, breakout_strength),
+            'harami_ratio': harami_ratio,
+            'breakout_strength': breakout_strength,
+            'strength': strength,
+            'candles': [first, second, third]
+        }
+        
+    def _is_long_bullish(self, candle: OHLCV) -> bool:
+        """Check if candle is long bullish"""
+        if candle.close <= candle.open:
+            return False
+            
+        body_size = candle.close - candle.open
+        total_range = candle.high - candle.low
+        
+        if total_range == 0:
+            return False
+            
+        body_ratio = body_size / total_range
+        return body_ratio >= self.min_first_body_ratio
+        
+    def _is_long_bearish(self, candle: OHLCV) -> bool:
+        """Check if candle is long bearish"""
+        if candle.close >= candle.open:
+            return False
+            
+        body_size = candle.open - candle.close
+        total_range = candle.high - candle.low
+        
+        if total_range == 0:
+            return False
+            
+        body_ratio = body_size / total_range
+        return body_ratio >= self.min_first_body_ratio
+        
+    def _is_bullish_harami(self, mother: OHLCV, baby: OHLCV) -> bool:
+        """Check if baby candle is bullish harami inside mother candle"""
+        # Baby must be bullish
+        if baby.close <= baby.open:
+            return False
+            
+        # Baby must be completely inside mother candle
+        if baby.high >= mother.high or baby.low <= mother.low:
+            return False
+            
+        if baby.open <= mother.close or baby.close >= mother.open:
+            return False
+            
+        # Check harami size ratio
+        mother_body_size = mother.open - mother.close
+        baby_body_size = baby.close - baby.open
+        
+        if mother_body_size <= 0:
+            return False
+            
+        harami_ratio = baby_body_size / mother_body_size
+        return harami_ratio <= self.max_harami_ratio
+        
+    def _is_bearish_harami(self, mother: OHLCV, baby: OHLCV) -> bool:
+        """Check if baby candle is bearish harami inside mother candle"""
+        # Baby must be bearish
+        if baby.close >= baby.open:
+            return False
+            
+        # Baby must be completely inside mother candle
+        if baby.high >= mother.high or baby.low <= mother.low:
+            return False
+            
+        if baby.open >= mother.close or baby.close <= mother.open:
+            return False
+            
+        # Check harami size ratio
+        mother_body_size = mother.close - mother.open
+        baby_body_size = baby.open - baby.close
+        
+        if mother_body_size <= 0:
+            return False
+            
+        harami_ratio = baby_body_size / mother_body_size
+        return harami_ratio <= self.max_harami_ratio
+        
+    def _calculate_pattern_strength(self, harami_ratio: float, breakout_strength: float) -> str:
+        """Calculate pattern strength based on harami characteristics and breakout"""
+        if harami_ratio <= 0.4 and breakout_strength >= 1.0:
+            return 'strong'
+        elif harami_ratio <= 0.6 and breakout_strength >= 0.5:
+            return 'moderate'
+        else:
+            return 'weak'
+            
+    def _calculate_confidence(self, first: OHLCV, second: OHLCV, third: OHLCV, 
+                            harami_ratio: float, breakout_strength: float) -> float:
+        """Calculate pattern confidence score"""
+        confidence = 0.5  # Base confidence
+        
+        # Add confidence based on first candle strength
+        first_body_ratio = abs(first.close - first.open) / (first.high - first.low)
+        if first_body_ratio >= 0.8:
+            confidence += 0.15
+        elif first_body_ratio >= 0.7:
+            confidence += 0.1
+        else:
+            confidence += 0.05
+            
+        # Add confidence based on harami characteristics
+        if harami_ratio <= 0.4:
+            confidence += 0.15
+        elif harami_ratio <= 0.6:
+            confidence += 0.1
+        else:
+            confidence += 0.05
+            
+        # Add confidence based on breakout strength
+        if breakout_strength >= 1.0:
+            confidence += 0.2
+        elif breakout_strength >= 0.5:
+            confidence += 0.15
+        else:
+            confidence += 0.1
+            
+        # Add confidence based on third candle strength
+        third_body_ratio = abs(third.close - third.open) / (third.high - third.low)
+        if third_body_ratio >= 0.6:
+            confidence += 0.1
+        elif third_body_ratio >= 0.4:
+            confidence += 0.05
+            
+        return min(confidence, 0.95)  # Cap at 95%
+        
+    def generate_signal(self, pattern_data: Dict[str, Any]) -> ThreeInsideSignal:
+        """Generate trading signal from pattern detection"""
+        candles = pattern_data['candles']
+        third_candle = candles[-1]
+        
+        if pattern_data['pattern_type'] == 'three_inside_up':
+            entry_price = third_candle.close
+            stop_loss = min(candle.low for candle in candles) * 0.995  # 0.5% buffer
+            target_price = entry_price + (entry_price - stop_loss) * 2  # 2:1 R/R ratio
+        else:  # three_inside_down
+            entry_price = third_candle.close
+            stop_loss = max(candle.high for candle in candles) * 1.005  # 0.5% buffer
+            target_price = entry_price - (stop_loss - entry_price) * 2  # 2:1 R/R ratio
+            
+        return ThreeInsideSignal(
+            pattern_type=pattern_data['pattern_type'],
+            confidence=pattern_data['confidence'],
+            entry_price=entry_price,
+            stop_loss=stop_loss,
+            target_price=target_price,
+            timestamp=third_candle.timestamp,
+            candles_involved=candles,
+            harami_ratio=pattern_data['harami_ratio'],
+            breakout_strength=pattern_data['breakout_strength'],
+            strength=pattern_data['strength']
+        )
+        
+    def validate_pattern(self, pattern_data: Dict[str, Any]) -> bool:
+        """Validate the detected pattern"""
+        return self.validator.validate_three_inside_pattern(pattern_data)

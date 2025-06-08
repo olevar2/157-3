@@ -1,3 +1,7 @@
+import axios from 'axios';
+import { EventEmitter } from 'events';
+import { v4 as uuidv4 } from 'uuid';
+
 /**
  * Day Trading Bracket Order
  * Entry + Stop Loss + Take Profit order combination for intraday trading
@@ -16,19 +20,70 @@
  * - Professional day trading order management
  */
 
-import { EventEmitter } from 'events';
-import { v4 as uuidv4 } from 'uuid';
-import { Logger } from 'winston'; // Assuming winston logger
-import {
-  OrderSide,
-  OrderType,
-  OrderStatus,
-  TimeInForce,
-  BaseOrderParams,
-  Order,
-  OrderFillEvent,
-  // TradingSession, // If defined in ScalpingOCOOrder or a shared types file
-} from './ScalpingOCOOrder'; // Reuse types
+// Basic trading types
+export enum OrderSide {
+  BUY = 'BUY',
+  SELL = 'SELL'
+}
+
+export enum OrderType {
+  MARKET = 'MARKET',
+  LIMIT = 'LIMIT',
+  STOP = 'STOP',
+  STOP_LIMIT = 'STOP_LIMIT'
+}
+
+export enum OrderStatus {
+  PENDING = 'PENDING',
+  ACTIVE = 'ACTIVE', 
+  FILLED = 'FILLED',
+  CANCELED = 'CANCELED',
+  REJECTED = 'REJECTED',
+  EXPIRED = 'EXPIRED'
+}
+
+export enum TimeInForce {
+  GTC = 'GTC', // Good Till Canceled
+  IOC = 'IOC', // Immediate Or Cancel
+  FOK = 'FOK', // Fill Or Kill
+  DAY = 'DAY'  // Day order
+}
+
+export interface BaseOrderParams {
+  symbol: string;
+  side: OrderSide;
+  quantity: number;
+  accountId: string;
+  userId: string;
+  clientOrderId?: string;
+}
+
+export interface Order {
+  id: string;
+  symbol: string;
+  side: OrderSide;
+  quantity: number;
+  accountId: string;
+  userId: string;
+  type: OrderType;
+  status: OrderStatus;
+  filledQuantity: number;
+  averageFillPrice?: number;
+  price?: number;
+  stopPrice?: number;
+  createdAt: Date;
+  updatedAt: Date;
+  timeInForce: TimeInForce;
+  metadata?: any;
+  clientOrderId?: string;
+}
+
+export interface OrderFillEvent {
+  orderId: string;
+  fillPrice: number;
+  fillQuantity: number;
+  timestamp: Date;
+}
 
 // --- Enhanced Bracket Order Specific Types ---
 
@@ -112,15 +167,13 @@ export interface DayTradingBracketOrderState {
  */
 export class DayTradingBracketOrderManager extends EventEmitter {
   private bracketOrders: Map<string, DayTradingBracketOrderState> = new Map();
-  private logger: Logger;
-  // private omsClient: OrderManagementSystem; // Hypothetical OMS client
+  private pythonEngineUrl: string;
   private sessionTimers: Map<string, NodeJS.Timeout> = new Map();
 
-  constructor(logger: Logger /*, omsClient: OrderManagementSystem */) {
+  constructor() {
     super();
-    this.logger = logger;
-    // this.omsClient = omsClient;
-    this.logger.info('DayTradingBracketOrderManager initialized.');
+    this.pythonEngineUrl = process.env.PYTHON_ENGINE_URL || 'http://localhost:8000';
+    console.log('DayTradingBracketOrderManager initialized.');
   }
 
   private _validateInput(input: DayTradingBracketOrderInput): void {
@@ -211,7 +264,7 @@ export class DayTradingBracketOrderManager extends EventEmitter {
     };
 
     this.bracketOrders.set(bracketOrderId, initialState);
-    this.logger.info(`Bracket Order ${bracketOrderId} PENDING_ENTRY.`, initialState);
+    console.log(`Bracket Order ${bracketOrderId} PENDING_ENTRY.`, initialState);
     this.emit('bracketOrderCreated', initialState);
 
     // TODO: Implement session checking logic if activateDuringSessions is set.
@@ -246,7 +299,7 @@ export class DayTradingBracketOrderManager extends EventEmitter {
       initialState.updatedAt = new Date();
       initialState.executionLatencyMs = performance.now() - activationStartTime;
 
-      this.logger.info(`Bracket ${bracketOrderId}: Entry order ${entryOrderLeg.id} placed. Status: ${initialState.status}. Latency: ${initialState.executionLatencyMs.toFixed(2)}ms`);
+      console.log(`Bracket ${bracketOrderId}: Entry order ${entryOrderLeg.id} placed. Status: ${initialState.status}. Latency: ${initialState.executionLatencyMs.toFixed(2)}ms`);
       this.emit('bracketEntryPlaced', initialState);
 
       if (initialState.cancelOutsideSessions && initialState.activationConditions?.sessions) {
@@ -254,7 +307,7 @@ export class DayTradingBracketOrderManager extends EventEmitter {
       }
 
     } catch (error: any) {
-      this.logger.error(`Bracket ${bracketOrderId}: Failed to place entry order: ${error.message}`, { input });
+      console.error(`Bracket ${bracketOrderId}: Failed to place entry order: ${error.message}`, { input });
       initialState.status = BracketStatus.REJECTED;
       initialState.updatedAt = new Date();
       this.bracketOrders.set(bracketOrderId, initialState);
@@ -268,7 +321,7 @@ export class DayTradingBracketOrderManager extends EventEmitter {
   public async handleOrderUpdate(orderId: string, update: { status: OrderStatus; fill?: OrderFillEvent; filledQuantity?: number; averageFillPrice?: number }): Promise<void> {
     const bracketOrder = this._findBracketOrderByLegId(orderId);
     if (!bracketOrder) {
-      this.logger.warn(`Received update for order ${orderId} not part of a known Bracket order.`);
+      console.warn(`Received update for order ${orderId} not part of a known Bracket order.`);
       return;
     }
 
@@ -293,7 +346,7 @@ export class DayTradingBracketOrderManager extends EventEmitter {
       const entryFillPrice = typeof update.averageFillPrice === 'number' ? update.averageFillPrice : legToUpdate.price;
 
       if (typeof entryFillPrice !== 'number') {
-        this.logger.error(`Bracket ${bracketOrder.bracketOrderId}: Entry filled but no valid entry price (averageFillPrice or leg.price) found.`);
+        console.error(`Bracket ${bracketOrder.bracketOrderId}: Entry filled but no valid entry price (averageFillPrice or leg.price) found.`);
         bracketOrder.status = BracketStatus.REJECTED;
         this.emit('bracketCreationFailed', { bracketOrder, error: new Error('Missing entry fill price') });
         return;
@@ -301,7 +354,7 @@ export class DayTradingBracketOrderManager extends EventEmitter {
       bracketOrder.actualEntryPrice = entryFillPrice;
       bracketOrder.status = BracketStatus.ACTIVE;
       bracketOrder.entryFilledAt = now;
-      this.logger.info(`Bracket ${bracketOrder.bracketOrderId}: Entry order ${orderId} FILLED at ${bracketOrder.actualEntryPrice}.`);
+      console.log(`Bracket ${bracketOrder.bracketOrderId}: Entry order ${orderId} FILLED at ${bracketOrder.actualEntryPrice}.`);
       this.emit('bracketEntryFilled', bracketOrder);
 
       const { tpPrice, slPrice } = this._calculateExitPrices(bracketOrder, bracketOrder.actualEntryPrice);
@@ -341,14 +394,14 @@ export class DayTradingBracketOrderManager extends EventEmitter {
         }
         bracketOrder.stopLossOrder = await this._placeOrderWithOMS(slLegPayload as Parameters<typeof this._placeOrderWithOMS>[0]);
 
-        this.logger.info(`Bracket ${bracketOrder.bracketOrderId}: TP (${tpPrice}) and SL (${slPrice}) orders placed.`);
+        console.log(`Bracket ${bracketOrder.bracketOrderId}: TP (${tpPrice}) and SL (${slPrice}) orders placed.`);
         this.emit('bracketTpslPlaced', bracketOrder);
       } catch (error: any) {
-        this.logger.error(`Bracket ${bracketOrder.bracketOrderId}: Failed to place TP/SL orders: ${error.message}`);
+        console.error(`Bracket ${bracketOrder.bracketOrderId}: Failed to place TP/SL orders: ${error.message}`);
         bracketOrder.status = BracketStatus.REJECTED; // Or a state indicating partial failure
         // Attempt to cancel the entry order if possible, or flag for manual intervention
         if (bracketOrder.entryOrder && bracketOrder.entryOrder.status === OrderStatus.FILLED) {
-            this.logger.warn(`Bracket ${bracketOrder.bracketOrderId}: Entry was filled, but TP/SL placement failed. Position is open without protection.`);
+            console.warn(`Bracket ${bracketOrder.bracketOrderId}: Entry was filled, but TP/SL placement failed. Position is open without protection.`);
             // Potentially emit a high-priority alert here
         }
         this.emit('bracketTpslFailed', { bracketOrder, error });
@@ -357,21 +410,21 @@ export class DayTradingBracketOrderManager extends EventEmitter {
       bracketOrder.status = BracketStatus.FILLED;
       bracketOrder.triggeredLeg = legToUpdate.legType;
       bracketOrder.completedAt = now;
-      this.logger.info(`Bracket ${bracketOrder.bracketOrderId}: ${legToUpdate.legType} order ${orderId} FILLED.`);
+      console.log(`Bracket ${bracketOrder.bracketOrderId}: ${legToUpdate.legType} order ${orderId} FILLED.`);
       this.emit('bracketLegFilled', { bracketOrder, legType: legToUpdate.legType, fill: update.fill });
 
       const otherLeg = legToUpdate.legType === 'TAKE_PROFIT' ? bracketOrder.stopLossOrder : bracketOrder.takeProfitOrder;
       if (otherLeg && (otherLeg.status === OrderStatus.ACTIVE || otherLeg.status === OrderStatus.PENDING)) {
         try {
           await this._cancelOrderLegWithOMS(otherLeg.id, bracketOrder.bracketOrderId, `bracket_leg_${update.status.toLowerCase()}`);
-          this.logger.info(`Bracket ${bracketOrder.bracketOrderId}: Canceled other leg ${otherLeg.id}.`);
+          console.log(`Bracket ${bracketOrder.bracketOrderId}: Canceled other leg ${otherLeg.id}.`);
         } catch (error: any) {
-          this.logger.error(`Bracket ${bracketOrder.bracketOrderId}: Failed to cancel other leg ${otherLeg.id}: ${error.message}`);
+          console.error(`Bracket ${bracketOrder.bracketOrderId}: Failed to cancel other leg ${otherLeg.id}: ${error.message}`);
         }
       }
       this._clearSessionTimer(bracketOrder.bracketOrderId);
     } else if (update.status === OrderStatus.CANCELED || update.status === OrderStatus.REJECTED || update.status === OrderStatus.EXPIRED) {
-      this.logger.info(`Bracket ${bracketOrder.bracketOrderId}: Leg ${legToUpdate.id} (${legToUpdate.legType}) is ${update.status}.`);
+      console.log(`Bracket ${bracketOrder.bracketOrderId}: Leg ${legToUpdate.id} (${legToUpdate.legType}) is ${update.status}.`);
       // If entry order fails/cancels, cancel the whole bracket
       if (legToUpdate.legType === 'ENTRY' && bracketOrder.status !== BracketStatus.FILLED && bracketOrder.status !== BracketStatus.CANCELED) {
         await this.cancelBracketOrder(bracketOrder.bracketOrderId, `entry_leg_${update.status.toLowerCase()}`);
@@ -384,7 +437,7 @@ export class DayTradingBracketOrderManager extends EventEmitter {
       else if ((legToUpdate.legType === 'TAKE_PROFIT' || legToUpdate.legType === 'STOP_LOSS') && bracketOrder.status === BracketStatus.ACTIVE) {
         const otherLeg = legToUpdate.legType === 'TAKE_PROFIT' ? bracketOrder.stopLossOrder : bracketOrder.takeProfitOrder;
         if (otherLeg && (otherLeg.status === OrderStatus.ACTIVE || otherLeg.status === OrderStatus.PENDING)) {
-            this.logger.info(`Bracket ${bracketOrder.bracketOrderId}: One OCO leg (${legToUpdate.legType}) is ${update.status}. Cancelling the other leg ${otherLeg.id}.`);
+            console.log(`Bracket ${bracketOrder.bracketOrderId}: One OCO leg (${legToUpdate.legType}) is ${update.status}. Cancelling the other leg ${otherLeg.id}.`);
             await this._cancelOrderLegWithOMS(otherLeg.id, bracketOrder.bracketOrderId, `other_leg_of_failed_${legToUpdate.legType}`);
         }
         // Consider if the whole bracket should be marked as CANCELED or a special state like 'MANUAL_INTERVENTION_REQUIRED'
@@ -394,7 +447,7 @@ export class DayTradingBracketOrderManager extends EventEmitter {
             if (bracketOrder.entryOrder?.status !== OrderStatus.FILLED) {
                  await this.cancelBracketOrder(bracketOrder.bracketOrderId, `all_legs_inactive_before_entry_fill`);
             } else {
-                this.logger.warn(`Bracket ${bracketOrder.bracketOrderId}: Both TP/SL legs are inactive, but entry was filled. Position is unprotected.`);
+                console.warn(`Bracket ${bracketOrder.bracketOrderId}: Both TP/SL legs are inactive, but entry was filled. Position is unprotected.`);
                 // Potentially change bracket status to something like 'UNPROTECTED'
             }
         }
@@ -406,16 +459,16 @@ export class DayTradingBracketOrderManager extends EventEmitter {
   public async cancelBracketOrder(bracketOrderId: string, reason?: string): Promise<DayTradingBracketOrderState | null> {
     const bracketOrder = this.bracketOrders.get(bracketOrderId);
     if (!bracketOrder) {
-      this.logger.warn(`Bracket Order ${bracketOrderId} not found for cancellation.`);
+      console.warn(`Bracket Order ${bracketOrderId} not found for cancellation.`);
       return null;
     }
 
     if (bracketOrder.status === BracketStatus.FILLED || bracketOrder.status === BracketStatus.CANCELED || bracketOrder.status === BracketStatus.REJECTED) {
-      this.logger.info(`Bracket Order ${bracketOrderId} is already in a terminal state: ${bracketOrder.status}. No action taken.`);
+      console.log(`Bracket Order ${bracketOrderId} is already in a terminal state: ${bracketOrder.status}. No action taken.`);
       return bracketOrder;
     }
 
-    this.logger.info(`Cancelling Bracket Order ${bracketOrderId}. Reason: ${reason || 'N/A'}`);
+    console.log(`Cancelling Bracket Order ${bracketOrderId}. Reason: ${reason || 'N/A'}`);
     const cancelPromises: Promise<any>[] = [];
     if (bracketOrder.entryOrder && (bracketOrder.entryOrder.status === OrderStatus.ACTIVE || bracketOrder.entryOrder.status === OrderStatus.PENDING)) {
       cancelPromises.push(this._cancelOrderLegWithOMS(bracketOrder.entryOrder.id, bracketOrderId, reason));
@@ -437,10 +490,10 @@ export class DayTradingBracketOrderManager extends EventEmitter {
       if(bracketOrder.takeProfitOrder) bracketOrder.takeProfitOrder.status = OrderStatus.CANCELED;
       if(bracketOrder.stopLossOrder) bracketOrder.stopLossOrder.status = OrderStatus.CANCELED;
 
-      this.logger.info(`Bracket Order ${bracketOrderId} canceled successfully.`);
+      console.log(`Bracket Order ${bracketOrderId} canceled successfully.`);
       this.emit('bracketOrderCanceled', bracketOrder);
     } catch (error: any) {
-      this.logger.error(`Bracket Order ${bracketOrderId}: Failed to cancel one or more legs: ${error.message}`);
+      console.error(`Bracket Order ${bracketOrderId}: Failed to cancel one or more legs: ${error.message}`);
       bracketOrder.status = BracketStatus.REJECTED; // Or a custom "PARTIALLY_CANCELED" status
       this.emit('bracketCancelFailed', { bracketOrder, error });
     }
@@ -467,7 +520,7 @@ export class DayTradingBracketOrderManager extends EventEmitter {
     await new Promise(resolve => setTimeout(resolve, Math.random() * 10 + 5)); // Simulate 5-15ms latency
     const orderId = uuidv4();
     const now = new Date();
-    this.logger.debug(`OMS: Placing ${params.type} order for ${params.symbol}`, params);
+    console.log(`OMS: Placing ${params.type} order for ${params.symbol}`, params);
 
     const placedOrder: BracketLeg = {
       id: orderId,
@@ -495,7 +548,7 @@ export class DayTradingBracketOrderManager extends EventEmitter {
 
   private async _cancelOrderLegWithOMS(orderId: string, bracketOrderId: string, reason?: string): Promise<{ success: boolean; orderId: string }> {
     await new Promise(resolve => setTimeout(resolve, Math.random() * 8 + 2)); // Simulate 2-10ms latency
-    this.logger.debug(`OMS: Cancelling order ${orderId} (Bracket: ${bracketOrderId}). Reason: ${reason || 'N/A'}`);
+    console.log(`OMS: Cancelling order ${orderId} (Bracket: ${bracketOrderId}). Reason: ${reason || 'N/A'}`);
     
     const bracketOrder = this.bracketOrders.get(bracketOrderId);
     if (bracketOrder) {
@@ -523,7 +576,7 @@ export class DayTradingBracketOrderManager extends EventEmitter {
     if (sessions.includes(TradingSession.NEW_YORK) && currentHour >= 12 && currentHour < 21) return true; // Approx NY
     if (sessions.includes(TradingSession.ASIAN) && (currentHour >= 23 || currentHour < 8)) return true; // Approx Asian
     // Overlaps would need more precise logic
-    this.logger.debug(`Session check: currentHourUTC=${currentHour}, requiredSessions=${sessions}. No active session matched.`);
+    console.log(`Session check: currentHourUTC=${currentHour}, requiredSessions=${sessions}. No active session matched.`);
     return false;
   }
 
@@ -532,11 +585,11 @@ export class DayTradingBracketOrderManager extends EventEmitter {
     // to check session boundaries and cancel orders if `cancelOutsideSessions` is true.
     // For this example, we'll just log a warning if it's not currently in session.
     if (!this._isSessionActive(sessions)) {
-        this.logger.warn(`Bracket ${bracketOrderId}: Order created/activated outside of specified sessions [${sessions.join(', ')}]. It might not execute as expected or be canceled if cancelOutsideSessions is true.`);
+        console.warn(`Bracket ${bracketOrderId}: Order created/activated outside of specified sessions [${sessions.join(', ')}]. It might not execute as expected or be canceled if cancelOutsideSessions is true.`);
         // If cancelOutsideSessions is true, and it's already outside session, cancel immediately.
         const order = this.bracketOrders.get(bracketOrderId);
         if(order && order.cancelOutsideSessions){
-            this.logger.info(`Bracket ${bracketOrderId}: Cancelling immediately as it is outside active sessions and cancelOutsideSessions is true.`);
+            console.log(`Bracket ${bracketOrderId}: Cancelling immediately as it is outside active sessions and cancelOutsideSessions is true.`);
             this.cancelBracketOrder(bracketOrderId, "created_outside_active_session");
             return;
         }
@@ -550,7 +603,7 @@ export class DayTradingBracketOrderManager extends EventEmitter {
         if (order && order.cancelOutsideSessions && 
             (order.status === BracketStatus.PENDING_ENTRY || order.status === BracketStatus.ENTRY_PLACED || order.status === BracketStatus.ACTIVE)) {
             if (!this._isSessionActive(order.activationConditions?.sessions)) {
-                this.logger.info(`Bracket ${bracketOrderId}: Active session ended. Cancelling order due to cancelOutsideSessions policy.`);
+                console.log(`Bracket ${bracketOrderId}: Active session ended. Cancelling order due to cancelOutsideSessions policy.`);
                 this.cancelBracketOrder(bracketOrderId, "session_ended");
             }
         }
@@ -562,13 +615,13 @@ export class DayTradingBracketOrderManager extends EventEmitter {
     if (this.sessionTimers.has(bracketOrderId)) {
       clearInterval(this.sessionTimers.get(bracketOrderId)!);
       this.sessionTimers.delete(bracketOrderId);
-      this.logger.debug(`Cleared session timer for bracket ${bracketOrderId}`);
+      console.log(`Cleared session timer for bracket ${bracketOrderId}`);
     }
   }
 
   // Call this method when the application is shutting down to clean up timers
   public dispose(): void {
-    this.logger.info('Disposing DayTradingBracketOrderManager, clearing all session timers.');
+    console.log('Disposing DayTradingBracketOrderManager, clearing all session timers.');
     for (const bracketId of this.sessionTimers.keys()) {
         this._clearSessionTimer(bracketId);
     }

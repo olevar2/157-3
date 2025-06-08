@@ -1,0 +1,107 @@
+================================================================================
+AGENT INDICATOR USAGE ANALYSIS REPORT
+================================================================================
+Analysis Timestamp: 2025-06-07T07:23:39.827677
+File Analyzed: d:/MD/Platform3/engines/ai_enhancement/adaptive_indicator_bridge.py
+
+SUMMARY STATISTICS
+----------------------------------------
+Total Agents: 9
+Total Unique Indicators: 157
+Average Indicators per Agent: 55.11
+Total Categories: 18
+
+AGENT BREAKDOWN
+----------------------------------------
+
+RISK_GENIUS:
+  Total Indicators: 42
+  Unique Indicators: 0
+  Category Breakdown: {'unknown': 15, 'statistical': 13, 'ml_advanced': 4, 'adaptive': 2, 'volatility': 7, 'institutional': 1}
+  Sample Indicators: adaptive_rsi, advanced_ml_engine, attractor_point, autocorrelation_indicator, beta_coefficient_indicator...
+
+PATTERN_MASTER:
+  Total Indicators: 65
+  Unique Indicators: 0
+  Category Breakdown: {'pattern': 23, 'unknown': 22, 'fibonacci': 6, 'gann': 6, 'elliott_wave': 3, 'cycle': 3, 'divergence': 2}
+  Sample Indicators: abandoned_baby_signal, attractor_point, belt_hold_type, confluence_area, cycle_period_identification...
+
+EXECUTION_EXPERT:
+  Total Indicators: 46
+  Unique Indicators: 0
+  Category Breakdown: {'unknown': 27, 'fibonacci': 1, 'volume': 4, 'momentum': 3, 'divergence': 1, 'adaptive': 2, 'pattern': 6, 'pivot': 1, 'institutional': 1}
+  Sample Indicators: accumulation_distribution_signal, adaptive_rsi, block_trade_signal, chaikin_money_flow_signal, correlation_matrix...
+
+DECISION_MASTER:
+  Total Indicators: 157
+  Unique Indicators: 2
+  Category Breakdown: {'pattern': 23, 'unknown': 58, 'trend': 8, 'fibonacci': 6, 'momentum': 7, 'cycle': 8, 'volume': 4, 'ml_advanced': 4, 'gann': 6, 'divergence': 3, 'statistical': 13, 'volatility': 7, 'adaptive': 2, 'institutional': 1, 'sentiment': 3, 'elliott_wave': 3, 'pivot': 1}
+  Sample Indicators: abandoned_baby_signal, accumulation_distribution_signal, adaptive_rsi, advanced_ml_engine, all_indicators_access...
+
+SESSION_EXPERT:
+  Total Indicators: 31
+  Unique Indicators: 0
+  Category Breakdown: {'trend': 8, 'fibonacci': 6, 'cycle': 8, 'elliott_wave': 2, 'gann': 2, 'unknown': 4, 'pivot': 1}
+  Sample Indicators: alligator_trend, aroon_indicator, average_true_range, bollinger_bands, confluence_area...
+
+PAIR_SPECIALIST:
+  Total Indicators: 48
+  Unique Indicators: 0
+  Category Breakdown: {'unknown': 15, 'trend': 5, 'momentum': 7, 'statistical': 13, 'ml_advanced': 3, 'adaptive': 2, 'volatility': 2, 'institutional': 1}
+  Sample Indicators: adaptive_rsi, advanced_ml_engine, aroon_indicator, autocorrelation_indicator, average_true_range...
+
+AI_MODEL_COORDINATOR:
+  Total Indicators: 29
+  Unique Indicators: 0
+  Category Breakdown: {'unknown': 15, 'statistical': 8, 'ml_advanced': 4, 'adaptive': 2}
+  Sample Indicators: adaptive_rsi, advanced_ml_engine, attractor_point, autocorrelation_indicator, beta_coefficient_indicator...
+
+MARKET_MICROSTRUCTURE_GENIUS:
+  Total Indicators: 47
+  Unique Indicators: 0
+  Category Breakdown: {'unknown': 25, 'volume': 4, 'momentum': 5, 'ml_advanced': 2, 'divergence': 3, 'volatility': 7, 'institutional': 1}
+  Sample Indicators: accumulation_distribution_signal, advanced_ml_engine, block_trade_signal, chaikin_money_flow_signal, chaikin_volatility...
+
+SENTIMENT_INTEGRATION_GENIUS:
+  Total Indicators: 31
+  Unique Indicators: 0
+  Category Breakdown: {'unknown': 10, 'sentiment': 3, 'momentum': 5, 'ml_advanced': 4, 'trend': 1, 'statistical': 5, 'volatility': 2, 'institutional': 1}
+  Sample Indicators: advanced_ml_engine, average_true_range, block_trade_signal, chaikin_volatility, composite_signal...
+
+CATEGORY DISTRIBUTION
+----------------------------------------
+volume: 4 indicators
+pattern: 25 indicators
+elliott_wave: 3 indicators
+fibonacci: 6 indicators
+statistical: 13 indicators
+momentum: 17 indicators
+trend: 8 indicators
+volatility: 7 indicators
+ml_advanced: 4 indicators
+cycle: 8 indicators
+divergence: 4 indicators
+core_momentum: 3 indicators
+core_trend: 7 indicators
+gann: 6 indicators
+pivot: 1 indicators
+sentiment: 3 indicators
+adaptive: 2 indicators
+institutional: 1 indicators
+
+INDICATOR SHARING ANALYSIS
+----------------------------------------
+Shared Indicators: 155
+Most Shared Indicator: primary_indicators (used by 9 agents)
+
+Top Shared Indicators:
+  primary_indicators: 9 agents (RISK_GENIUS, PATTERN_MASTER, EXECUTION_EXPERT, DECISION_MASTER, SESSION_EXPERT, PAIR_SPECIALIST, AI_MODEL_COORDINATOR, MARKET_MICROSTRUCTURE_GENIUS, SENTIMENT_INTEGRATION_GENIUS)
+  secondary_indicators: 9 agents (RISK_GENIUS, PATTERN_MASTER, EXECUTION_EXPERT, DECISION_MASTER, SESSION_EXPERT, PAIR_SPECIALIST, AI_MODEL_COORDINATOR, MARKET_MICROSTRUCTURE_GENIUS, SENTIMENT_INTEGRATION_GENIUS)
+  advanced_ml_engine: 6 agents (RISK_GENIUS, DECISION_MASTER, PAIR_SPECIALIST, AI_MODEL_COORDINATOR, MARKET_MICROSTRUCTURE_GENIUS, SENTIMENT_INTEGRATION_GENIUS)
+  composite_signal: 6 agents (RISK_GENIUS, DECISION_MASTER, PAIR_SPECIALIST, AI_MODEL_COORDINATOR, MARKET_MICROSTRUCTURE_GENIUS, SENTIMENT_INTEGRATION_GENIUS)
+  smart_money_index: 6 agents (RISK_GENIUS, EXECUTION_EXPERT, DECISION_MASTER, PAIR_SPECIALIST, MARKET_MICROSTRUCTURE_GENIUS, SENTIMENT_INTEGRATION_GENIUS)
+  regime_adaptive_ma: 5 agents (RISK_GENIUS, EXECUTION_EXPERT, DECISION_MASTER, PAIR_SPECIALIST, AI_MODEL_COORDINATOR)
+  fractal_correlation_dimension: 5 agents (RISK_GENIUS, PATTERN_MASTER, DECISION_MASTER, PAIR_SPECIALIST, AI_MODEL_COORDINATOR)
+  z_score_indicator: 5 agents (RISK_GENIUS, DECISION_MASTER, PAIR_SPECIALIST, AI_MODEL_COORDINATOR, SENTIMENT_INTEGRATION_GENIUS)
+  hurst_exponent_calculator: 5 agents (RISK_GENIUS, PATTERN_MASTER, DECISION_MASTER, PAIR_SPECIALIST, AI_MODEL_COORDINATOR)
+  variance_ratio_indicator: 5 agents (RISK_GENIUS, DECISION_MASTER, PAIR_SPECIALIST, AI_MODEL_COORDINATOR, SENTIMENT_INTEGRATION_GENIUS)

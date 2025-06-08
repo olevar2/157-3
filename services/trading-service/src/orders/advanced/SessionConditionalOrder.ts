@@ -15,16 +15,63 @@
 
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import { Logger } from 'winston';
-import {
-  OrderSide,
-  OrderType,
-  OrderStatus,
-  TimeInForce,
-  BaseOrderParams,
-  Order,
-  OrderFillEvent,
-} from './ScalpingOCOOrder'; // Assuming common types are centralized or accessible
+import axios from 'axios';
+
+// Define common types since we're removing external dependencies
+export enum OrderSide {
+  BUY = 'BUY',
+  SELL = 'SELL'
+}
+
+export enum OrderType {
+  MARKET = 'MARKET',
+  LIMIT = 'LIMIT',
+  STOP = 'STOP',
+  STOP_LIMIT = 'STOP_LIMIT'
+}
+
+export enum OrderStatus {
+  PENDING = 'PENDING',
+  FILLED = 'FILLED',
+  PARTIALLY_FILLED = 'PARTIALLY_FILLED',
+  CANCELLED = 'CANCELLED',
+  REJECTED = 'REJECTED'
+}
+
+export enum TimeInForce {
+  GTC = 'GTC', // Good Till Cancelled
+  IOC = 'IOC', // Immediate or Cancel
+  FOK = 'FOK', // Fill or Kill
+  DAY = 'DAY'  // Day order
+}
+
+export interface BaseOrderParams {
+  symbol: string;
+  side: OrderSide;
+  type: OrderType;
+  quantity: number;
+  price?: number;
+  stopPrice?: number;
+  timeInForce?: TimeInForce;
+}
+
+export interface Order extends BaseOrderParams {
+  id: string;
+  status: OrderStatus;
+  filledQuantity: number;
+  averagePrice?: number;
+  timestamp: Date;
+  lastUpdated: Date;
+}
+
+export interface OrderFillEvent {
+  orderId: string;
+  symbol: string;
+  side: OrderSide;
+  quantity: number;
+  price: number;
+  timestamp: Date;
+}
 
 // --- Session Definitions ---
 
@@ -104,8 +151,8 @@ export class SessionConditionalOrderManager extends EventEmitter {
 
   constructor(logger: Logger, checkIntervalMs: number = 60000 /* 1 minute */) {
     super();
-    this.logger = logger;
-    this.logger.info('SessionConditionalOrderManager initialized.');
+    console = logger;
+    console.info('SessionConditionalOrderManager initialized.');
     this._startSessionMonitoring(checkIntervalMs);
   }
 
@@ -139,14 +186,14 @@ export class SessionConditionalOrderManager extends EventEmitter {
         this._checkAndUpdateOrderBasedOnSession(orderState.sessionConditionalOrderId);
       });
     }, intervalMs);
-    this.logger.info(`Session monitoring started with interval ${intervalMs}ms.`);
+    console.info(`Session monitoring started with interval ${intervalMs}ms.`);
   }
 
   public stopSessionMonitoring(): void {
     if (this.sessionCheckInterval) {
       clearInterval(this.sessionCheckInterval);
       this.sessionCheckInterval = null;
-      this.logger.info('Session monitoring stopped.');
+      console.info('Session monitoring stopped.');
     }
   }
   
@@ -161,24 +208,24 @@ export class SessionConditionalOrderManager extends EventEmitter {
     orderState.lastSessionCheck = new Date();
 
     if (orderState.isActiveSession && !wasActiveSession) { // Session just started
-      this.logger.info(`SessionConditionalOrder ${orderId}: Target session started.`);
+      console.info(`SessionConditionalOrder ${orderId}: Target session started.`);
       this.emit('sessionStarted', orderState);
       if (orderState.status === SessionConditionalStatus.ORDER_HELD && orderState.placeAtSessionStart) {
-        this.logger.info(`SessionConditionalOrder ${orderId}: Attempting to place held order as session started.`);
+        console.info(`SessionConditionalOrder ${orderId}: Attempting to place held order as session started.`);
         await this._placeUnderlyingOrder(orderId);
       }
     } else if (!orderState.isActiveSession && wasActiveSession) { // Session just ended
-      this.logger.info(`SessionConditionalOrder ${orderId}: Target session ended.`);
+      console.info(`SessionConditionalOrder ${orderId}: Target session ended.`);
       this.emit('sessionEnded', orderState);
       if (orderState.underlyingOrder && orderState.underlyingOrder.status === OrderStatus.ACTIVE && orderState.cancelAtSessionEnd) {
-        this.logger.info(`SessionConditionalOrder ${orderId}: Attempting to cancel order as session ended.`);
+        console.info(`SessionConditionalOrder ${orderId}: Attempting to cancel order as session ended.`);
         await this.cancelConditionalOrder(orderId, 'SESSION_ENDED');
       }
     }
     
     // Initial placement logic if status is PENDING_SESSION
     if (orderState.status === SessionConditionalStatus.PENDING_SESSION && orderState.isActiveSession) {
-        this.logger.info(`SessionConditionalOrder ${orderId}: Target session is active. Proceeding to place order.`);
+        console.info(`SessionConditionalOrder ${orderId}: Target session is active. Proceeding to place order.`);
         await this._placeUnderlyingOrder(orderId);
     }
   }
@@ -211,7 +258,7 @@ export class SessionConditionalOrderManager extends EventEmitter {
     };
 
     this.conditionalOrders.set(orderId, initialState);
-    this.logger.info(`Session Conditional Order ${orderId} created. Target sessions: ${input.targetSessions.join(', ')}. Active now: ${isActiveNow}.`);
+    console.info(`Session Conditional Order ${orderId} created. Target sessions: ${input.targetSessions.join(', ')}. Active now: ${isActiveNow}.`);
     this.emit('sessionConditionalOrderCreated', initialState);
 
     if (isActiveNow) {
@@ -221,24 +268,24 @@ export class SessionConditionalOrderManager extends EventEmitter {
       switch (input.actionOutsideSession) {
         case 'HOLD':
           initialState.status = SessionConditionalStatus.ORDER_HELD;
-          this.logger.info(`SessionConditionalOrder ${orderId}: Order HELD as it's outside target sessions.`);
+          console.info(`SessionConditionalOrder ${orderId}: Order HELD as it's outside target sessions.`);
           this.emit('sessionConditionalOrderHeld', initialState);
           break;
         case 'CANCEL':
           initialState.status = SessionConditionalStatus.CANCELED;
           initialState.updatedAt = new Date();
-          this.logger.info(`SessionConditionalOrder ${orderId}: Order CANCELED as it's outside target sessions and action is CANCEL.`);
+          console.info(`SessionConditionalOrder ${orderId}: Order CANCELED as it's outside target sessions and action is CANCEL.`);
           this.emit('sessionConditionalOrderCanceled', initialState);
           // No OMS interaction needed as it was never placed
           break;
         case 'PLACE_ANYWAY':
           initialState.status = SessionConditionalStatus.SESSION_ACTIVE_PENDING_ORDER; // Treat as if session is active for placement
-          this.logger.info(`SessionConditionalOrder ${orderId}: Placing order despite being outside target sessions (PLACE_ANYWAY).`);
+          console.info(`SessionConditionalOrder ${orderId}: Placing order despite being outside target sessions (PLACE_ANYWAY).`);
           await this._placeUnderlyingOrder(orderId);
           break;
         default:
           initialState.status = SessionConditionalStatus.ORDER_HELD; // Default to HOLD
-          this.logger.warn(`SessionConditionalOrder ${orderId}: Unknown actionOutsideSession '${input.actionOutsideSession}'. Defaulting to HOLD.`);
+          console.warn(`SessionConditionalOrder ${orderId}: Unknown actionOutsideSession '${input.actionOutsideSession}'. Defaulting to HOLD.`);
           this.emit('sessionConditionalOrderHeld', initialState);
           break;
       }
@@ -251,7 +298,7 @@ export class SessionConditionalOrderManager extends EventEmitter {
   private async _placeUnderlyingOrder(conditionalOrderId: string): Promise<void> {
     const orderState = this.conditionalOrders.get(conditionalOrderId);
     if (!orderState || orderState.underlyingOrder || orderState.status === SessionConditionalStatus.FILLED || orderState.status === SessionConditionalStatus.CANCELED) {
-      this.logger.warn(`SessionConditionalOrder ${conditionalOrderId}: Cannot place underlying order. State: ${orderState?.status}, Has Underlying: ${!!orderState?.underlyingOrder}`);
+      console.warn(`SessionConditionalOrder ${conditionalOrderId}: Cannot place underlying order. State: ${orderState?.status}, Has Underlying: ${!!orderState?.underlyingOrder}`);
       return;
     }
 
@@ -277,11 +324,11 @@ export class SessionConditionalOrderManager extends EventEmitter {
       orderState.underlyingOrder = placedOrder;
       orderState.status = SessionConditionalStatus.ORDER_PLACED;
       orderState.updatedAt = new Date();
-      this.logger.info(`SessionConditionalOrder ${conditionalOrderId}: Underlying order ${placedOrder.id} placed with OMS.`);
+      console.info(`SessionConditionalOrder ${conditionalOrderId}: Underlying order ${placedOrder.id} placed with OMS.`);
       this.emit('sessionConditionalUnderlyingOrderPlaced', orderState);
 
     } catch (error: any) {
-      this.logger.error(`SessionConditionalOrder ${conditionalOrderId}: Failed to place underlying order: ${error.message}`, { input });
+      console.error(`SessionConditionalOrder ${conditionalOrderId}: Failed to place underlying order: ${error.message}`, { input });
       orderState.status = SessionConditionalStatus.REJECTED; // Or some other failure status
       orderState.updatedAt = new Date();
       this.emit('sessionConditionalOrderPlacementFailed', { orderState, error });
@@ -292,7 +339,7 @@ export class SessionConditionalOrderManager extends EventEmitter {
   public async handleUnderlyingOrderUpdate(conditionalOrderId: string, update: Partial<Order>): Promise<void> {
     const orderState = this.conditionalOrders.get(conditionalOrderId);
     if (!orderState || !orderState.underlyingOrder) {
-      this.logger.warn(`SessionConditionalOrder: Received update for non-existent or unlinked underlying order for ${conditionalOrderId}.`);
+      console.warn(`SessionConditionalOrder: Received update for non-existent or unlinked underlying order for ${conditionalOrderId}.`);
       return;
     }
 
@@ -300,7 +347,7 @@ export class SessionConditionalOrderManager extends EventEmitter {
     orderState.underlyingOrder = { ...orderState.underlyingOrder, ...update, updatedAt: new Date() };
     orderState.updatedAt = new Date();
 
-    this.logger.info(`SessionConditionalOrder ${conditionalOrderId}: Underlying order ${orderState.underlyingOrder.id} updated. Status: ${update.status}`);
+    console.info(`SessionConditionalOrder ${conditionalOrderId}: Underlying order ${orderState.underlyingOrder.id} updated. Status: ${update.status}`);
     this.emit('sessionConditionalOrderUpdated', orderState);
 
     if (update.status === OrderStatus.FILLED) {
@@ -310,7 +357,7 @@ export class SessionConditionalOrderManager extends EventEmitter {
       // If canceled externally, reflect this. If canceled by this manager, it's already CANCELED.
       if (orderState.status !== SessionConditionalStatus.CANCELED) {
           orderState.status = SessionConditionalStatus.CANCELED;
-          this.logger.info(`SessionConditionalOrder ${conditionalOrderId}: Underlying order was canceled externally.`);
+          console.info(`SessionConditionalOrder ${conditionalOrderId}: Underlying order was canceled externally.`);
           this.emit('sessionConditionalOrderCanceled', { orderState, reason: 'EXTERNAL_CANCEL' });
       }
     } else if (update.status === OrderStatus.REJECTED) {
@@ -322,7 +369,7 @@ export class SessionConditionalOrderManager extends EventEmitter {
   public async handleUnderlyingOrderFill(conditionalOrderId: string, fillEvent: OrderFillEvent): Promise<void> {
     const orderState = this.conditionalOrders.get(conditionalOrderId);
     if (!orderState || !orderState.underlyingOrder || orderState.underlyingOrder.id !== fillEvent.orderId) {
-        this.logger.warn(`SessionConditionalOrder: Received fill for unknown or mismatched underlying order ${fillEvent.orderId} for conditional ${conditionalOrderId}.`);
+        console.warn(`SessionConditionalOrder: Received fill for unknown or mismatched underlying order ${fillEvent.orderId} for conditional ${conditionalOrderId}.`);
         return;
     }
 
@@ -334,7 +381,7 @@ export class SessionConditionalOrderManager extends EventEmitter {
     orderState.status = SessionConditionalStatus.FILLED;
     orderState.updatedAt = new Date();
     
-    this.logger.info(`SessionConditionalOrder ${conditionalOrderId}: Underlying order ${fillEvent.orderId} FILLED.`);
+    console.info(`SessionConditionalOrder ${conditionalOrderId}: Underlying order ${fillEvent.orderId} FILLED.`);
     this.emit('sessionConditionalOrderFilled', orderState);
   }
 
@@ -342,12 +389,12 @@ export class SessionConditionalOrderManager extends EventEmitter {
   public async cancelConditionalOrder(conditionalOrderId: string, reason: string = 'USER_REQUEST'): Promise<void> {
     const orderState = this.conditionalOrders.get(conditionalOrderId);
     if (!orderState) {
-      this.logger.warn(`SessionConditionalOrder: Attempted to cancel non-existent order ${conditionalOrderId}.`);
+      console.warn(`SessionConditionalOrder: Attempted to cancel non-existent order ${conditionalOrderId}.`);
       return;
     }
 
     if (orderState.status === SessionConditionalStatus.CANCELED || orderState.status === SessionConditionalStatus.FILLED) {
-      this.logger.info(`SessionConditionalOrder ${conditionalOrderId}: Already ${orderState.status}, no action needed for cancellation.`);
+      console.info(`SessionConditionalOrder ${conditionalOrderId}: Already ${orderState.status}, no action needed for cancellation.`);
       return;
     }
 
@@ -362,15 +409,15 @@ export class SessionConditionalOrderManager extends EventEmitter {
             orderState.underlyingOrder.status = OrderStatus.CANCELED;
             orderState.underlyingOrder.updatedAt = new Date();
         }
-        this.logger.info(`SessionConditionalOrder ${conditionalOrderId}: Underlying order ${orderState.underlyingOrder?.id} cancellation requested from OMS.`);
+        console.info(`SessionConditionalOrder ${conditionalOrderId}: Underlying order ${orderState.underlyingOrder?.id} cancellation requested from OMS.`);
       } catch (error: any) {
-        this.logger.error(`SessionConditionalOrder ${conditionalOrderId}: Failed to cancel underlying order ${orderState.underlyingOrder?.id}: ${error.message}`);
+        console.error(`SessionConditionalOrder ${conditionalOrderId}: Failed to cancel underlying order ${orderState.underlyingOrder?.id}: ${error.message}`);
         // Revert status or handle error appropriately, e.g., mark as PENDING_CANCEL_FAILED
         orderState.status = oldStatus; // Example: revert status
         throw error; // Re-throw to signal failure
       }
     } else {
-         this.logger.info(`SessionConditionalOrder ${conditionalOrderId}: No active underlying order to cancel, or order already terminal. Marking as CANCELED.`);
+         console.info(`SessionConditionalOrder ${conditionalOrderId}: No active underlying order to cancel, or order already terminal. Marking as CANCELED.`);
     }
     
     this.emit('sessionConditionalOrderCanceled', { orderState, reason });
@@ -396,14 +443,14 @@ export class SessionConditionalOrderManager extends EventEmitter {
       createdAt: now,
       updatedAt: now,
     };
-    this.logger.debug(`Simulated OMS: Order ${placedOrder.id} placed.`, placedOrder);
+    console.debug(`Simulated OMS: Order ${placedOrder.id} placed.`, placedOrder);
     return placedOrder;
   }
 
   private async _cancelOMSOrder(orderId: string, reason: string): Promise<void> {
     // Simulate network delay and OMS processing
     await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 50));
-    this.logger.debug(`Simulated OMS: Order ${orderId} cancellation processed. Reason: ${reason}.`);
+    console.debug(`Simulated OMS: Order ${orderId} cancellation processed. Reason: ${reason}.`);
     // In a real system, OMS would send an update that then calls handleUnderlyingOrderUpdate
   }
   
@@ -411,7 +458,7 @@ export class SessionConditionalOrderManager extends EventEmitter {
     this.stopSessionMonitoring();
     this.conditionalOrders.clear();
     this.removeAllListeners();
-    this.logger.info('SessionConditionalOrderManager destroyed.');
+    console.info('SessionConditionalOrderManager destroyed.');
   }
 }
 

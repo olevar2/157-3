@@ -1,3 +1,13 @@
+# -*- coding: utf-8 -*-
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
 Keltner Channels - Advanced Volatility-Based Trend Indicator
 ============================================================
@@ -30,7 +40,7 @@ from enum import Enum
 import logging
 from datetime import datetime, timedelta
 
-from ..indicator_base import IndicatorBase, IndicatorConfig, IndicatorSignal, SignalStrength, MarketCondition
+from engines.indicator_base import IndicatorBase, IndicatorConfig, IndicatorSignal, SignalStrength, MarketCondition
 
 logger = logging.getLogger(__name__)
 
@@ -109,15 +119,25 @@ class KeltnerChannels(IndicatorBase[KeltnerConfig]):
     
     Keltner Channels consist of:
     - Middle Line: Moving Average (typically EMA)
-    - Upper Band: Middle Line + (ATR × Multiplier)
-    - Lower Band: Middle Line - (ATR × Multiplier)
+    - Upper Band: Middle Line + (ATR multiply Multiplier)
+    - Lower Band: Middle Line - (ATR multiply Multiplier)
     
     The channels adapt to volatility changes through ATR, providing
     dynamic support and resistance levels for trend analysis.
     """
     
-    def __init__(self, config: KeltnerConfig):
-        super().__init__(config)
+    def __init__(self, config: KeltnerConfig): # config is now KeltnerConfig type
+        # Convert KeltnerConfig to a dictionary for IndicatorBase
+        config_dict = {
+            'name': config.name,
+            'indicator_type': config.indicator_type,
+            'timeframe': config.timeframe,
+            'lookback_periods': config.lookback_periods,
+            'parameters': config.parameters
+        }
+        super().__init__(config_dict) # Pass the dictionary
+        self.config_typed: KeltnerConfig = config # Store the typed config for internal use
+
         self.upper_bands: List[float] = []
         self.middle_lines: List[float] = []
         self.lower_bands: List[float] = []
@@ -139,8 +159,8 @@ class KeltnerChannels(IndicatorBase[KeltnerConfig]):
     def _calculate_true_range(self, high: float, low: float, prev_close: float) -> float:
         """Calculate True Range for ATR"""
         tr1 = high - low
-        tr2 = abs(high - prev_close) if prev_close > 0 else 0
-        tr3 = abs(low - prev_close) if prev_close > 0 else 0
+        tr2 = abs(high - prev_close) if prev_close != 0 and not np.isnan(prev_close) else 0 # Added nan check
+        tr3 = abs(low - prev_close) if prev_close != 0 and not np.isnan(prev_close) else 0 # Added nan check
         
         return max(tr1, tr2, tr3)
     
@@ -148,27 +168,27 @@ class KeltnerChannels(IndicatorBase[KeltnerConfig]):
         """Calculate Average True Range"""
         self.true_ranges.append(true_range)
         
-        if len(self.true_ranges) < self.config.atr_period:
-            return np.mean(self.true_ranges)
+        if len(self.true_ranges) < self.config_typed.atr_period:
+            return np.mean(self.true_ranges) if self.true_ranges else 0.0 # Handle empty true_ranges
         
         # Wilder's smoothing method for ATR
         if self.atr_values:
             prev_atr = self.atr_values[-1]
-            atr = ((prev_atr * (self.config.atr_period - 1)) + true_range) / self.config.atr_period
+            atr = ((prev_atr * (self.config_typed.atr_period - 1)) + true_range) / self.config_typed.atr_period
         else:
-            atr = np.mean(self.true_ranges[-self.config.atr_period:])
+            atr = np.mean(self.true_ranges[-self.config_typed.atr_period:])
         
         return atr
     
     def _calculate_moving_average(self, price: float) -> float:
         """Calculate moving average based on configured type"""
-        if self.config.ma_type == MovingAverageType.SMA:
+        if self.config_typed.ma_type == MovingAverageType.SMA:
             return self._calculate_sma(price)
-        elif self.config.ma_type == MovingAverageType.EMA:
+        elif self.config_typed.ma_type == MovingAverageType.EMA:
             return self._calculate_ema(price)
-        elif self.config.ma_type == MovingAverageType.WMA:
+        elif self.config_typed.ma_type == MovingAverageType.WMA:
             return self._calculate_wma(price)
-        elif self.config.ma_type == MovingAverageType.DEMA:
+        elif self.config_typed.ma_type == MovingAverageType.DEMA:
             return self._calculate_dema(price)
         else:
             return self._calculate_ema(price)  # Default to EMA
@@ -177,34 +197,34 @@ class KeltnerChannels(IndicatorBase[KeltnerConfig]):
         """Calculate Simple Moving Average"""
         self.prices.append(price)
         
-        if len(self.prices) < self.config.period:
-            return np.mean(self.prices)
+        if len(self.prices) < self.config_typed.period:
+            return np.mean(self.prices) if self.prices else 0.0 # Handle empty prices
         
-        return np.mean(self.prices[-self.config.period:])
+        return np.mean(self.prices[-self.config_typed.period:])
     
     def _calculate_ema(self, price: float) -> float:
         """Calculate Exponential Moving Average"""
         if not self.middle_lines:
             return price
         
-        alpha = 2 / (self.config.period + 1)
+        alpha = 2 / (self.config_typed.period + 1)
         return alpha * price + (1 - alpha) * self.middle_lines[-1]
     
     def _calculate_wma(self, price: float) -> float:
         """Calculate Weighted Moving Average"""
         self.prices.append(price)
         
-        if len(self.prices) < self.config.period:
-            return np.mean(self.prices)
+        if len(self.prices) < self.config_typed.period:
+            return np.mean(self.prices) if self.prices else 0.0 # Handle empty prices
         
-        weights = np.arange(1, self.config.period + 1)
-        values = self.prices[-self.config.period:]
+        weights = np.arange(1, self.config_typed.period + 1)
+        values = self.prices[-self.config_typed.period:]
         return np.average(values, weights=weights)
     
     def _calculate_dema(self, price: float) -> float:
         """Calculate Double Exponential Moving Average"""
         # This is a simplified DEMA implementation
-        ema1 = self._calculate_ema(price)
+        ema1 = self._calculate_ema(price) # Uses self.config_typed.period via _calculate_ema
         
         if not hasattr(self, 'ema2_values'):
             self.ema2_values = []
@@ -212,7 +232,7 @@ class KeltnerChannels(IndicatorBase[KeltnerConfig]):
         if not self.ema2_values:
             ema2 = ema1
         else:
-            alpha = 2 / (self.config.period + 1)
+            alpha = 2 / (self.config_typed.period + 1)
             ema2 = alpha * ema1 + (1 - alpha) * self.ema2_values[-1]
         
         self.ema2_values.append(ema2)
@@ -220,10 +240,10 @@ class KeltnerChannels(IndicatorBase[KeltnerConfig]):
     
     def _update_adaptive_multiplier(self, volatility_regime: str):
         """Update ATR multiplier based on market conditions"""
-        if not self.config.adaptive_multiplier:
+        if not self.config_typed.adaptive_multiplier:
             return
         
-        base_multiplier = self.config.atr_multiplier
+        base_multiplier = self.config_typed.atr_multiplier
         
         if volatility_regime == "low":
             self.adaptive_atr_multiplier = base_multiplier * 0.8
@@ -256,11 +276,11 @@ class KeltnerChannels(IndicatorBase[KeltnerConfig]):
         width_ratio = channel_width / avg_width if avg_width > 0 else 1.0
         
         # Check for squeeze
-        if width_ratio < self.config.squeeze_threshold:
+        if width_ratio < self.config_typed.squeeze_threshold:
             return KeltnerChannelState.SQUEEZE
         
         # Check for expansion
-        elif width_ratio > self.config.expansion_threshold:
+        elif width_ratio > self.config_typed.expansion_threshold:
             return KeltnerChannelState.EXPANDING
         
         # Check for contraction
@@ -281,11 +301,11 @@ class KeltnerChannels(IndicatorBase[KeltnerConfig]):
     
     def _analyze_trend_direction(self, middle_line: float, price_position: float) -> KeltnerTrendDirection:
         """Analyze trend direction based on channel position and middle line slope"""
-        if len(self.middle_lines) < self.config.trend_confirmation_period:
+        if len(self.middle_lines) < self.config_typed.trend_confirmation_period:
             return KeltnerTrendDirection.SIDEWAYS
         
         # Calculate middle line slope
-        recent_middle = self.middle_lines[-self.config.trend_confirmation_period:]
+        recent_middle = self.middle_lines[-self.config_typed.trend_confirmation_period:]
         slope = np.polyfit(range(len(recent_middle)), recent_middle, 1)[0]
         
         # Analyze price position within channel
@@ -293,7 +313,7 @@ class KeltnerChannels(IndicatorBase[KeltnerConfig]):
             return KeltnerTrendDirection.BULLISH_TREND
         elif slope < 0 and price_position < 0.4:
             return KeltnerTrendDirection.BEARISH_TREND
-        elif abs(slope) < self.config.sideways_threshold:
+        elif abs(slope) < self.config_typed.sideways_threshold:
             return KeltnerTrendDirection.SIDEWAYS
         else:
             # Check for potential trend reversal
@@ -548,6 +568,85 @@ class KeltnerChannels(IndicatorBase[KeltnerConfig]):
             'adaptive_multiplier': self.adaptive_atr_multiplier
         }
 
+    def calculate(self, data: pd.DataFrame) -> Optional[pd.DataFrame]:
+        """Calculate Keltner Channels"""
+        if not isinstance(data, pd.DataFrame) or data.empty:
+            self.logger.warning("KeltnerChannels: Input data is not a valid DataFrame or is empty.")
+            return None
+
+        required_columns = ['high', 'low', 'close']
+        if not all(col in data.columns for col in required_columns):
+            self.logger.warning(f"KeltnerChannels: Input DataFrame missing required columns: {required_columns}")
+            return None
+
+        if len(data) < self.config_typed.period:
+            self.logger.warning(f"KeltnerChannels: Insufficient data for MA period {self.config_typed.period}. Need at least {self.config_typed.period} bars.")
+            return None
+        
+        if len(data) < self.config_typed.atr_period:
+            self.logger.warning(f"KeltnerChannels: Insufficient data for ATR period {self.config_typed.atr_period}. Need at least {self.config_typed.atr_period} bars.")
+            return None
+
+        # Initialize lists for storing results
+        middle_lines = []
+        upper_bands = []
+        lower_bands = []
+        atr_values_calc = [] # Renamed to avoid conflict with self.atr_values
+        true_ranges_calc = [] # Renamed to avoid conflict with self.true_ranges
+
+        # Reset internal state for fresh calculation if this method is called multiple times
+        self.prices = [] # Assuming self.prices is used by MA calculation helpers
+        self.atr_values = [] # Reset instance ATR values if they are used in _calculate_atr
+        self.true_ranges = [] # Reset instance true ranges
+
+        # Calculate True Range and initial ATR for the entire series first
+        prev_close_series = data['close'].shift(1)
+        tr_series = pd.Series(index=data.index, dtype=float)
+        for i in range(len(data)):
+            tr_series.iloc[i] = self._calculate_true_range(data['high'].iloc[i], data['low'].iloc[i], prev_close_series.iloc[i])
+        
+        # Calculate ATR using Wilder's smoothing
+        # atr_series = tr_series.ewm(alpha=1/self.config_typed.atr_period, adjust=False).mean()
+        # Alternative: Standard rolling mean for initial ATR, then Wilder's if preferred
+        atr_series = pd.Series(index=data.index, dtype=float)
+        if len(tr_series) >= self.config_typed.atr_period:
+            atr_series.iloc[self.config_typed.atr_period -1] = tr_series.iloc[:self.config_typed.atr_period].mean()
+            for i in range(self.config_typed.atr_period, len(tr_series)):
+                atr_series.iloc[i] = (atr_series.iloc[i-1] * (self.config_typed.atr_period - 1) + tr_series.iloc[i]) / self.config_typed.atr_period
+        else: # Not enough data for full ATR period
+            atr_series = tr_series.expanding().mean() # Or handle as error/None
+
+        # Calculate Moving Average (Middle Line)
+        if self.config_typed.ma_type == MovingAverageType.EMA:
+            middle_line_series = data['close'].ewm(span=self.config_typed.period, adjust=False).mean()
+        elif self.config_typed.ma_type == MovingAverageType.SMA:
+            middle_line_series = data['close'].rolling(window=self.config_typed.period).mean()
+        elif self.config_typed.ma_type == MovingAverageType.WMA:
+            weights = np.arange(1, self.config_typed.period + 1)
+            middle_line_series = data['close'].rolling(window=self.config_typed.period).apply(lambda prices: np.dot(prices, weights)/weights.sum(), raw=True)
+        # Add DEMA if necessary, or default to EMA
+        else: # Default to EMA
+            middle_line_series = data['close'].ewm(span=self.config_typed.period, adjust=False).mean()
+
+        # Calculate Upper and Lower Bands
+        upper_band_series = middle_line_series + (atr_series * self.config_typed.atr_multiplier)
+        lower_band_series = middle_line_series - (atr_series * self.config_typed.atr_multiplier)
+
+        result_df = pd.DataFrame({
+            'middle': middle_line_series,
+            'upper': upper_band_series,
+            'lower': lower_band_series,
+            'atr': atr_series
+        }, index=data.index)
+
+        if not result_df.empty: # Corrected DataFrame check
+            self.logger.debug("Keltner Channels calculation successful.")
+        else:
+            self.logger.warning("Keltner Channels calculation resulted in an empty DataFrame.")
+            return None
+
+        return result_df
+    
 def test_keltner_channels():
     """Test Keltner Channels implementation with realistic market data"""
     config = KeltnerConfig(

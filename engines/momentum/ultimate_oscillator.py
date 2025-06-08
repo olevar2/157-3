@@ -1,246 +1,249 @@
 """
-Ultimate Oscillator Momentum Indicator
-A momentum oscillator that uses three different timeframes to reduce false signals.
-Part of Platform3's 67-indicator humanitarian trading system.
+Ultimate Oscillator
+===================
+
+The Ultimate Oscillator uses weighted sums of three different time periods 
+to reduce the volatility and false signals associated with single-period oscillators.
+
+Author: Platform3 AI System
+Created: June 3, 2025
 """
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from typing import List, Optional
-from datetime import datetime
-from indicator_base import (
-    MomentumIndicator, IndicatorResult, IndicatorSignal, MarketData, 
-    SignalType, TimeFrame, true_range
-)
+import numpy as np
+import pandas as pd
+from typing import Dict, Optional
 
-class UltimateOscillator(MomentumIndicator):
+# Fix import - use absolute import with fallback
+try:
+    from engines.indicator_base import IndicatorBase
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from indicator_base import IndicatorBase
+
+
+class UltimateOscillator(IndicatorBase):
     """
-    Ultimate Oscillator momentum indicator.
+    Ultimate Oscillator indicator.
     
-    The Ultimate Oscillator uses weighted sums of three oscillators each of a different
-    time period to reduce the volatility and false signals that are associated with
-    many momentum oscillators.
-    
-    Formula involves three timeframes (7, 14, 28) with weighted calculations.
+    The Ultimate Oscillator combines three different timeframes to provide 
+    a more reliable momentum reading and reduce false signals.
     """
     
-    def __init__(self, timeframe: TimeFrame, 
-                 short_period: int = 7, 
-                 medium_period: int = 14, 
-                 long_period: int = 28):
+    def __init__(self, 
+                 fast_period: int = 7,
+                 medium_period: int = 14,
+                 slow_period: int = 28,
+                 fast_weight: float = 4.0,
+                 medium_weight: float = 2.0,
+                 slow_weight: float = 1.0,
+                 overbought_level: float = 70.0,
+                 oversold_level: float = 30.0):
         """
-        Initialize Ultimate Oscillator indicator.
+        Initialize Ultimate Oscillator.
         
         Args:
-            timeframe: Timeframe for analysis
-            short_period: Short-term period (default 7)
-            medium_period: Medium-term period (default 14)
-            long_period: Long-term period (default 28)
+            fast_period: Fast period (typically 7)
+            medium_period: Medium period (typically 14)
+            slow_period: Slow period (typically 28)
+            fast_weight: Weight for fast period
+            medium_weight: Weight for medium period
+            slow_weight: Weight for slow period
+            overbought_level: Overbought threshold
+            oversold_level: Oversold threshold
         """
-        super().__init__("Ultimate Oscillator", timeframe, lookback_periods=long_period + 1)
-        self.short_period = short_period
+        super().__init__()
+        
+        self.fast_period = fast_period
         self.medium_period = medium_period
-        self.long_period = long_period
-        self.overbought_level = 70
-        self.oversold_level = 30
-        self.extreme_overbought = 80
-        self.extreme_oversold = 20
+        self.slow_period = slow_period
+        self.fast_weight = fast_weight
+        self.medium_weight = medium_weight
+        self.slow_weight = slow_weight
+        self.overbought_level = overbought_level
+        self.oversold_level = oversold_level
         
-    def calculate(self, data: List[MarketData]) -> IndicatorResult:
+        # Validation
+        if not (fast_period < medium_period < slow_period):
+            raise ValueError("Periods must be in ascending order: fast < medium < slow")
+        if any(w <= 0 for w in [fast_weight, medium_weight, slow_weight]):
+            raise ValueError("All weights must be positive")
+    
+    def calculate(self, data: pd.DataFrame) -> Dict:
         """
-        Calculate Ultimate Oscillator value.
+        Calculate Ultimate Oscillator values.
         
         Args:
-            data: List of MarketData objects
+            data: DataFrame with 'high', 'low', 'close' columns
             
         Returns:
-            IndicatorResult with Ultimate Oscillator calculation
+            Dictionary containing Ultimate Oscillator values and signals
         """
-        if len(data) < self.long_period + 1:
-            raise ValueError(f"Insufficient data for Ultimate Oscillator calculation. Need {self.long_period + 1} periods, got {len(data)}")
-        
-        start_time = datetime.now()
-        
         try:
-            # Calculate buying pressure and true range for each period
-            buying_pressures = []
-            true_ranges = []
-            
-            for i in range(1, len(data)):
-                current = data[i]
-                previous = data[i-1]
+            # Validate input data
+            required_columns = ['high', 'low', 'close']
+            if isinstance(data, pd.DataFrame):
+                if data.empty:
+                    raise ValueError("Empty DataFrame provided")
                 
-                # Buying Pressure = Close - Min(Low, Previous Close)
-                min_low_prev_close = min(current.low, previous.close)
-                buying_pressure = current.close - min_low_prev_close
-                buying_pressures.append(buying_pressure)
-                
-                # True Range
-                tr = true_range(current.high, current.low, previous.close)
-                true_ranges.append(tr)
+                # Check required columns
+                missing = [col for col in required_columns if col not in data.columns]
+                if missing:
+                    raise ValueError(f"Missing required columns: {missing}")
+            else:
+                validation_result = super()._validate_data(data)
+                if not validation_result:
+                    raise ValueError("Invalid input data format")
             
-            # Calculate oscillators for each timeframe
-            def calculate_oscillator(period: int) -> float:
-                if len(buying_pressures) < period:
-                    return 0
-                
-                bp_sum = sum(buying_pressures[-period:])
-                tr_sum = sum(true_ranges[-period:])
-                
-                if tr_sum == 0:
-                    return 0
-                return bp_sum / tr_sum
+            if len(data) < self.slow_period + 1:
+                raise ValueError(f"Insufficient data: need at least {self.slow_period + 1} periods")
             
-            short_osc = calculate_oscillator(self.short_period)
-            medium_osc = calculate_oscillator(self.medium_period)
-            long_osc = calculate_oscillator(self.long_period)
+            high = data['high'].values
+            low = data['low'].values
+            close = data['close'].values
             
-            # Ultimate Oscillator = 100 * [(4 * Short) + (2 * Medium) + Long] / (4 + 2 + 1)
-            ultimate_osc = 100 * ((4 * short_osc) + (2 * medium_osc) + long_osc) / 7
+            # Calculate Ultimate Oscillator
+            uo = self._calculate_ultimate_oscillator(high, low, close)
             
-            calculation_time = (datetime.now() - start_time).total_seconds() * 1000
+            # Generate signals
+            signals = self._generate_signals(uo)
             
-            result = IndicatorResult(
-                timestamp=data[-1].timestamp,
-                indicator_name=self.name,
-                indicator_type=self.indicator_type,
-                timeframe=self.timeframe,
-                value=ultimate_osc,
-                raw_data={
-                    'ultimate_oscillator': ultimate_osc,
-                    'short_oscillator': short_osc,
-                    'medium_oscillator': medium_osc,
-                    'long_oscillator': long_osc,
-                    'short_period': self.short_period,
-                    'medium_period': self.medium_period,
-                    'long_period': self.long_period
-                },
-                calculation_time_ms=calculation_time
-            )
+            # Calculate additional metrics
+            metrics = self._calculate_metrics(uo)
             
-            # Generate signal
-            signal = self.generate_signal(result, [])
-            if signal:
-                result.signal = signal
-                
-            return result
+            return {
+                'ultimate_oscillator': uo,
+                'signals': signals,
+                'metrics': metrics,
+                'interpretation': self._interpret_signals(uo[-1], signals[-1])
+            }
             
         except Exception as e:
-            raise ValueError(f"Ultimate Oscillator calculation failed: {e}")
+            self.logger.error(f"Error calculating Ultimate Oscillator: {e}")
+            raise
     
-    def generate_signal(self, current_result: IndicatorResult, 
-                       historical_results: List[IndicatorResult]) -> Optional[IndicatorSignal]:
-        """
-        Generate trading signals based on Ultimate Oscillator levels.
+    def _calculate_ultimate_oscillator(self, high: np.ndarray, low: np.ndarray, close: np.ndarray) -> np.ndarray:
+        """Calculate Ultimate Oscillator values."""
+        uo = np.full(len(close), np.nan)
         
-        Args:
-            current_result: Current Ultimate Oscillator calculation
-            historical_results: Previous results for trend analysis
+        # Calculate buying pressure (BP) and true range (TR)
+        bp = close - np.minimum(low, np.roll(close, 1))
+        tr = np.maximum(high, np.roll(close, 1)) - np.minimum(low, np.roll(close, 1))
+        
+        # Handle first element (no previous close)
+        bp[0] = close[0] - low[0]
+        tr[0] = high[0] - low[0]
+        
+        for i in range(self.slow_period - 1, len(close)):
+            # Calculate sums for each period
+            bp_fast = np.sum(bp[i - self.fast_period + 1:i + 1])
+            tr_fast = np.sum(tr[i - self.fast_period + 1:i + 1])
             
-        Returns:
-            IndicatorSignal if conditions are met
-        """
-        uo = current_result.value
+            bp_medium = np.sum(bp[i - self.medium_period + 1:i + 1])
+            tr_medium = np.sum(tr[i - self.medium_period + 1:i + 1])
+            
+            bp_slow = np.sum(bp[i - self.slow_period + 1:i + 1])
+            tr_slow = np.sum(tr[i - self.slow_period + 1:i + 1])
+            
+            # Calculate raw values for each period
+            raw_fast = (bp_fast / tr_fast) * 100 if tr_fast != 0 else 0
+            raw_medium = (bp_medium / tr_medium) * 100 if tr_medium != 0 else 0
+            raw_slow = (bp_slow / tr_slow) * 100 if tr_slow != 0 else 0
+            
+            # Calculate weighted Ultimate Oscillator
+            total_weight = self.fast_weight + self.medium_weight + self.slow_weight
+            uo[i] = ((raw_fast * self.fast_weight + 
+                     raw_medium * self.medium_weight + 
+                     raw_slow * self.slow_weight) / total_weight)
         
-        # Extreme level signals
-        if uo >= self.extreme_overbought:
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.STRONG_SELL,
-                strength=min(1.0, (uo - self.extreme_overbought) / 20),
-                confidence=0.85,
-                metadata={
-                    'ultimate_oscillator': uo,
-                    'level': 'extreme_overbought',
-                    'threshold': self.extreme_overbought
-                }
-            )
-        elif uo <= self.extreme_oversold:
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.STRONG_BUY,
-                strength=min(1.0, (self.extreme_oversold - uo) / 20),
-                confidence=0.85,
-                metadata={
-                    'ultimate_oscillator': uo,
-                    'level': 'extreme_oversold',
-                    'threshold': self.extreme_oversold
-                }
-            )
+        return uo
+    
+    def _generate_signals(self, uo: np.ndarray) -> np.ndarray:
+        """Generate trading signals based on Ultimate Oscillator."""
+        signals = np.zeros(len(uo))
         
-        # Regular overbought/oversold signals
-        elif uo >= self.overbought_level:
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.SELL,
-                strength=min(1.0, (uo - self.overbought_level) / 30),
-                confidence=0.7,
-                metadata={
-                    'ultimate_oscillator': uo,
-                    'level': 'overbought',
-                    'threshold': self.overbought_level
-                }
-            )
-        elif uo <= self.oversold_level:
-            return IndicatorSignal(
-                timestamp=current_result.timestamp,
-                indicator_name=self.name,
-                signal_type=SignalType.BUY,
-                strength=min(1.0, (self.oversold_level - uo) / 30),
-                confidence=0.7,
-                metadata={
-                    'ultimate_oscillator': uo,
-                    'level': 'oversold',
-                    'threshold': self.oversold_level
-                }
-            )
+        for i in range(1, len(uo)):
+            if np.isnan(uo[i]) or np.isnan(uo[i-1]):
+                continue
+            
+            # Oversold bounce signal
+            if (uo[i-1] <= self.oversold_level and 
+                uo[i] > self.oversold_level):
+                signals[i] = 1
+            
+            # Overbought reversal signal
+            elif (uo[i-1] >= self.overbought_level and 
+                  uo[i] < self.overbought_level):
+                signals[i] = -1
+            
+            # Bullish divergence (simplified)
+            elif uo[i] > 50 and uo[i-1] <= 50:
+                signals[i] = 0.5  # Weak buy
+            
+            # Bearish divergence (simplified)
+            elif uo[i] < 50 and uo[i-1] >= 50:
+                signals[i] = -0.5  # Weak sell
         
-        return None
+        return signals
+    
+    def _calculate_metrics(self, uo: np.ndarray) -> Dict:
+        """Calculate additional Ultimate Oscillator metrics."""
+        valid_values = uo[~np.isnan(uo)]
+        
+        if len(valid_values) == 0:
+            return {}
+        
+        # Time in different zones
+        overbought_pct = np.sum(valid_values >= self.overbought_level) / len(valid_values) * 100
+        oversold_pct = np.sum(valid_values <= self.oversold_level) / len(valid_values) * 100
+        neutral_pct = 100 - overbought_pct - oversold_pct
+        
+        # Momentum analysis
+        above_50_pct = np.sum(valid_values > 50) / len(valid_values) * 100
+        
+        # Current momentum
+        recent_values = valid_values[-min(5, len(valid_values)):]
+        momentum = np.mean(np.diff(recent_values)) if len(recent_values) > 1 else 0
+        
+        return {
+            'current_value': uo[-1] if not np.isnan(uo[-1]) else None,
+            'overbought_percentage': overbought_pct,
+            'oversold_percentage': oversold_pct,
+            'neutral_percentage': neutral_pct,
+            'above_50_percentage': above_50_pct,
+            'momentum': momentum,
+            'volatility': np.std(valid_values),
+            'mean_value': np.mean(valid_values),
+            'max_value': np.max(valid_values),
+            'min_value': np.min(valid_values)
+        }
+    
+    def _interpret_signals(self, current_uo: float, current_signal: float) -> str:
+        """Provide human-readable interpretation."""
+        if np.isnan(current_uo):
+            return "Insufficient data for Ultimate Oscillator calculation"
+        
+        if current_uo >= self.overbought_level:
+            condition = "OVERBOUGHT"
+        elif current_uo <= self.oversold_level:
+            condition = "OVERSOLD"
+        elif current_uo > 50:
+            condition = "BULLISH"
+        else:
+            condition = "BEARISH"
+        
+        signal_desc = {
+            1: "BUY signal (oversold bounce)",
+            0.5: "Weak BUY signal",
+            -0.5: "Weak SELL signal",
+            -1: "SELL signal (overbought reversal)",
+            0: "No signal"
+        }.get(current_signal, "No signal")
+        
+        return f"Ultimate Oscillator: {current_uo:.2f} ({condition}) - {signal_desc}"
 
-def test_ultimate_oscillator():
-    """Test Ultimate Oscillator calculation with sample data."""
-    from datetime import datetime, timedelta
-    
-    # Create sample market data
-    base_time = datetime.now()
-    test_data = []
-    
-    # Generate test data with volatility
-    base_price = 100
-    for i in range(35):
-        volatility = 1 + (i % 5) * 0.01
-        trend = 1 + i * 0.002
-        price = base_price * trend * volatility
-        
-        test_data.append(MarketData(
-            timestamp=base_time + timedelta(minutes=i),
-            open=price * 0.999,
-            high=price * 1.003,
-            low=price * 0.997,
-            close=price,
-            volume=1000,
-            timeframe=TimeFrame.M1
-        ))
-    
-    # Test Ultimate Oscillator calculation
-    uo = UltimateOscillator(TimeFrame.M1)
-    result = uo.calculate(test_data)
-    
-    print(f"Ultimate Oscillator Test Results:")
-    print(f"Value: {result.value:.2f}")
-    print(f"Calculation time: {result.calculation_time_ms:.2f}ms")
-    print(f"Raw data: {result.raw_data}")
-    
-    if result.signal:
-        print(f"Signal: {result.signal.signal_type.value} (strength: {result.signal.strength:.2f})")
-    else:
-        print("No signal generated")
-    
-    return result
 
-if __name__ == "__main__":
-    test_ultimate_oscillator()
+def create_ultimate_oscillator(fast_period: int = 7, **kwargs) -> UltimateOscillator:
+    """Factory function to create Ultimate Oscillator indicator."""
+    return UltimateOscillator(fast_period=fast_period, **kwargs)

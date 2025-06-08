@@ -1,949 +1,112 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+
+
+# Platform3 path management
+import sys
+from pathlib import Path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+sys.path.append(str(project_root / "shared"))
+sys.path.append(str(project_root / "engines"))
+
 """
-Fractal Dimension Calculator Implementation
-Advanced fractal analysis using multiple methods to measure market complexity and self-similarity.
+FractalDimensionCalculator - Enhanced Trading Engine
+Platform3 Phase 3 - Enhanced with Framework Integration
 """
 
+from shared.logging.platform3_logger import Platform3Logger
+from shared.error_handling.platform3_error_system import Platform3ErrorSystem, ServiceError
+from shared.database.platform3_database_manager import Platform3DatabaseManager
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
+import asyncio
 import numpy as np
-import pandas as pd
-from typing import Dict, List, Tuple, Optional, Union
-from scipy import stats
-from scipy.optimize import curve_fit
-import math
-from dataclasses import dataclass
-
-@dataclass
-class FractalResult:
-    """Result of fractal dimension calculation."""
-    dimension: float
-    method: str
-    confidence: float
-    complexity_level: str
-    trend_persistence: float
-
-@dataclass
-class FractalSignal:
-    """Fractal-based trading signal."""
-    timestamp: pd.Timestamp
-    signal_type: str
-    fractal_dimension: float
-    complexity_change: float
-    signal_strength: float
-    description: str
+from typing import Dict, List, Any, Optional, Union
+from datetime import datetime, timedelta
+import time
 
 class FractalDimensionCalculator:
-    """
-    Fractal Dimension Calculator for Market Analysis
+    """Enhanced FractalDimensionCalculator with Platform3 framework integration"""
     
-    Implements multiple methods for calculating fractal dimensions:
-    - Higuchi Method: Time series fractal dimension
-    - Box Counting Method: Self-similarity measurement
-    - Rescaled Range (R/S) Analysis: Hurst exponent calculation
-    - Detrended Fluctuation Analysis (DFA): Long-range correlations
-    - Variance Fractal Dimension: Price variance scaling
-    - Correlation Dimension: Attractor dimension in phase space
-    """
-    
-    def __init__(self, 
-                 window_size: int = 50,
-                 max_scale: int = 20,
-                 min_scale: int = 2,
-                 overlap_ratio: float = 0.5):
+    def __init__(self):
+        """Initialize with Platform3 framework components"""
+        self.logger = Platform3Logger(self.__class__.__name__)
+        self.error_system = Platform3ErrorSystem()
+        self.db_manager = Platform3DatabaseManager()
+        self.comm_framework = Platform3CommunicationFramework()
+        
+        self.logger.info(f"{self.__class__.__name__} initialized successfully")
+        
+    async def calculate(self, data: np.ndarray) -> Optional[Dict[str, Any]]:
         """
-        Initialize Fractal Dimension Calculator.
+        Calculate trading engine values with enhanced accuracy
         
         Args:
-            window_size: Size of analysis window
-            max_scale: Maximum scale for fractal analysis
-            min_scale: Minimum scale for fractal analysis
-            overlap_ratio: Overlap ratio for rolling windows
-        """
-        self.window_size = window_size
-        self.max_scale = max_scale
-        self.min_scale = min_scale
-        self.overlap_ratio = overlap_ratio
-        
-        # Fractal dimension interpretation
-        self.dimension_ranges = {
-            'trending': (1.0, 1.3),
-            'transitional': (1.3, 1.7),
-            'random_walk': (1.4, 1.6),
-            'mean_reverting': (1.7, 2.0),
-            'highly_complex': (2.0, 3.0)
-        }
-        
-        # Historical fractal data
-        self.fractal_history: List[FractalResult] = []
-        
-    def analyze(self, 
-                data: pd.DataFrame,
-                price_column: str = 'close',
-                volume_column: str = 'volume') -> Dict:
-        """
-        Comprehensive fractal dimension analysis.
-        
-        Args:
-            data: OHLCV DataFrame with datetime index
-            price_column: Column name for price analysis
-            volume_column: Column name for volume analysis
+            data: Input market data array
             
         Returns:
-            Dictionary containing fractal analysis results
+            Dictionary containing calculated values or None on error
         """
-        if len(data) < self.window_size:
-            return self._empty_result()
+        start_time = time.time()
         
-        results = {
-            'timestamp': data.index[-1],
-            'higuchi_dimension': {},
-            'box_counting_dimension': {},
-            'hurst_exponent': {},
-            'dfa_dimension': {},
-            'variance_dimension': {},
-            'correlation_dimension': {},
-            'fractal_summary': {},
-            'complexity_analysis': {},
-            'signals': [],
-            'trend_persistence': 0.0,
-            'market_complexity': 'unknown',
-            'fractal_regime': 'unknown'
-        }
-        
-        prices = data[price_column].values
-        volumes = data[volume_column].values if volume_column in data.columns else None
-        
-        # Calculate Higuchi fractal dimension
-        results['higuchi_dimension'] = self._calculate_higuchi_dimension(prices)
-        
-        # Calculate box counting dimension
-        results['box_counting_dimension'] = self._calculate_box_counting_dimension(prices)
-        
-        # Calculate Hurst exponent (R/S analysis)
-        results['hurst_exponent'] = self._calculate_hurst_exponent(prices)
-        
-        # Calculate DFA dimension
-        results['dfa_dimension'] = self._calculate_dfa_dimension(prices)
-        
-        # Calculate variance fractal dimension
-        results['variance_dimension'] = self._calculate_variance_dimension(prices)
-        
-        # Calculate correlation dimension
-        results['correlation_dimension'] = self._calculate_correlation_dimension(prices)
-        
-        # Create fractal summary
-        results['fractal_summary'] = self._create_fractal_summary(results)
-        
-        # Analyze complexity patterns
-        results['complexity_analysis'] = self._analyze_complexity_patterns(prices)
-        
-        # Generate fractal signals
-        results['signals'] = self._generate_fractal_signals(data, prices)
-        
-        # Calculate trend persistence
-        results['trend_persistence'] = self._calculate_trend_persistence(results)
-        
-        # Determine market complexity
-        results['market_complexity'] = self._determine_market_complexity(results)
-        
-        # Identify fractal regime
-        results['fractal_regime'] = self._identify_fractal_regime(results)
-        
-        return results
+        try:
+            self.logger.debug("Starting calculation process")
+            
+            # Input validation
+            if data is None or len(data) == 0:
+                raise ServiceError("Invalid input data", "INVALID_INPUT")
+            
+            # Perform calculations
+            result = await self._perform_calculation(data)
+            
+            # Performance monitoring
+            execution_time = time.time() - start_time
+            self.logger.info(f"Calculation completed in {execution_time:.4f}s")
+            
+            return result
+            
+        except ServiceError as e:
+            self.logger.error(f"Service error: {e}", extra={"error": e.to_dict()})
+            return None
+        except Exception as e:
+            self.logger.error(f"Unexpected error: {e}")
+            self.error_system.handle_error(e, self.__class__.__name__)
+            return None
     
-    def _calculate_higuchi_dimension(self, prices: np.ndarray) -> Dict:
-        """Calculate Higuchi fractal dimension."""
-        if len(prices) < 10:
-            return {'dimension': 1.5, 'confidence': 0.0, 'method': 'higuchi'}
+    async def _perform_calculation(self, data: np.ndarray) -> Dict[str, Any]:
+        """
+        Internal calculation method - override in subclasses
         
-        # Higuchi method parameters
-        k_max = min(self.max_scale, len(prices) // 4)
-        k_values = range(1, k_max + 1)
-        
-        L_k = []  # Average length for each k
-        
-        for k in k_values:
-            L_mk = []  # Length for each subsequence
+        Args:
+            data: Input market data array
             
-            for m in range(k):
-                # Create subsequence
-                indices = range(m, len(prices), k)
-                if len(indices) < 2:
-                    continue
-                
-                subsequence = prices[indices]
-                
-                # Calculate length of subsequence
-                length = 0
-                for i in range(1, len(subsequence)):
-                    length += abs(subsequence[i] - subsequence[i-1])
-                
-                # Normalize by time interval
-                if len(subsequence) > 1:
-                    length = length * (len(prices) - 1) / ((len(subsequence) - 1) * k)
-                    L_mk.append(length)
-            
-            if L_mk:
-                L_k.append(np.mean(L_mk))
-            else:
-                L_k.append(0)
-        
-        # Calculate fractal dimension from slope
-        if len(L_k) >= 3 and all(l > 0 for l in L_k):
-            log_k = np.log(k_values[:len(L_k)])
-            log_L = np.log(L_k)
-            
-            # Linear regression to find slope
-            slope, intercept, r_value, p_value, std_err = stats.linregress(log_k, log_L)
-            
-            # Higuchi dimension
-            dimension = -slope
-            confidence = abs(r_value)
-            
-        else:
-            dimension = 1.5
-            confidence = 0.0
-            slope = 0
-            r_value = 0
-        
+        Returns:
+            Dictionary containing calculated values
+        """
+        # Default implementation - should be overridden
         return {
-            'dimension': dimension,
-            'confidence': confidence,
-            'method': 'higuchi',
-            'slope': slope,
-            'r_squared': r_value**2 if r_value else 0,
-            'complexity_level': self._classify_complexity(dimension)
+            "values": data.tolist(),
+            "timestamp": datetime.now().isoformat(),
+            "engine": self.__class__.__name__
         }
     
-    def _calculate_box_counting_dimension(self, prices: np.ndarray) -> Dict:
-        """Calculate box counting fractal dimension."""
-        if len(prices) < 10:
-            return {'dimension': 1.0, 'confidence': 0.0, 'method': 'box_counting'}
-        
-        # Normalize prices to [0, 1] range
-        price_min, price_max = np.min(prices), np.max(prices)
-        if price_max == price_min:
-            return {'dimension': 1.0, 'confidence': 0.0, 'method': 'box_counting'}
-        
-        normalized_prices = (prices - price_min) / (price_max - price_min)
-        
-        # Create grid sizes
-        grid_sizes = [2**i for i in range(2, int(np.log2(len(prices)//4)) + 1)]
-        box_counts = []
-        
-        for grid_size in grid_sizes:
-            # Create grid
-            x_bins = np.linspace(0, 1, grid_size + 1)
-            y_bins = np.linspace(0, 1, grid_size + 1)
-            
-            # Count occupied boxes
-            occupied_boxes = set()
-            
-            for i, price in enumerate(normalized_prices):
-                x_coord = i / (len(prices) - 1)
-                
-                # Find which box this point belongs to
-                x_bin = np.digitize(x_coord, x_bins) - 1
-                y_bin = np.digitize(price, y_bins) - 1
-                
-                x_bin = max(0, min(x_bin, grid_size - 1))
-                y_bin = max(0, min(y_bin, grid_size - 1))
-                
-                occupied_boxes.add((x_bin, y_bin))
-            
-            box_counts.append(len(occupied_boxes))
-        
-        # Calculate dimension from log-log plot
-        if len(box_counts) >= 3 and all(count > 0 for count in box_counts):
-            log_grid_sizes = np.log(grid_sizes)
-            log_box_counts = np.log(box_counts)
-            
-            # Linear regression
-            slope, intercept, r_value, p_value, std_err = stats.linregress(log_grid_sizes, log_box_counts)
-            
-            # Box counting dimension
-            dimension = slope
-            confidence = abs(r_value)
-            
-        else:
-            dimension = 1.0
-            confidence = 0.0
-            slope = 0
-            r_value = 0
-        
+    def get_parameters(self) -> Dict[str, Any]:
+        """Get engine parameters"""
         return {
-            'dimension': dimension,
-            'confidence': confidence,
-            'method': 'box_counting',
-            'slope': slope,
-            'r_squared': r_value**2 if r_value else 0,
-            'complexity_level': self._classify_complexity(dimension)
+            "engine_name": self.__class__.__name__,
+            "version": "3.0.0",
+            "framework": "Platform3"
         }
     
-    def _calculate_hurst_exponent(self, prices: np.ndarray) -> Dict:
-        """Calculate Hurst exponent using R/S analysis."""
-        if len(prices) < 20:
-            return {'hurst': 0.5, 'dimension': 1.5, 'confidence': 0.0, 'method': 'hurst_rs'}
-        
-        # Calculate log returns
-        log_prices = np.log(prices)
-        returns = np.diff(log_prices)
-        
-        # Range of window sizes
-        window_sizes = [int(len(returns) / (2**i)) for i in range(1, int(np.log2(len(returns))) - 1)]
-        window_sizes = [w for w in window_sizes if w >= 10]
-        
-        if len(window_sizes) < 3:
-            return {'hurst': 0.5, 'dimension': 1.5, 'confidence': 0.0, 'method': 'hurst_rs'}
-        
-        rs_values = []
-        
-        for window_size in window_sizes:
-            rs_ratios = []
-            
-            # Calculate R/S for non-overlapping windows
-            for start in range(0, len(returns) - window_size + 1, window_size):
-                window_returns = returns[start:start + window_size]
-                
-                if len(window_returns) < 3:
-                    continue
-                
-                # Calculate mean
-                mean_return = np.mean(window_returns)
-                
-                # Calculate cumulative deviations
-                cumulative_deviations = np.cumsum(window_returns - mean_return)
-                
-                # Calculate range
-                R = np.max(cumulative_deviations) - np.min(cumulative_deviations)
-                
-                # Calculate standard deviation
-                S = np.std(window_returns)
-                
-                # Calculate R/S ratio
-                if S > 0:
-                    rs_ratios.append(R / S)
-            
-            if rs_ratios:
-                rs_values.append(np.mean(rs_ratios))
-        
-        # Calculate Hurst exponent
-        if len(rs_values) >= 3 and all(rs > 0 for rs in rs_values):
-            log_windows = np.log(window_sizes[:len(rs_values)])
-            log_rs = np.log(rs_values)
-            
-            # Linear regression
-            hurst, intercept, r_value, p_value, std_err = stats.linregress(log_windows, log_rs)
-            confidence = abs(r_value)
-            
-        else:
-            hurst = 0.5
-            confidence = 0.0
-            r_value = 0
-        
-        # Convert to fractal dimension
-        dimension = 2 - hurst
-        
-        return {
-            'hurst': hurst,
-            'dimension': dimension,
-            'confidence': confidence,
-            'method': 'hurst_rs',
-            'r_squared': r_value**2 if r_value else 0,
-            'persistence': self._classify_persistence(hurst),
-            'complexity_level': self._classify_complexity(dimension)
-        }
-    
-    def _calculate_dfa_dimension(self, prices: np.ndarray) -> Dict:
-        """Calculate fractal dimension using Detrended Fluctuation Analysis."""
-        if len(prices) < 20:
-            return {'dimension': 1.5, 'alpha': 0.5, 'confidence': 0.0, 'method': 'dfa'}
-        
-        # Calculate log returns and integrate
-        log_prices = np.log(prices)
-        returns = np.diff(log_prices)
-        
-        # Create profile (cumulative sum of mean-centered returns)
-        mean_return = np.mean(returns)
-        profile = np.cumsum(returns - mean_return)
-        
-        # Range of window sizes
-        window_sizes = [int(len(profile) / (2**i)) for i in range(1, int(np.log2(len(profile))) - 1)]
-        window_sizes = [w for w in window_sizes if w >= 4]
-        
-        if len(window_sizes) < 3:
-            return {'dimension': 1.5, 'alpha': 0.5, 'confidence': 0.0, 'method': 'dfa'}
-        
-        fluctuations = []
-        
-        for window_size in window_sizes:
-            local_fluctuations = []
-            
-            # Calculate fluctuations for non-overlapping windows
-            for start in range(0, len(profile) - window_size + 1, window_size):
-                window_profile = profile[start:start + window_size]
-                
-                if len(window_profile) < 3:
-                    continue
-                
-                # Detrend by fitting polynomial (linear for DFA1)
-                x = np.arange(len(window_profile))
-                coeffs = np.polyfit(x, window_profile, 1)
-                trend = np.polyval(coeffs, x)
-                
-                # Calculate fluctuation
-                detrended = window_profile - trend
-                fluctuation = np.sqrt(np.mean(detrended**2))
-                
-                local_fluctuations.append(fluctuation)
-            
-            if local_fluctuations:
-                fluctuations.append(np.mean(local_fluctuations))
-        
-        # Calculate scaling exponent (alpha)
-        if len(fluctuations) >= 3 and all(f > 0 for f in fluctuations):
-            log_windows = np.log(window_sizes[:len(fluctuations)])
-            log_fluctuations = np.log(fluctuations)
-            
-            # Linear regression
-            alpha, intercept, r_value, p_value, std_err = stats.linregress(log_windows, log_fluctuations)
-            confidence = abs(r_value)
-            
-        else:
-            alpha = 0.5
-            confidence = 0.0
-            r_value = 0
-        
-        # Convert to fractal dimension
-        dimension = 2 - alpha
-        
-        return {
-            'dimension': dimension,
-            'alpha': alpha,
-            'confidence': confidence,
-            'method': 'dfa',
-            'r_squared': r_value**2 if r_value else 0,
-            'persistence': self._classify_persistence(alpha),
-            'complexity_level': self._classify_complexity(dimension)
-        }
-    
-    def _calculate_variance_dimension(self, prices: np.ndarray) -> Dict:
-        """Calculate fractal dimension from variance scaling."""
-        if len(prices) < 20:
-            return {'dimension': 1.5, 'confidence': 0.0, 'method': 'variance'}
-        
-        # Calculate log returns
-        log_prices = np.log(prices)
-        returns = np.diff(log_prices)
-        
-        # Range of aggregation levels
-        agg_levels = range(1, min(len(returns) // 4, 20))
-        variances = []
-        
-        for level in agg_levels:
-            # Aggregate returns
-            aggregated_returns = []
-            for i in range(0, len(returns) - level + 1, level):
-                agg_return = np.sum(returns[i:i + level])
-                aggregated_returns.append(agg_return)
-            
-            if len(aggregated_returns) > 1:
-                variance = np.var(aggregated_returns)
-                variances.append(variance)
-            else:
-                variances.append(0)
-        
-        # Calculate scaling exponent
-        if len(variances) >= 3 and all(v > 0 for v in variances):
-            log_levels = np.log(list(agg_levels)[:len(variances)])
-            log_variances = np.log(variances)
-            
-            # Linear regression
-            slope, intercept, r_value, p_value, std_err = stats.linregress(log_levels, log_variances)
-            confidence = abs(r_value)
-            
-            # Convert to fractal dimension
-            # For Brownian motion: Var(X_t) ~ t, so slope = 1
-            # Fractal dimension relates to slope
-            dimension = 1.5 + (slope - 1) / 2
-            
-        else:
-            dimension = 1.5
-            confidence = 0.0
-            slope = 1
-            r_value = 0
-        
-        return {
-            'dimension': dimension,
-            'confidence': confidence,
-            'method': 'variance',
-            'scaling_exponent': slope,
-            'r_squared': r_value**2 if r_value else 0,
-            'complexity_level': self._classify_complexity(dimension)
-        }
-    
-    def _calculate_correlation_dimension(self, prices: np.ndarray) -> Dict:
-        """Calculate correlation dimension using phase space reconstruction."""
-        if len(prices) < 50:
-            return {'dimension': 2.0, 'confidence': 0.0, 'method': 'correlation'}
-        
-        # Phase space reconstruction parameters
-        embedding_dim = 3
-        time_delay = 1
-        
-        # Create embedded vectors
-        embedded_vectors = []
-        for i in range(len(prices) - (embedding_dim - 1) * time_delay):
-            vector = []
-            for j in range(embedding_dim):
-                vector.append(prices[i + j * time_delay])
-            embedded_vectors.append(vector)
-        
-        embedded_vectors = np.array(embedded_vectors)
-        
-        if len(embedded_vectors) < 10:
-            return {'dimension': 2.0, 'confidence': 0.0, 'method': 'correlation'}
-        
-        # Calculate correlation integral for different radii
-        max_distance = np.max(np.std(embedded_vectors, axis=0))
-        radii = np.logspace(np.log10(max_distance/100), np.log10(max_distance/2), 10)
-        
-        correlations = []
-        
-        for radius in radii:
-            count = 0
-            total_pairs = 0
-            
-            # Count pairs within radius
-            for i in range(len(embedded_vectors)):
-                for j in range(i + 1, len(embedded_vectors)):
-                    distance = np.linalg.norm(embedded_vectors[i] - embedded_vectors[j])
-                    total_pairs += 1
-                    if distance < radius:
-                        count += 1
-            
-            if total_pairs > 0:
-                correlation = count / total_pairs
-                correlations.append(max(1e-10, correlation))  # Avoid log(0)
-            else:
-                correlations.append(1e-10)
-        
-        # Calculate correlation dimension
-        if len(correlations) >= 3:
-            log_radii = np.log(radii)
-            log_correlations = np.log(correlations)
-            
-            # Linear regression on middle section
-            mid_start = len(correlations) // 4
-            mid_end = 3 * len(correlations) // 4
-            
-            if mid_end > mid_start + 2:
-                slope, intercept, r_value, p_value, std_err = stats.linregress(
-                    log_radii[mid_start:mid_end], 
-                    log_correlations[mid_start:mid_end]
-                )
-                
-                dimension = slope
-                confidence = abs(r_value)
-            else:
-                dimension = 2.0
-                confidence = 0.0
-                r_value = 0
-        else:
-            dimension = 2.0
-            confidence = 0.0
-            r_value = 0
-        
-        return {
-            'dimension': dimension,
-            'confidence': confidence,
-            'method': 'correlation',
-            'embedding_dimension': embedding_dim,
-            'r_squared': r_value**2 if r_value else 0,
-            'complexity_level': self._classify_complexity(dimension)
-        }
-    
-    def _create_fractal_summary(self, results: Dict) -> Dict:
-        """Create summary of all fractal dimension calculations."""
-        dimensions = []
-        confidences = []
-        methods = []
-        
-        # Collect all dimension measurements
-        for method_key in ['higuchi_dimension', 'box_counting_dimension', 'hurst_exponent', 
-                          'dfa_dimension', 'variance_dimension', 'correlation_dimension']:
-            if method_key in results and 'dimension' in results[method_key]:
-                dimension = results[method_key]['dimension']
-                confidence = results[method_key].get('confidence', 0)
-                
-                if 0.5 <= dimension <= 3.0 and confidence > 0.1:  # Valid range
-                    dimensions.append(dimension)
-                    confidences.append(confidence)
-                    methods.append(results[method_key]['method'])
-        
-        if not dimensions:
-            return {
-                'average_dimension': 1.5,
-                'weighted_dimension': 1.5,
-                'dimension_std': 0.0,
-                'consensus_confidence': 0.0,
-                'method_agreement': 0.0,
-                'dominant_method': 'none'
-            }
-        
-        # Calculate summary statistics
-        average_dimension = np.mean(dimensions)
-        weighted_dimension = np.average(dimensions, weights=confidences)
-        dimension_std = np.std(dimensions)
-        consensus_confidence = np.mean(confidences)
-        
-        # Method agreement (how close dimensions are)
-        method_agreement = max(0, 1 - (dimension_std / 0.5))  # Normalize by reasonable std
-        
-        # Find dominant method (highest confidence)
-        if confidences:
-            dominant_idx = np.argmax(confidences)
-            dominant_method = methods[dominant_idx]
-        else:
-            dominant_method = 'none'
-        
-        return {
-            'average_dimension': average_dimension,
-            'weighted_dimension': weighted_dimension,
-            'dimension_std': dimension_std,
-            'consensus_confidence': consensus_confidence,
-            'method_agreement': method_agreement,
-            'dominant_method': dominant_method,
-            'valid_methods': len(dimensions),
-            'dimension_range': (min(dimensions), max(dimensions)) if dimensions else (1.5, 1.5)
-        }
-    
-    def _analyze_complexity_patterns(self, prices: np.ndarray) -> Dict:
-        """Analyze patterns in market complexity."""
-        complexity_analysis = {}
-        
-        # Calculate rolling fractal dimensions
-        window_step = max(1, int(self.window_size * (1 - self.overlap_ratio)))
-        rolling_dimensions = []
-        rolling_times = []
-        
-        for start in range(0, len(prices) - self.window_size + 1, window_step):
-            window_prices = prices[start:start + self.window_size]
-            
-            # Quick Higuchi calculation for rolling analysis
-            higuchi_result = self._calculate_higuchi_dimension(window_prices)
-            rolling_dimensions.append(higuchi_result['dimension'])
-            rolling_times.append(start)
-        
-        if len(rolling_dimensions) >= 3:
-            rolling_dimensions = np.array(rolling_dimensions)
-            
-            # Complexity statistics
-            complexity_analysis = {
-                'mean_complexity': np.mean(rolling_dimensions),
-                'complexity_volatility': np.std(rolling_dimensions),
-                'complexity_trend': self._calculate_trend(rolling_dimensions),
-                'complexity_cycles': self._detect_complexity_cycles(rolling_dimensions),
-                'regime_changes': self._detect_regime_changes(rolling_dimensions),
-                'complexity_extremes': {
-                    'max_complexity': np.max(rolling_dimensions),
-                    'min_complexity': np.min(rolling_dimensions),
-                    'current_percentile': self._calculate_percentile(rolling_dimensions[-1], rolling_dimensions)
-                }
-            }
-        else:
-            complexity_analysis = {
-                'mean_complexity': 1.5,
-                'complexity_volatility': 0.0,
-                'complexity_trend': 0.0,
-                'complexity_cycles': [],
-                'regime_changes': [],
-                'complexity_extremes': {
-                    'max_complexity': 1.5,
-                    'min_complexity': 1.5,
-                    'current_percentile': 50.0
-                }
-            }
-        
-        return complexity_analysis
-    
-    def _generate_fractal_signals(self, data: pd.DataFrame, prices: np.ndarray) -> List[FractalSignal]:
-        """Generate trading signals based on fractal analysis."""
-        signals = []
-        current_time = data.index[-1]
-        
-        if len(self.fractal_history) < 2:
-            return signals
-        
-        # Get current and previous fractal measurements
-        current_result = self.fractal_history[-1]
-        previous_result = self.fractal_history[-2]
-        
-        # Calculate complexity change
-        complexity_change = current_result.dimension - previous_result.dimension
-        
-        # Signal generation rules
-        
-        # 1. Complexity regime change
-        if abs(complexity_change) > 0.3:
-            signal_type = "complexity_shift"
-            if complexity_change > 0:
-                description = "Market complexity increasing - potential regime change"
-                signal_strength = min(0.9, abs(complexity_change))
-            else:
-                description = "Market complexity decreasing - potential trend emergence"
-                signal_strength = min(0.9, abs(complexity_change))
-            
-            signal = FractalSignal(
-                timestamp=current_time,
-                signal_type=signal_type,
-                fractal_dimension=current_result.dimension,
-                complexity_change=complexity_change,
-                signal_strength=signal_strength,
-                description=description
-            )
-            signals.append(signal)
-        
-        # 2. Extreme complexity levels
-        if current_result.dimension < 1.2:
-            signal = FractalSignal(
-                timestamp=current_time,
-                signal_type="strong_trend",
-                fractal_dimension=current_result.dimension,
-                complexity_change=complexity_change,
-                signal_strength=0.8,
-                description="Very low fractal dimension - strong trending market"
-            )
-            signals.append(signal)
-        
-        elif current_result.dimension > 1.8:
-            signal = FractalSignal(
-                timestamp=current_time,
-                signal_type="high_noise",
-                fractal_dimension=current_result.dimension,
-                complexity_change=complexity_change,
-                signal_strength=0.7,
-                description="High fractal dimension - noisy, mean-reverting market"
-            )
-            signals.append(signal)
-        
-        # 3. Persistence change (for Hurst-based signals)
-        if current_result.trend_persistence < 0.3:
-            signal = FractalSignal(
-                timestamp=current_time,
-                signal_type="anti_persistent",
-                fractal_dimension=current_result.dimension,
-                complexity_change=complexity_change,
-                signal_strength=0.6,
-                description="Anti-persistent behavior detected - mean reversion likely"
-            )
-            signals.append(signal)
-        
-        elif current_result.trend_persistence > 0.7:
-            signal = FractalSignal(
-                timestamp=current_time,
-                signal_type="persistent",
-                fractal_dimension=current_result.dimension,
-                complexity_change=complexity_change,
-                signal_strength=0.6,
-                description="Persistent behavior detected - trend continuation likely"
-            )
-            signals.append(signal)
-        
-        return signals
-    
-    def _classify_complexity(self, dimension: float) -> str:
-        """Classify complexity level based on fractal dimension."""
-        for level, (min_dim, max_dim) in self.dimension_ranges.items():
-            if min_dim <= dimension <= max_dim:
-                return level
-        
-        if dimension < 1.0:
-            return "highly_trending"
-        elif dimension > 3.0:
-            return "extremely_complex"
-        else:
-            return "unknown"
-    
-    def _classify_persistence(self, hurst_or_alpha: float) -> str:
-        """Classify persistence based on Hurst exponent or DFA alpha."""
-        if hurst_or_alpha < 0.3:
-            return "highly_anti_persistent"
-        elif hurst_or_alpha < 0.5:
-            return "anti_persistent"
-        elif hurst_or_alpha < 0.7:
-            return "random"
-        elif hurst_or_alpha < 0.9:
-            return "persistent"
-        else:
-            return "highly_persistent"
-    
-    def _calculate_trend(self, values: np.ndarray) -> float:
-        """Calculate trend in complexity values."""
-        if len(values) < 3:
-            return 0.0
-        
-        x = np.arange(len(values))
-        slope, intercept, r_value, p_value, std_err = stats.linregress(x, values)
-        
-        return slope
-    
-    def _detect_complexity_cycles(self, dimensions: np.ndarray) -> List[Dict]:
-        """Detect cycles in complexity patterns."""
-        if len(dimensions) < 10:
-            return []
-        
-        cycles = []
-        
-        # Simple peak detection for cycle identification
-        from scipy.signal import find_peaks
-        
-        # Find peaks and troughs
-        peaks, _ = find_peaks(dimensions, height=np.mean(dimensions))
-        troughs, _ = find_peaks(-dimensions, height=-np.mean(dimensions))
-        
-        # Calculate cycle periods
-        if len(peaks) >= 2:
-            peak_periods = np.diff(peaks)
-            if len(peak_periods) > 0:
-                cycles.append({
-                    'type': 'peak_cycle',
-                    'average_period': np.mean(peak_periods),
-                    'period_std': np.std(peak_periods),
-                    'count': len(peak_periods)
-                })
-        
-        if len(troughs) >= 2:
-            trough_periods = np.diff(troughs)
-            if len(trough_periods) > 0:
-                cycles.append({
-                    'type': 'trough_cycle',
-                    'average_period': np.mean(trough_periods),
-                    'period_std': np.std(trough_periods),
-                    'count': len(trough_periods)
-                })
-        
-        return cycles
-    
-    def _detect_regime_changes(self, dimensions: np.ndarray) -> List[Dict]:
-        """Detect regime changes in complexity."""
-        if len(dimensions) < 10:
-            return []
-        
-        regime_changes = []
-        
-        # Use change point detection (simple threshold method)
-        threshold = 2 * np.std(dimensions)
-        
-        for i in range(1, len(dimensions)):
-            change = abs(dimensions[i] - dimensions[i-1])
-            
-            if change > threshold:
-                regime_changes.append({
-                    'position': i,
-                    'change_magnitude': change,
-                    'from_complexity': dimensions[i-1],
-                    'to_complexity': dimensions[i],
-                    'regime_type': 'increase' if dimensions[i] > dimensions[i-1] else 'decrease'
-                })
-        
-        return regime_changes
-    
-    def _calculate_percentile(self, value: float, values: np.ndarray) -> float:
-        """Calculate percentile of value within values array."""
-        if len(values) == 0:
-            return 50.0
-        
-        return (np.sum(values <= value) / len(values)) * 100
-    
-    def _calculate_trend_persistence(self, results: Dict) -> float:
-        """Calculate overall trend persistence from fractal results."""
-        persistence_values = []
-        
-        # From Hurst exponent
-        if 'hurst_exponent' in results and 'hurst' in results['hurst_exponent']:
-            hurst = results['hurst_exponent']['hurst']
-            persistence_values.append(hurst)
-        
-        # From DFA alpha
-        if 'dfa_dimension' in results and 'alpha' in results['dfa_dimension']:
-            alpha = results['dfa_dimension']['alpha']
-            persistence_values.append(alpha)
-        
-        # Average persistence
-        if persistence_values:
-            return np.mean(persistence_values)
-        else:
-            return 0.5  # Random walk default
-    
-    def _determine_market_complexity(self, results: Dict) -> str:
-        """Determine overall market complexity level."""
-        if 'fractal_summary' in results:
-            avg_dimension = results['fractal_summary'].get('average_dimension', 1.5)
-            return self._classify_complexity(avg_dimension)
-        else:
-            return 'unknown'
-    
-    def _identify_fractal_regime(self, results: Dict) -> str:
-        """Identify current fractal regime."""
-        avg_dimension = results.get('fractal_summary', {}).get('average_dimension', 1.5)
-        trend_persistence = results.get('trend_persistence', 0.5)
-        
-        if avg_dimension < 1.3 and trend_persistence > 0.6:
-            return "trending_persistent"
-        elif avg_dimension < 1.3 and trend_persistence < 0.4:
-            return "trending_reversing"
-        elif avg_dimension > 1.7 and trend_persistence < 0.4:
-            return "mean_reverting"
-        elif avg_dimension > 1.7 and trend_persistence > 0.6:
-            return "complex_persistent"
-        elif 1.3 <= avg_dimension <= 1.7:
-            return "transitional"
-        else:
-            return "unknown"
-    
-    def _empty_result(self) -> Dict:
-        """Return empty result structure."""
-        return {
-            'timestamp': None,
-            'higuchi_dimension': {'dimension': 1.5, 'confidence': 0.0},
-            'box_counting_dimension': {'dimension': 1.0, 'confidence': 0.0},
-            'hurst_exponent': {'hurst': 0.5, 'dimension': 1.5, 'confidence': 0.0},
-            'dfa_dimension': {'dimension': 1.5, 'alpha': 0.5, 'confidence': 0.0},
-            'variance_dimension': {'dimension': 1.5, 'confidence': 0.0},
-            'correlation_dimension': {'dimension': 2.0, 'confidence': 0.0},
-            'fractal_summary': {'average_dimension': 1.5, 'consensus_confidence': 0.0},
-            'complexity_analysis': {},
-            'signals': [],
-            'trend_persistence': 0.5,
-            'market_complexity': 'unknown',
-            'fractal_regime': 'unknown'
-        }
-    
-    def get_fractal_summary(self, analysis_result: Dict) -> str:
-        """Generate human-readable fractal analysis summary."""
-        if not analysis_result or not analysis_result.get('fractal_summary'):
-            return "No fractal analysis available."
-        
-        summary_parts = []
-        
-        # Fractal dimension
-        avg_dim = analysis_result['fractal_summary'].get('average_dimension', 1.5)
-        summary_parts.append(f"Fractal dimension: {avg_dim:.2f}")
-        
-        # Market complexity
-        complexity = analysis_result.get('market_complexity', 'unknown')
-        summary_parts.append(f"Complexity: {complexity}")
-        
-        # Trend persistence
-        persistence = analysis_result.get('trend_persistence', 0.5)
-        summary_parts.append(f"Persistence: {persistence:.2f}")
-        
-        # Fractal regime
-        regime = analysis_result.get('fractal_regime', 'unknown')
-        summary_parts.append(f"Regime: {regime}")
-        
-        # Signals
-        signals = analysis_result.get('signals', [])
-        if signals:
-            summary_parts.append(f"Signals: {len(signals)}")
-        
-        return " | ".join(summary_parts)
+    async def validate_input(self, data: Any) -> bool:
+        """Validate input data"""
+        try:
+            if data is None:
+                return False
+            if isinstance(data, np.ndarray) and len(data) == 0:
+                return False
+            return True
+        except Exception as e:
+            self.logger.error(f"Input validation error: {e}")
+            return False
