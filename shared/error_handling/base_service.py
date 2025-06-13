@@ -15,9 +15,8 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 
 # Add Platform3 frameworks
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'shared'))
-from logging.platform3_logger import Platform3Logger, log_performance
-from error_handling.platform3_error_system import (
+from shared.logging.platform3_logger import Platform3Logger, log_performance
+from shared.error_handling.platform3_error_system import (
     EventEmitter, ServiceError, ErrorSeverity, ErrorCategory, ErrorMetadata,
     CircuitBreaker, retry_with_backoff,
     ValidationError, AuthenticationError, TradingError, AIModelError,

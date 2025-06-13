@@ -39,8 +39,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # Import existing backup infrastructure
 try:
     import sys
-    sys.path.append(str(Path(__file__).parent.parent.parent / "infrastructure" / "backup"))
-    from backup_monitoring import BackupMonitor, BackupStatus
+        from backup_monitoring import BackupMonitor, BackupStatus
     BACKUP_INFRASTRUCTURE_AVAILABLE = True
 except ImportError as e:
     logging.warning(f"Backup infrastructure not available: {e}")

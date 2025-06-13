@@ -100,10 +100,6 @@ sys.modules['dynamic_risk_agent.model'] = type('MockModule', (), {
 })()
 
 # Add Platform3 paths
-sys.path.append(str(Path(__file__).parent.parent))
-sys.path.append(str(Path(__file__).parent.parent / "ai-platform"))
-sys.path.append(str(Path(__file__).parent.parent / "ai-platform" / "coordination"))
-sys.path.append(str(Path(__file__).parent.parent / "ai-platform" / "intelligent-agents"))
 
 @dataclass
 class TestResult:
@@ -174,8 +170,7 @@ class FixedComprehensiveAIIntegrationTestSuite:
         
         try:
             # Import DecisionMaster with correct path
-            sys.path.append(str(Path(__file__).parent.parent / "ai-platform" / "ai-models" / "intelligent-agents" / "decision-master"))
-            
+                        
             from model import DecisionMaster, SignalInput, MarketConditions, PortfolioContext, MarketState
             
             decision_master = DecisionMaster()
@@ -279,8 +274,7 @@ class FixedComprehensiveAIIntegrationTestSuite:
         
         try:
             # Import AIModelCoordinator
-            sys.path.append(str(Path(__file__).parent.parent / "ai-platform" / "coordination"))
-            
+                        
             from AIModelCoordinator import AIModelCoordinator
             
             # Test with mock communication framework
@@ -361,14 +355,12 @@ class FixedComprehensiveAIIntegrationTestSuite:
         
         try:
             # Step 1: AIModelCoordinator
-            sys.path.append(str(Path(__file__).parent.parent / "ai-platform" / "coordination"))
-            from AIModelCoordinator import AIModelCoordinator
+                        from AIModelCoordinator import AIModelCoordinator
             
             coordinator = AIModelCoordinator()
             
             # Step 2: DecisionMaster with DynamicRiskAgent (FIXED)
-            sys.path.append(str(Path(__file__).parent.parent / "ai-platform" / "ai-models" / "intelligent-agents" / "decision-master"))
-            from model import DecisionMaster, SignalInput, MarketConditions, PortfolioContext, MarketState
+                        from model import DecisionMaster, SignalInput, MarketConditions, PortfolioContext, MarketState
             
             decision_master = DecisionMaster()
             
@@ -505,8 +497,7 @@ class FixedComprehensiveAIIntegrationTestSuite:
         
         try:
             # Import AIModelCoordinator for stress testing
-            sys.path.append(str(Path(__file__).parent.parent / "ai-platform" / "coordination"))
-            from AIModelCoordinator import AIModelCoordinator
+                        from AIModelCoordinator import AIModelCoordinator
             
             successful_operations = 0
             total_operations = 25

@@ -7,7 +7,6 @@ import sys
 import os
 
 # Add path for imports
-sys.path.append(os.path.dirname(__file__))
 
 # Basic test imports
 import asyncio

@@ -21,7 +21,6 @@ import sys
 import os
 
 # Add the parent directory to the path to import base_indicator
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from base_indicator import StandardIndicatorInterface
 
 

@@ -5,7 +5,6 @@ Script to add the missing 7 real indicators to reach exactly 167 indicators.
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 def identify_and_add_missing_indicators():
     """Identify real missing indicators and modify registry to include them"""

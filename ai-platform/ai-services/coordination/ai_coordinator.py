@@ -16,8 +16,7 @@ from pathlib import Path
 
 import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent / "model-registry"))
-from model_registry import AIModelRegistry, ModelType, ModelStatus, get_registry
+from ai_platform.ai_services.model_registry import AIModelRegistry, ModelType, ModelStatus, get_registry
 
 class TaskPriority(Enum):
     LOW = 1

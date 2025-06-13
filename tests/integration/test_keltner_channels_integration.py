@@ -11,7 +11,6 @@ import sys
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
 
 class TestKeltnerchannelsIntegration(unittest.TestCase):
     """Integration test suite for keltner_channels"""

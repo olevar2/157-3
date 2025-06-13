@@ -23,8 +23,7 @@ from events import EventEmitter
 # Platform3 communication framework
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'shared', 'communication'))
-from platform3_communication_framework import Platform3CommunicationFramework
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
 
 # Import existing analytics services
 from DayTradingAnalytics import DayTradingAnalytics

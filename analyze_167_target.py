@@ -7,7 +7,6 @@ and compare with the registry to find exactly what's missing.
 import sys
 import os
 import re
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from engines.ai_enhancement.registry import get_enhanced_registry
 

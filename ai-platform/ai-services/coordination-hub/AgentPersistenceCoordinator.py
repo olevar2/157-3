@@ -17,11 +17,10 @@ import logging
 import uuid
 
 # Add shared modules to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'shared'))
 from shared.persistence.agent_state_manager import (
     AgentStateManager, StateType, StateSnapshot, create_agent_state_manager
 )
-from shared.platform3_logging.platform3_logger import get_logger
+from shared.logging.platform3_logger import get_logger
 from shared.error_handling.platform3_error_system import BaseService, ServiceError
 
 

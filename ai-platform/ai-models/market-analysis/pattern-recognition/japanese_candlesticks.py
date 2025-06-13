@@ -17,39 +17,11 @@ from dataclasses import dataclass
 import datetime # Added import
 
 # Platform3 Phase 2 Framework Integration
-sys.path.append(str(Path(__file__).parent.parent.parent.parent / "shared"))
 from shared.logging.platform3_logger import Platform3Logger, log_performance, LogMetadata
 from shared.error_handling.platform3_error_system import Platform3ErrorSystem, MLError, ModelError, BaseService, ServiceError, ValidationError
 from shared.database.platform3_database_manager import Platform3DatabaseManager
 from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
-
-
-class AIModelPerformanceMonitor:
-    """Enhanced performance monitoring for AI models"""
-    
-    def __init__(self, model_name: str):
-        self.logger = Platform3Logger(f"ai_model_{model_name}")
-        self.error_handler = Platform3ErrorSystem()
-        self.start_time = None
-        self.metrics = {}
-    
-    def start_monitoring(self):
-        """Start performance monitoring"""
-        self.start_time = datetime.now()
-        self.logger.info("Starting AI model performance monitoring")
-    
-    def log_metric(self, metric_name: str, value: float):
-        """Log performance metric"""
-        self.metrics[metric_name] = value
-        self.logger.info(f"Performance metric: {metric_name} = {value}")
-    
-    def end_monitoring(self):
-        """End monitoring and log results"""
-        if self.start_time:
-            duration = (datetime.now() - self.start_time).total_seconds()
-            self.log_metric("execution_time_seconds", duration)
-            self.logger.info(f"Performance monitoring complete: {duration:.2f}s")
-
+from shared.ai_model_base import AIModelPerformanceMonitor
 
 class EnhancedMLDataProcessor:
     """Advanced data processing with Platform3 integration"""
@@ -86,13 +58,11 @@ class EnhancedMLDataProcessor:
             )
             raise
 
-
 @dataclass
 class JapaneseCandlesticksConfig:
     """Configuration for JapaneseCandlesticks"""
     period: int = 14
     threshold: float = 0.001
-
 
 class JapaneseCandlesticks(BaseService):
     """
@@ -227,7 +197,6 @@ class JapaneseCandlesticks(BaseService):
         self.values.clear()
         self.patterns.clear()
         self.logger.info("JapaneseCandlesticks indicator reset")
-
 
 # === PLATFORM3 PHASE 2 ENHANCEMENT APPLIED ===
 # Enhanced on: 2025-05-31T22:33:56.120527

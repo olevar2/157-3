@@ -1,103 +1,110 @@
-from shared.logging.platform3_logger import Platform3Logger
-from shared.error_handling.platform3_error_system import (
-    Platform3ErrorSystem,
-    ServiceError,
-)
-from shared.database.platform3_database_manager import Platform3DatabaseManager
-from shared.communication.platform3_communication_framework import (
-    Platform3CommunicationFramework,
-)
-import asyncio
-import numpy as np
-from typing import Dict, List, Any, Optional, Union
-from datetime import datetime, timedelta
-import time
+# --- START OF FILE __init__.py ---
 
 """
-Platform3 Advanced Trading Engines
-===================================
-Sophisticated analysis engines for maximum accuracy trading platform.
+Platform3 AI Enhancement Engine
+================================
 
-For Humanitarian Profit Generation - Using Mathematical Precision
+This package is the core of the AI-powered trading analysis system. It
+integrates 9 specialized "Genius Agents" with a library of 167 advanced
+technical indicators.
+
+The primary entry point for using this engine is the `GeniusAgentIntegration`
+class, which orchestrates the entire analysis process.
+
+Key Exports:
+- GeniusAgentIntegration: The main class for running analyses.
+- GeniusAgentType: An enum for identifying the 9 specific agents.
+- INDICATOR_REGISTRY: A dictionary of all 167 available indicators.
+- get_indicator: A function to retrieve a specific indicator callable.
+- IndicatorBase: The foundational class for all indicators.
+- BasePatternEngine: The foundational class for all pattern indicators.
 """
-
-import sys
-import os
-
-# Add the actual analytics service path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-analytics_path = os.path.join(current_dir, "..", "services", "analytics-service", "src")
-if analytics_path not in sys.path:
-    sys.path.insert(0, analytics_path)
 
 __version__ = "3.0.0"
 __author__ = "Platform3 AI Team"
 __purpose__ = "Humanitarian Profit Generation Through Mathematical Precision"
 
-# Import from actual implementations
-try:
-    from engines.gann.GannAnglesCalculator import GannAnglesCalculator
-    from engines.gann.gann_square_of_nine import GannSquareOfNine
+# --- Core Foundational Classes ---
+from .indicator_base import (
+    IndicatorBase,
+    TechnicalIndicator,
+    IndicatorConfig,
+    IndicatorResult,
+    IndicatorSignal,
+    MarketData,
+    SignalType,
+    IndicatorType,
+    TimeFrame,
+    IndicatorStatus,
+)
+from .base_pattern import (
+    BasePatternEngine,
+    PatternSignal,
+    PatternType,
+    PatternStrength,
+)
 
-    # Commented out missing module: from engines.gann.GannFanAnalysis import GannFanAnalysis
-    from engines.gann.gann_fan_lines import (
-        GannFanAnalysis,
-    )  # Use the class from gann_fan_lines.py
-    from engines.gann.GannTimePrice import GannTimePrice
-    from engines.gann.GannPatternDetector import GannPatternDetector
-except ImportError as e:
-    print(f"Warning: Gann indicators not available: {e}")
+# --- Central Indicator Registry and Accessor ---
+# This is the single source of truth for all 167 indicators.
+from .registry import (
+    INDICATOR_REGISTRY,
+    get_indicator,
+    validate_registry,
+    GeniusAgentType,
+)
 
-try:
-    from engines.fibonacci.FibonacciRetracement import FibonacciRetracement
-    from engines.fibonacci.FibonacciExtension import FibonacciExtension
-    from engines.fibonacci.FibonacciFan import FibonacciFanIndicator
-    from engines.fibonacci.ConfluenceDetector import ConfluenceDetector
-    from engines.fibonacci.TimeZoneAnalysis import TimeZoneAnalysis
-    from engines.fibonacci.ProjectionArcCalculator import ProjectionArcCalculator
-except ImportError as e:
-    print(f"Warning: Fibonacci indicators not available: {e}")
+# --- Core Integration and Orchestration Components ---
+from .adaptive_indicator_bridge import AdaptiveIndicatorBridge
+from .genius_agent_integration import GeniusAgentIntegration
 
-try:
-    from engines.ml_advanced.neural_network_predictor import NeuralNetworkPredictor
-    from engines.ml_advanced.genetic_algorithm_optimizer import (
-        GeneticAlgorithmOptimizer,
-    )
-except ImportError as e:
-    print(f"Warning: ML Advanced indicators not available: {e}")
 
-try:
-    from engines.momentum.rsi import RelativeStrengthIndex as RSI
-    from engines.momentum.macd import MovingAverageConvergenceDivergence as MACD
-    from engines.momentum.stochastic import StochasticOscillator as Stochastic
-    from engines.momentum.correlation_momentum import (
-        DynamicCorrelationIndicator,
-        RelativeMomentumIndicator,
-    )
-except ImportError as e:
-    print(f"Warning: Technical indicators not available: {e}")
-
+# --- Public API for the AI Enhancement Engine ---
+# This defines what other parts of the platform can import from this module.
 __all__ = [
-    # Gann Analysis
-    "GannAnglesCalculator",
-    "GannSquareOfNine",
-    "GannFanAnalysis",
-    "GannTimePrice",
-    "GannPatternDetector",
-    # Fibonacci Analysis
-    "FibonacciRetracement",
-    "FibonacciExtension",
-    "FibonacciFanIndicator",
-    "ConfluenceDetector",
-    "TimeZoneAnalysis",
-    "ProjectionArcCalculator",
-    # ML Advanced Analysis
-    "NeuralNetworkPredictor",
-    "GeneticAlgorithmOptimizer",
-    # Technical Indicators
-    "RSI",
-    "MACD",
-    "Stochastic",
-    "DynamicCorrelationIndicator",
-    "RelativeMomentumIndicator",
+    # Main Orchestration
+    "GeniusAgentIntegration",
+    
+    # Agent Identification
+    "GeniusAgentType",
+    
+    # Indicator Access
+    "INDICATOR_REGISTRY",
+    "get_indicator",
+    "validate_registry",
+    
+    # Foundational Base Classes
+    "IndicatorBase",
+    "BasePatternEngine",
+    
+    # Core Data Structures
+    "IndicatorSignal",
+    "PatternSignal",
+    "MarketData",
+    "IndicatorResult",
+    "IndicatorConfig",
+    
+    # Core Enums
+    "SignalType",
+    "IndicatorType",
+    "PatternType",
+    "PatternStrength",
+    "TimeFrame",
+    "IndicatorStatus",
+
+    # The bridge is used internally by the integration layer
+    "AdaptiveIndicatorBridge",
 ]
+
+# --- Module-level validation on import ---
+import logging
+logger = logging.getLogger(__name__)
+
+try:
+    if validate_registry() == 167:
+        logger.info("AI Enhancement Engine initialized successfully. All 167 indicators are available.")
+    else:
+        logger.critical("AI Enhancement Engine FAILED to initialize correctly. Indicator count is incorrect.")
+except Exception as e:
+    logger.exception(f"A critical error occurred during AI Enhancement Engine initialization: {e}")
+
+# --- END OF FILE __init__.py ---

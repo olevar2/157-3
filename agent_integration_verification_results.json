@@ -1,0 +1,95 @@
+{
+  "test_timestamp": "2025-06-12T21:32:43.858129",
+  "summary": {
+    "total_agents": 9,
+    "working_agents": 0,
+    "error_agents": 0,
+    "success_rate": 0.0
+  },
+  "agent_results": {
+    "risk_genius": {
+      "status": "active",
+      "indicators_used": [],
+      "indicator_count": 0,
+      "analysis_timestamp": "2025-06-12T21:32:43.820149",
+      "has_real_analysis": false,
+      "error": null
+    },
+    "session_expert": {
+      "status": "active",
+      "indicators_used": [],
+      "indicator_count": 0,
+      "analysis_timestamp": "2025-06-12T21:32:43.822089",
+      "has_real_analysis": false,
+      "error": null
+    },
+    "pattern_master": {
+      "status": "active",
+      "indicators_used": [],
+      "indicator_count": 0,
+      "analysis_timestamp": "2025-06-12T21:32:43.823149",
+      "has_real_analysis": false,
+      "error": null
+    },
+    "execution_expert": {
+      "status": "active",
+      "indicators_used": [],
+      "indicator_count": 0,
+      "analysis_timestamp": "2025-06-12T21:32:43.824117",
+      "has_real_analysis": false,
+      "error": null
+    },
+    "pair_specialist": {
+      "status": "active",
+      "indicators_used": [],
+      "indicator_count": 0,
+      "analysis_timestamp": "2025-06-12T21:32:43.824637",
+      "has_real_analysis": false,
+      "error": null
+    },
+    "decision_master": {
+      "status": "active",
+      "indicators_used": [],
+      "indicator_count": 0,
+      "analysis_timestamp": "2025-06-12T21:32:43.825610",
+      "has_real_analysis": false,
+      "error": null
+    },
+    "ai_model_coordinator": {
+      "status": "active",
+      "indicators_used": [],
+      "indicator_count": 0,
+      "analysis_timestamp": "2025-06-12T21:32:43.831610",
+      "has_real_analysis": false,
+      "error": null
+    },
+    "market_microstructure_genius": {
+      "status": "active",
+      "indicators_used": [],
+      "indicator_count": 0,
+      "analysis_timestamp": "2025-06-12T21:32:43.832731",
+      "has_real_analysis": false,
+      "error": null
+    },
+    "sentiment_integration_genius": {
+      "status": "active",
+      "indicators_used": [],
+      "indicator_count": 0,
+      "analysis_timestamp": "2025-06-12T21:32:43.834007",
+      "has_real_analysis": false,
+      "error": null
+    }
+  },
+  "physics_indicators_found": {},
+  "expected_assignments": {
+    "risk_genius": 24,
+    "session_expert": 15,
+    "pattern_master": 40,
+    "execution_expert": 19,
+    "pair_specialist": 14,
+    "decision_master": 10,
+    "ai_model_coordinator": 11,
+    "market_microstructure_genius": 17,
+    "sentiment_integration_genius": 12
+  }
+}

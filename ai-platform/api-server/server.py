@@ -20,7 +20,6 @@ from pydantic import BaseModel, Field
 # Platform3 imports
 import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent))
 
 from shared.platform3_module_loader import Platform3ModuleLoader
 from ai_models.intelligent_agents.decision_master.model import DecisionMaster

@@ -5,7 +5,6 @@ Access the global enhanced registry and analyze the indicators.
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import the global registry instance
 from engines.ai_enhancement.registry import _enhanced_registry

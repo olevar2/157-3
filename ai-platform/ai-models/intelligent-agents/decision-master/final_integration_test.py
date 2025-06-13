@@ -11,7 +11,6 @@ from datetime import datetime
 import traceback
 
 # Add the necessary paths
-sys.path.append(str(Path(__file__).parent))
 
 try:
     # Test imports

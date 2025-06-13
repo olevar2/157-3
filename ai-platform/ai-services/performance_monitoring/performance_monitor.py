@@ -19,8 +19,7 @@ from collections import deque, defaultdict
 
 import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent / "model-registry"))
-from model_registry import get_registry
+from ai_platform.ai_services.model_registry import get_registry
 
 class MetricType(Enum):
     LATENCY = "latency"

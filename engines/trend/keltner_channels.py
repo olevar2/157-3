@@ -4,9 +4,6 @@
 import sys
 from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
-sys.path.append(str(project_root / "shared"))
-sys.path.append(str(project_root / "engines"))
 
 """
 Keltner Channels - Advanced Volatility-Based Trend Indicator

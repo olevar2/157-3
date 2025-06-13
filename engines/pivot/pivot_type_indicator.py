@@ -23,7 +23,6 @@ import pandas as pd
 import logging
 from enum import Enum
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from engines.ai_enhancement.indicators.base_indicator import (
     IndicatorValidationError,
     StandardIndicatorInterface,

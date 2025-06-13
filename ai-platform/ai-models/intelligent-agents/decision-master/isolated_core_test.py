@@ -55,7 +55,6 @@ sys.modules['communication.platform3_communication_framework'] = type('MockModul
 sys.modules['dynamic_risk_agent.model'] = type('MockModule', (), {'DynamicRiskAgent': MockDynamicRiskAgent})()
 
 # Now import the DecisionMaster model
-sys.path.append(str(Path(__file__).parent))
 
 try:
     print("🔍 Testing DecisionMaster core functionality...")

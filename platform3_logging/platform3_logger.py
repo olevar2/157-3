@@ -6,7 +6,6 @@ indicators are expecting.
 """
 
 import sys
-sys.path.append('.')
 
 from shared.logging.platform3_logger import Platform3Logger, LogMetadata
 

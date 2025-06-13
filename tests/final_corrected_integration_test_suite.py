@@ -270,8 +270,7 @@ except ImportError as e:
 
 try:
     # Import AIModelCoordinator
-    sys.path.append(os.path.join(project_root, 'ai-platform', 'coordination'))
-    from AIModelCoordinator import AIModelCoordinator, TradingTimeframe
+        from AIModelCoordinator import AIModelCoordinator, TradingTimeframe
     print("✅ AIModelCoordinator imports successful")
 except ImportError as e:
     print(f"❌ AIModelCoordinator import failed: {e}")
@@ -300,8 +299,7 @@ except ImportError as e:
 
 try:
     # Import ExecutionExpert
-    sys.path.append(os.path.join(project_root, 'ai-platform', 'ai-models', 'intelligent-agents', 'execution-expert'))
-    from model import ExecutionExpert
+        from model import ExecutionExpert
     print("✅ ExecutionExpert imports successful")
 except ImportError as e:
     print(f"❌ ExecutionExpert import failed: {e}")

@@ -10,7 +10,6 @@ import sys
 import os
 
 # Add the indicators directory to the path
-sys.path.append(os.path.dirname(__file__))
 from cci import CCIIndicator
 
 

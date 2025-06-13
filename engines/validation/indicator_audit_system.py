@@ -29,13 +29,11 @@ from pathlib import Path
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
 
 # Import existing validation frameworks
 try:
     # Try relative import first
-    sys.path.append(str(project_root / 'services' / 'data-quality'))
-    from quality_monitor import DataQualityMonitor
+        from quality_monitor import DataQualityMonitor
     print("[SUCCESS] DataQualityMonitor imported successfully")
 except ImportError as e:
     print(f"[WARNING] DataQualityMonitor not available: {e}")
@@ -47,8 +45,7 @@ except ImportError as e:
             return {"status": "pass", "errors": []}
 
 try:
-    sys.path.append(str(project_root / 'tests'))
-    from python_engine_health_validator import Platform3EngineHealthValidator
+        from python_engine_health_validator import Platform3EngineHealthValidator
     print("[SUCCESS] Platform3EngineHealthValidator imported successfully")
 except ImportError as e:
     print(f"[WARNING] Platform3EngineHealthValidator not available: {e}")
@@ -71,9 +68,7 @@ except ImportError as e:
             return {"status": "healthy"}
 
 try:
-    sys.path.append(str(project_root / 'shared' / 'logging'))
-    sys.path.append(str(project_root / 'shared' / 'error_handling'))
-    from platform3_logger import Platform3Logger
+            from platform3_logger import Platform3Logger
     from platform3_error_system import Platform3ErrorSystem, ServiceError
     print("[SUCCESS] Platform3 logging and error systems imported successfully")
 except ImportError as e:
@@ -327,13 +322,11 @@ class ComprehensiveIndicatorAuditSystem:
         # Check AI platform integration
         try:
             # Update import paths to match actual structure
-            sys.path.append(str(project_root / 'ai-platform'))
-            try:
-                from ai_platform_manager import AIPlatformManager
+                        try:
+                from ai_platform.ai_platform_manager import AIPlatformManager
             except ImportError:
                 # Fallback to ai-services if ai_platform_manager not available
-                sys.path.append(str(project_root / 'ai-platform' / 'ai-services'))
-                from ai_coordinator import AICoordinator as AIPlatformManager
+                                from ai_coordinator import AICoordinator as AIPlatformManager
             
             # Check if intelligent agents are available
             asg_path = project_root / 'ai-platform' / 'intelligent-agents' / 'adaptive-strategy-generator' / 'model.py'
@@ -442,8 +435,7 @@ class ComprehensiveIndicatorAuditSystem:
         
         try:
             # Use the existing integration test framework 
-            sys.path.append(str(project_root / 'tests' / 'integration'))
-            from typescript_python_bridge_test import run_integration_tests
+                        from typescript_python_bridge_test import run_integration_tests
             
             # Run the integration tests
             results = await run_integration_tests()

@@ -5,7 +5,6 @@ Find exactly which 2 indicators are missing to reach 167 target
 
 import sys
 from pathlib import Path
-sys.path.append('.')
 
 def main():
     print("=== SIMPLE APPROACH TO FIND MISSING INDICATORS ===")

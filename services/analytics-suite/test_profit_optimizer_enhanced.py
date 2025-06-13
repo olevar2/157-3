@@ -15,8 +15,7 @@ async def test_profit_optimizer_only():
     """Test only the ProfitOptimizer without dependencies"""
     try:
         # Direct import of ProfitOptimizer
-        sys.path.append(os.path.dirname(__file__))
-        
+                
         from ProfitOptimizer import (
             ProfitOptimizer, 
             AnalyticsInterface, 

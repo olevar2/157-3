@@ -6,7 +6,6 @@ This will help us understand what to include to reach the target of 167.
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from engines.ai_enhancement.registry import EnhancedIndicatorRegistry
 

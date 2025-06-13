@@ -135,8 +135,7 @@ def fix_ai_services_import():
         
         # Fix AI services import
         old_import = "from ai_services import"
-        new_import = "sys.path.append(str(project_root / 'ai-platform'))\n    from ai_services import"
-        
+        new_import = "        
         if old_import in content and new_import not in content:
             content = content.replace(
                 "try:\n    from ai_services import",

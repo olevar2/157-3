@@ -5,9 +5,6 @@ import sys
 from typing import Any, Dict, List, Optional, Tuple, Union # Added Any
 from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
-sys.path.append(str(project_root / "shared"))
-sys.path.append(str(project_root / "engines"))
 
 """
 GANN FAN LINES - Angular Support and Resistance Analysis

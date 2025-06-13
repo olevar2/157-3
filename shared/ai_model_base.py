@@ -314,3 +314,173 @@ class MLModelMixin:
     def load_model(self, path: str):
         """Load trained model from disk"""
         raise NotImplementedError("Load method must be implemented by subclass")
+
+
+class AIModelPerformanceMonitor:
+    """
+    Enhanced performance monitoring for AI models
+    Provides comprehensive tracking and analysis of model performance
+    """
+    
+    def __init__(self, model_name: str):
+        self.model_name = model_name
+        self.logger = Platform3Logger(f"ai_model_{model_name}")
+        self.error_handler = Platform3ErrorSystem()
+        self.start_time = None
+        self.metrics = {}
+        self.performance_history = []
+        
+        # Performance thresholds
+        self.thresholds = {
+            "max_execution_time": 10.0,  # seconds
+            "max_memory_usage": 1024,    # MB
+            "min_accuracy": 0.8,         # 80%
+            "max_error_rate": 0.05       # 5%
+        }
+        
+        self.logger.info(f"Performance monitor initialized for {model_name}")
+    
+    def start_monitoring(self):
+        """Start performance monitoring session"""
+        self.start_time = datetime.now()
+        self.metrics = {
+            "start_time": self.start_time.isoformat(),
+            "operations": 0,
+            "errors": 0,
+            "total_execution_time": 0.0,
+            "average_response_time": 0.0,
+            "peak_memory_usage": 0.0
+        }
+        self.logger.info("Started AI model performance monitoring")
+    
+    def log_metric(self, metric_name: str, value: float):
+        """Log a performance metric"""
+        self.metrics[metric_name] = value
+        self.logger.debug(f"Performance metric: {metric_name} = {value}")
+        
+        # Check against thresholds
+        self._check_thresholds(metric_name, value)
+    
+    def log_operation(self, operation_name: str, execution_time: float, success: bool = True):
+        """Log an operation with its performance data"""
+        self.metrics["operations"] += 1
+        
+        if not success:
+            self.metrics["errors"] += 1
+        
+        # Update timing metrics
+        self.metrics["total_execution_time"] += execution_time
+        self.metrics["average_response_time"] = (
+            self.metrics["total_execution_time"] / self.metrics["operations"]
+        )
+        
+        self.logger.debug(
+            f"Operation {operation_name}: {execution_time:.3f}s, "
+            f"Success: {success}"
+        )
+    
+    def _check_thresholds(self, metric_name: str, value: float):
+        """Check if metric value exceeds defined thresholds"""
+        threshold_key = f"max_{metric_name}" if metric_name != "accuracy" else "min_accuracy"
+        
+        if threshold_key in self.thresholds:
+            threshold = self.thresholds[threshold_key]
+            
+            if metric_name == "accuracy":
+                if value < threshold:
+                    self.logger.warning(f"Accuracy below threshold: {value} < {threshold}")
+            else:
+                if value > threshold:
+                    self.logger.warning(f"Metric {metric_name} above threshold: {value} > {threshold}")
+    
+    def end_monitoring(self) -> Dict[str, Any]:
+        """End monitoring session and return performance report"""
+        if self.start_time:
+            end_time = datetime.now()
+            total_duration = (end_time - self.start_time).total_seconds()
+            
+            self.metrics.update({
+                "end_time": end_time.isoformat(),
+                "total_session_duration": total_duration,
+                "error_rate": self.metrics["errors"] / max(1, self.metrics["operations"]),
+                "operations_per_second": self.metrics["operations"] / max(0.1, total_duration)
+            })
+            
+            # Add to performance history
+            self.performance_history.append(self.metrics.copy())
+            
+            self.logger.info(
+                f"Performance monitoring complete: {total_duration:.2f}s, "
+                f"{self.metrics['operations']} operations, "
+                f"{self.metrics['error_rate']:.2%} error rate"
+            )
+            
+            return self.metrics
+        
+        return {}
+    
+    def get_performance_summary(self) -> Dict[str, Any]:
+        """Get summary of recent performance"""
+        if not self.performance_history:
+            return {"status": "no_data", "message": "No performance data available"}
+        
+        recent_sessions = self.performance_history[-10:]  # Last 10 sessions
+        
+        avg_response_time = sum(s.get("average_response_time", 0) for s in recent_sessions) / len(recent_sessions)
+        avg_error_rate = sum(s.get("error_rate", 0) for s in recent_sessions) / len(recent_sessions)
+        total_operations = sum(s.get("operations", 0) for s in recent_sessions)
+        
+        return {
+            "model_name": self.model_name,
+            "sessions_analyzed": len(recent_sessions),
+            "average_response_time": avg_response_time,
+            "average_error_rate": avg_error_rate,
+            "total_operations": total_operations,
+            "performance_trend": self._calculate_performance_trend(),
+            "health_status": self._get_health_status(avg_response_time, avg_error_rate)
+        }
+    
+    def _calculate_performance_trend(self) -> str:
+        """Calculate whether performance is improving or degrading"""
+        if len(self.performance_history) < 2:
+            return "insufficient_data"
+        
+        recent = self.performance_history[-3:]
+        older = self.performance_history[-6:-3] if len(self.performance_history) >= 6 else self.performance_history[:-3]
+        
+        if not older:
+            return "insufficient_data"
+        
+        recent_avg_time = sum(s.get("average_response_time", 0) for s in recent) / len(recent)
+        older_avg_time = sum(s.get("average_response_time", 0) for s in older) / len(older)
+        
+        if recent_avg_time < older_avg_time * 0.95:
+            return "improving"
+        elif recent_avg_time > older_avg_time * 1.05:
+            return "degrading"
+        else:
+            return "stable"
+    
+    def _get_health_status(self, avg_response_time: float, avg_error_rate: float) -> str:
+        """Determine overall health status"""
+        if avg_error_rate > self.thresholds["max_error_rate"]:
+            return "unhealthy"
+        elif avg_response_time > self.thresholds["max_execution_time"]:
+            return "degraded"
+        elif avg_error_rate < 0.01 and avg_response_time < 1.0:
+            return "excellent"
+        else:
+            return "healthy"
+    
+    def reset_history(self):
+        """Clear performance history"""
+        self.performance_history = []
+        self.logger.info(f"Performance history reset for {self.model_name}")
+
+
+# Export all classes for easy importing
+__all__ = [
+    'EnhancedAIModelBase',
+    'AIModelPerformanceMonitor', 
+    'MLModelMixin'
+]

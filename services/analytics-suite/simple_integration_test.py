@@ -6,7 +6,6 @@ Tests the framework without Redis dependencies
 import asyncio
 import sys
 import os
-sys.path.append(os.path.dirname(__file__))
 
 # Test without Redis
 import logging

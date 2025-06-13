@@ -11,7 +11,6 @@ import sys
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
 
 class TestPricevolumedivergenceIntegration(unittest.TestCase):
     """Integration test suite for price_volume_divergence"""

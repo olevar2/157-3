@@ -22,7 +22,6 @@ import numpy as np
 import pandas as pd
 import logging
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from engines.ai_enhancement.indicators.base_indicator import (
     IndicatorValidationError,
     StandardIndicatorInterface,

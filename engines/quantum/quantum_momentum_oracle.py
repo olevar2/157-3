@@ -19,7 +19,6 @@ warnings.filterwarnings('ignore')
 # Platform3 imports
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'ai_enhancement', 'indicators'))
 from base_indicator import (
     IndicatorValidationError,
     StandardIndicatorInterface,

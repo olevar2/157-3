@@ -21,10 +21,8 @@ import sys
 from contextlib import asynccontextmanager
 
 # Add platform paths
-sys.path.append(os.path.dirname(__file__))
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from ai_platform_manager import get_platform_manager, AIPlatformManager
+from ai_platform.ai_platform_manager import get_platform_manager, AIPlatformManager
 from shared.platform3_module_loader import Platform3ModuleLoader
 
 # Configure logging

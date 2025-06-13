@@ -505,7 +505,6 @@ from pathlib import Path
 from typing import Dict, List, Any
 
 # Add shared modules to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'shared'))
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,6 @@ Date: 2025-06-11
 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), 'engines', 'ai_enhancement'))
 
 from engines.ai_enhancement.registry import EnhancedIndicatorRegistry
 

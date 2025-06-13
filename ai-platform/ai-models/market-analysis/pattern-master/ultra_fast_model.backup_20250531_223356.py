@@ -17,8 +17,7 @@ from ai-platform.ai-models.market-analysis.pattern-master.ultra_fast_model impor
 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'shared', 'communication'))
-from platform3_communication_framework import Platform3CommunicationFramework
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
 
 # Initialize service
 service = UltraFastModelConfig()
@@ -183,7 +182,6 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
 # Add shared modules to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 from shared.logging.platform3_logger import Platform3Logger, log_performance, LogMetadata
 from shared.error_handling.platform3_error_system import BaseService, ServiceError, ValidationError
 

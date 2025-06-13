@@ -114,8 +114,7 @@ class TypeScriptPythonBridgeValidator:
                 # Try alternative import paths
                 try:
                     import sys
-                    sys.path.append(str(self.project_root / "shared"))
-                    from PythonEngineClient import PythonEngineClient
+                                        from PythonEngineClient import PythonEngineClient
                     http_client_available = True
                 except ImportError:
                     http_client_available = False
@@ -159,8 +158,7 @@ class TypeScriptPythonBridgeValidator:
             except ImportError:
                 try:
                     import sys
-                    sys.path.append(str(self.project_root / "shared"))
-                    from PythonWebSocketClient import PythonWebSocketClient
+                                        from PythonWebSocketClient import PythonWebSocketClient
                     ws_client_available = True
                 except ImportError:
                     ws_client_available = False

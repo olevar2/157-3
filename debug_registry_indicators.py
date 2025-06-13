@@ -5,7 +5,6 @@ Debug script to examine what indicators are actually loaded in the registry.
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from engines.ai_enhancement.registry import EnhancedIndicatorRegistry
 

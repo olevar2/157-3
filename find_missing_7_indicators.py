@@ -6,7 +6,6 @@ to reach the target of 167 real indicators.
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from engines.ai_enhancement.registry import get_enhanced_registry
 

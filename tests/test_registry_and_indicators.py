@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 
 # Add the project root to path
-sys.path.append(str(Path(__file__).parent.parent))
 
 from engines.ai_enhancement.registry import INDICATOR_REGISTRY, validate_registry, get_indicator
 

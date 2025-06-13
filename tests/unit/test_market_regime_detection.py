@@ -8,8 +8,7 @@ import pytest
 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'shared', 'communication'))
-from platform3_communication_framework import Platform3CommunicationFramework
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
 from unittest.mock import Mock, patch, MagicMock
 import sys
 import os
@@ -17,7 +16,6 @@ from pathlib import Path
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
 
 # Import the module under test
 try:

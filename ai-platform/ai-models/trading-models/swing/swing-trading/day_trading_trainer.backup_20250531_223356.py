@@ -9,8 +9,7 @@ import tensorflow as tf
 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'shared', 'communication'))
-from platform3_communication_framework import Platform3CommunicationFramework
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.model_selection import train_test_split, TimeSeriesSplit
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score

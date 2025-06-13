@@ -11,7 +11,6 @@ and indicator parameters with adaptive evolution capabilities.
 import sys
 from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
 
 import numpy as np
 from typing import Dict, List, Any, Optional, Union, Tuple

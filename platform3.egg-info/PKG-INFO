@@ -1,0 +1,82 @@
+Metadata-Version: 2.4
+Name: platform3
+Version: 1.0.0
+Summary: Platform3 AI Trading System - Humanitarian Trading for Global Good
+Author-email: Platform3 Team <info@platform3.ai>
+Maintainer-email: Platform3 Team <info@platform3.ai>
+Project-URL: Homepage, https://github.com/platform3/platform3
+Project-URL: Documentation, https://docs.platform3.ai
+Project-URL: Repository, https://github.com/platform3/platform3.git
+Project-URL: Bug Tracker, https://github.com/platform3/platform3/issues
+Keywords: trading,ai,machine-learning,humanitarian,forex,algorithmic-trading
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Financial and Insurance Industry
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Office/Business :: Financial :: Investment
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.21.0
+Requires-Dist: pandas>=1.5.0
+Requires-Dist: scipy>=1.9.0
+Requires-Dist: matplotlib>=3.5.0
+Requires-Dist: scikit-learn>=1.1.0
+Requires-Dist: aiohttp>=3.8.0
+Requires-Dist: asyncio-mqtt>=0.13.0
+Requires-Dist: websockets>=10.4
+Requires-Dist: redis>=4.5.0
+Requires-Dist: psycopg2-binary>=2.9.0
+Requires-Dist: sqlalchemy>=1.4.0
+Requires-Dist: pydantic>=1.10.0
+Requires-Dist: fastapi>=0.95.0
+Requires-Dist: uvicorn>=0.20.0
+Requires-Dist: python-multipart>=0.0.6
+Requires-Dist: httpx>=0.24.0
+Requires-Dist: click>=8.1.0
+Requires-Dist: rich>=13.0.0
+Requires-Dist: typer>=0.7.0
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: pytest>=7.2.0
+Requires-Dist: pytest-asyncio>=0.21.0
+Requires-Dist: pytest-cov>=4.0.0
+Requires-Dist: black>=23.0.0
+Requires-Dist: isort>=5.12.0
+Requires-Dist: flake8>=6.0.0
+Requires-Dist: mypy>=1.0.0
+Requires-Dist: pre-commit>=3.0.0
+Requires-Dist: torch>=2.0.0
+Requires-Dist: xgboost>=1.7.0
+Requires-Dist: lightgbm>=3.3.0
+Requires-Dist: ccxt>=3.0.0
+Requires-Dist: ta>=0.10.0
+Requires-Dist: yfinance>=0.2.0
+Requires-Dist: alpha-vantage>=2.3.0
+Requires-Dist: polygon-api-client>=1.12.0
+Requires-Dist: numba>=0.56.0
+Requires-Dist: cython>=0.29.0
+Requires-Dist: joblib>=1.2.0
+Requires-Dist: prometheus-client>=0.16.0
+Requires-Dist: opentelemetry-api>=1.15.0
+Requires-Dist: opentelemetry-sdk>=1.15.0
+Requires-Dist: jaeger-client>=4.8.0
+Provides-Extra: dev
+Requires-Dist: jupyter>=1.0.0; extra == "dev"
+Requires-Dist: ipykernel>=6.20.0; extra == "dev"
+Requires-Dist: notebook>=6.5.0; extra == "dev"
+Requires-Dist: jupyterlab>=3.6.0; extra == "dev"
+Requires-Dist: ipywidgets>=8.0.0; extra == "dev"
+Provides-Extra: testing
+Requires-Dist: pytest-xdist>=3.2.0; extra == "testing"
+Requires-Dist: pytest-mock>=3.10.0; extra == "testing"
+Requires-Dist: pytest-benchmark>=4.0.0; extra == "testing"
+Requires-Dist: coverage>=7.2.0; extra == "testing"
+Provides-Extra: production
+Requires-Dist: gunicorn>=20.1.0; extra == "production"
+Requires-Dist: nginx>=1.23.0; extra == "production"
+Requires-Dist: docker>=6.0.0; extra == "production"
+Requires-Dist: kubernetes>=26.1.0; extra == "production"

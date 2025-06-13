@@ -19,7 +19,6 @@ import random
 from dataclasses import dataclass
 
 # Add the parent directory to Python path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 
 try:
     from engines.ai_enhancement.indicators.base_indicator import BaseIndicator

@@ -15,7 +15,6 @@ import threading
 # Import all AI platform services
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), "ai-services"))
 
 from ai_services.model_registry.model_registry import ModelRegistry, ModelType, ModelStatus
 from ai_services.coordination.ai_coordinator import AICoordinator, TaskPriority

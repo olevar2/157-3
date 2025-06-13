@@ -40,7 +40,6 @@ import logging
 # Temporarily import for testing
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from base_indicator import StandardIndicatorInterface
 
 

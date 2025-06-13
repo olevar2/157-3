@@ -9,9 +9,6 @@ Platform3 Phase 3 - Enhanced Trading Engine for Charitable Profits
 import sys
 from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
-sys.path.append(str(project_root / "shared"))
-sys.path.append(str(project_root / "engines"))
 
 import numpy as np
 from typing import Dict, List, Any, Optional

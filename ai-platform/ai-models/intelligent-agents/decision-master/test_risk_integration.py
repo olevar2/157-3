@@ -11,7 +11,6 @@ from datetime import datetime
 from pathlib import Path
 
 # Add paths for imports
-sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
 # Test the integration
 async def test_decision_master_risk_integration():

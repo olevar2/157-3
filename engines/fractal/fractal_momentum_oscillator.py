@@ -26,9 +26,6 @@ warnings.filterwarnings('ignore')
 import sys
 from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
-sys.path.append(str(project_root / "shared"))
-sys.path.append(str(project_root / "engines"))
 
 from shared.logging.platform3_logger import Platform3Logger
 

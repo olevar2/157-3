@@ -5,7 +5,6 @@ Find exactly which 2 indicators are missing to reach 167 target
 
 import sys
 from pathlib import Path
-sys.path.append('.')
 
 def load_registry():
     """Load the indicator registry and get real indicators count"""

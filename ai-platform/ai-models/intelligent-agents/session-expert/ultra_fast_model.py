@@ -15,170 +15,10 @@ import numpy as np
 import pandas as pd
 
 # Platform3 Phase 2 Framework Integration
-sys.path.append(str(Path(__file__).parent.parent.parent.parent / "shared"))
-from logging.platform3_logger import Platform3Logger
-from error_handling.platform3_error_system import Platform3ErrorSystem, MLError, ModelError
-from database.platform3_database_manager import Platform3DatabaseManager
+from shared.logging.platform3_logger import Platform3Logger
+from shared.error_handling.platform3_error_system import Platform3ErrorSystem, MLError, ModelError
+from shared.database.platform3_database_manager import Platform3DatabaseManager
 from communication.platform3_communication_framework import Platform3CommunicationFramework
-
-
-class AIModelPerformanceMonitor:
-    """Enhanced performance monitoring for AI models"""
-    
-    def __init__(self, model_name: str):
-        self.logger = Platform3Logger(f"ai_model_{model_name}")
-        self.error_handler = Platform3ErrorSystem()
-        self.start_time = None
-        self.metrics = {}
-    
-    def start_monitoring(self):
-        """Start performance monitoring"""
-        self.start_time = datetime.now()
-        self.logger.info("Starting AI model performance monitoring")
-    
-    def log_metric(self, metric_name: str, value: float):
-        """Log performance metric"""
-        self.metrics[metric_name] = value
-        self.logger.info(f"Performance metric: {metric_name} = {value}")
-    
-    def end_monitoring(self):
-        """End monitoring and log results"""
-        if self.start_time:
-            duration = (datetime.now() - self.start_time).total_seconds()
-            self.log_metric("execution_time_seconds", duration)
-            self.logger.info(f"Performance monitoring complete: {duration:.2f}s")
-
-
-class EnhancedAIModelBase:
-    """Enhanced base class for all AI models with Phase 2 integration"""
-    
-    def __init__(self, config: Optional[Dict] = None):
-        self.config = config or {}
-        self.model_name = self.__class__.__name__
-        
-        # Phase 2 Framework Integration
-        self.logger = Platform3Logger(f"ai_model_{self.model_name}")
-        self.error_handler = Platform3ErrorSystem()
-        self.db_manager = Platform3DatabaseManager()
-        self.communication = Platform3CommunicationFramework()
-        self.performance_monitor = AIModelPerformanceMonitor(self.model_name)
-        
-        # Model state
-        self.is_trained = False
-        self.model = None
-        self.metrics = {}
-        
-        self.logger.info(f"Initialized enhanced AI model: {self.model_name}")
-    
-    async def validate_input(self, data: Any) -> bool:
-        """Validate input data with comprehensive checks"""
-        try:
-            if data is None:
-                raise ValueError("Input data cannot be None")
-            
-            if hasattr(data, 'shape') and len(data.shape) == 0:
-                raise ValueError("Input data cannot be empty")
-            
-            self.logger.debug(f"Input validation passed for {type(data)}")
-            return True
-            
-        except Exception as e:
-            self.error_handler.handle_error(
-                MLError(f"Input validation failed: {str(e)}", {"data_type": type(data)})
-            )
-            return False
-    
-    async def train_async(self, data: Any, **kwargs) -> Dict[str, Any]:
-        """Enhanced async training with monitoring and error handling"""
-        self.performance_monitor.start_monitoring()
-        
-        try:
-            # Validate input
-            if not await self.validate_input(data):
-                raise MLError("Training data validation failed")
-            
-            self.logger.info(f"Starting training for {self.model_name}")
-            
-            # Call implementation-specific training
-            result = await self._train_implementation(data, **kwargs)
-            
-            self.is_trained = True
-            self.performance_monitor.log_metric("training_success", 1.0)
-            self.logger.info(f"Training completed successfully for {self.model_name}")
-            
-            return result
-            
-        except Exception as e:
-            self.performance_monitor.log_metric("training_success", 0.0)
-            self.error_handler.handle_error(
-                MLError(f"Training failed for {self.model_name}: {str(e)}", kwargs)
-            )
-            raise
-        finally:
-            self.performance_monitor.end_monitoring()
-    
-    async def predict_async(self, data: Any, **kwargs) -> Any:
-        """Enhanced async prediction with monitoring and error handling"""
-        self.performance_monitor.start_monitoring()
-        
-        try:
-            if not self.is_trained:
-                raise ModelError(f"Model {self.model_name} is not trained")
-            
-            # Validate input
-            if not await self.validate_input(data):
-                raise MLError("Prediction data validation failed")
-            
-            self.logger.debug(f"Starting prediction for {self.model_name}")
-            
-            # Call implementation-specific prediction
-            result = await self._predict_implementation(data, **kwargs)
-            
-            self.performance_monitor.log_metric("prediction_success", 1.0)
-            return result
-            
-        except Exception as e:
-            self.performance_monitor.log_metric("prediction_success", 0.0)
-            self.error_handler.handle_error(
-                MLError(f"Prediction failed for {self.model_name}: {str(e)}", kwargs)
-            )
-            raise
-        finally:
-            self.performance_monitor.end_monitoring()
-    
-    async def _train_implementation(self, data: Any, **kwargs) -> Dict[str, Any]:
-        """Override in subclasses for specific training logic"""
-        raise NotImplementedError("Subclasses must implement _train_implementation")
-    
-    async def _predict_implementation(self, data: Any, **kwargs) -> Any:
-        """Override in subclasses for specific prediction logic"""
-        raise NotImplementedError("Subclasses must implement _predict_implementation")
-    
-    def save_model(self, path: Optional[str] = None) -> str:
-        """Save model with proper error handling and logging"""
-        try:
-            save_path = path or f"models/{self.model_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
-            
-            # Implementation depends on model type
-            self.logger.info(f"Model saved to {save_path}")
-            return save_path
-            
-        except Exception as e:
-            self.error_handler.handle_error(
-                MLError(f"Model save failed: {str(e)}", {"path": path})
-            )
-            raise
-    
-    def get_metrics(self) -> Dict[str, Any]:
-        """Get comprehensive model metrics"""
-        return {
-            **self.metrics,
-            **self.performance_monitor.metrics,
-            "model_name": self.model_name,
-            "is_trained": self.is_trained,
-            "timestamp": datetime.now().isoformat()
-        }
-
 
 # === ENHANCED ORIGINAL IMPLEMENTATION ===
 #!/usr/bin/env python3
@@ -361,19 +201,17 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
 # Add shared modules to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 from shared.logging.platform3_logger import Platform3Logger, log_performance, LogMetadata
 from shared.error_handling.platform3_error_system import BaseService, ServiceError, ValidationError
 
 from engines.base_types import MarketData, IndicatorResult, IndicatorType, BaseIndicator
-
+from shared.ai_model_base import AIModelPerformanceMonitor, EnhancedAIModelBase
 
 @dataclass
 class UltraFastModelConfig:
     """Configuration for UltraFastModel"""
     period: int = 14
     threshold: float = 0.001
-
 
 class UltraFastModel(BaseIndicator, BaseService):
     """
@@ -419,27 +257,241 @@ class UltraFastModel(BaseIndicator, BaseService):
                 ).to_dict()
             )
             
-            # Placeholder calculation - replace with actual implementation
-            values = []
+            # REAL SESSION EXPERT ALGORITHM - Temporal Trading Intelligence
+            # Advanced session optimization for maximum humanitarian profits
+            session_values = []
+            
             for i in range(len(data)):
                 if i >= self.config.period - 1:
-                    # Simple moving average as placeholder
-                    period_data = data[i - self.config.period + 1:i + 1]
-                    avg_value = sum(d.close for d in period_data) / len(period_data)
-                    values.append(avg_value)
+                    # Get recent data for session analysis
+                    recent_data = data[i - self.config.period + 1:i + 1]
+                    current_time = recent_data[-1].timestamp if hasattr(recent_data[-1], 'timestamp') else datetime.now()
+                    
+                    # 1. SESSION IDENTIFICATION AND CHARACTERISTICS
+                    session_scores = self._analyze_trading_sessions(current_time, recent_data)
+                    
+                    # 2. VOLATILITY BY HOUR ANALYSIS
+                    hourly_volatility = self._calculate_hourly_volatility(recent_data)
+                    
+                    # 3. LIQUIDITY FLOW PATTERNS
+                    liquidity_score = self._analyze_liquidity_flow(recent_data, current_time)
+                    
+                    # 4. CROSS-SESSION MOMENTUM
+                    momentum_score = self._calculate_session_momentum(recent_data)
+                    
+                    # 5. TIME-BASED PATTERN RECOGNITION
+                    pattern_score = self._identify_temporal_patterns(recent_data, current_time)
+                    
+                    # 6. SESSION OVERLAP OPTIMIZATION
+                    overlap_score = self._calculate_session_overlap_advantage(current_time)
+                    
+                    # 7. ECONOMIC EVENT TIMING
+                    event_impact = self._assess_economic_event_timing(current_time)
+                    
+                    # 8. COMPOSITE SESSION SCORE
+                    session_weights = {
+                        'session_strength': 0.25,
+                        'volatility_timing': 0.20,
+                        'liquidity_flow': 0.15,
+                        'momentum': 0.15,
+                        'patterns': 0.10,
+                        'overlap_advantage': 0.10,
+                        'event_timing': 0.05
+                    }
+                    
+                    composite_score = (
+                        session_scores['strength'] * session_weights['session_strength'] +
+                        hourly_volatility * session_weights['volatility_timing'] +
+                        liquidity_score * session_weights['liquidity_flow'] +
+                        momentum_score * session_weights['momentum'] +
+                        pattern_score * session_weights['patterns'] +
+                        overlap_score * session_weights['overlap_advantage'] +
+                        event_impact * session_weights['event_timing']
+                    )
+                    
+                    session_values.append(composite_score)
+                    
+                    # Log session analysis for humanitarian mission monitoring
+                    self.logger.info(
+                        f"Session Analysis - Optimizing for Humanitarian Impact",
+                        extra={
+                            "session_score": composite_score,
+                            "session_type": session_scores['type'],
+                            "volatility": hourly_volatility,
+                            "liquidity": liquidity_score,
+                            "mission": "maximize_humanitarian_profits"
+                        }
+                    )
+                    
                 else:
-                    values.append(0.0)
+                    session_values.append(0.5)  # Neutral for insufficient data
+    
+    def _analyze_trading_sessions(self, current_time, data):
+        """Analyze current trading session strength and characteristics"""
+        hour = current_time.hour
+        day_of_week = current_time.weekday()
+        
+        # Session definitions (UTC)
+        sessions = {
+            'tokyo': {'start': 0, 'end': 9, 'strength': 0.7},
+            'london': {'start': 8, 'end': 17, 'strength': 0.9},
+            'new_york': {'start': 13, 'end': 22, 'strength': 0.85},
+            'sydney': {'start': 22, 'end': 7, 'strength': 0.6}  # Crosses midnight
+        }
+        
+        max_strength = 0
+        active_session = 'none'
+        
+        for session_name, session_info in sessions.items():
+            if session_name == 'sydney':
+                # Handle Sydney session that crosses midnight
+                if hour >= session_info['start'] or hour <= session_info['end']:
+                    if session_info['strength'] > max_strength:
+                        max_strength = session_info['strength']
+                        active_session = session_name
+            else:
+                if session_info['start'] <= hour <= session_info['end']:
+                    if session_info['strength'] > max_strength:
+                        max_strength = session_info['strength']
+                        active_session = session_name
+        
+        # Adjust strength based on day of week
+        if day_of_week >= 5:  # Weekend
+            max_strength *= 0.3
+        elif day_of_week == 0:  # Monday
+            max_strength *= 1.1  # Monday momentum
+        elif day_of_week == 4:  # Friday
+            max_strength *= 0.8  # Friday slowdown
+        
+        return {'strength': max_strength, 'type': active_session}
+    
+    def _calculate_hourly_volatility(self, data):
+        """Calculate volatility patterns by hour for optimal timing"""
+        if len(data) < 2:
+            return 0.5
+        
+        prices = [d.close for d in data]
+        returns = [(prices[i] - prices[i-1]) / prices[i-1] for i in range(1, len(prices))]
+        
+        # Calculate realized volatility
+        volatility = np.std(returns) if returns else 0
+        
+        # Normalize volatility score (higher volatility = more opportunities)
+        volatility_score = min(volatility * 10, 1.0)  # Scale and cap at 1.0
+        
+        return volatility_score
+    
+    def _analyze_liquidity_flow(self, data, current_time):
+        """Analyze liquidity patterns for optimal entry/exit timing"""
+        if len(data) < 3:
+            return 0.5
+        
+        volumes = [d.volume for d in data]
+        avg_volume = np.mean(volumes)
+        recent_volume = volumes[-1]
+        
+        # Volume trend analysis
+        volume_trend = (volumes[-1] - volumes[0]) / volumes[0] if volumes[0] > 0 else 0
+        
+        # Liquidity score based on volume analysis
+        volume_ratio = recent_volume / avg_volume if avg_volume > 0 else 1
+        liquidity_score = min(volume_ratio * 0.5 + volume_trend * 0.5, 1.0)
+        
+        return max(0, liquidity_score)
+    
+    def _calculate_session_momentum(self, data):
+        """Calculate momentum within the current session"""
+        if len(data) < 4:
+            return 0.5
+        
+        prices = [d.close for d in data]
+        
+        # Calculate multiple momentum indicators
+        short_momentum = (prices[-1] - prices[-3]) / prices[-3] if prices[-3] > 0 else 0
+        long_momentum = (prices[-1] - prices[0]) / prices[0] if prices[0] > 0 else 0
+        
+        # Combine momentums with different weights
+        combined_momentum = short_momentum * 0.7 + long_momentum * 0.3
+        
+        # Normalize to 0-1 range
+        momentum_score = (combined_momentum + 1) / 2  # Convert from -1,1 to 0,1
+        
+        return max(0, min(1, momentum_score))
+    
+    def _identify_temporal_patterns(self, data, current_time):
+        """Identify time-based patterns for predictive advantage"""
+        hour = current_time.hour
+        minute = current_time.minute
+        
+        # Pattern scoring based on historical optimal times
+        optimal_hours = {0: 0.3, 1: 0.2, 2: 0.1, 3: 0.1, 4: 0.2, 5: 0.3,
+                        6: 0.4, 7: 0.5, 8: 0.8, 9: 0.9, 10: 0.7, 11: 0.6,
+                        12: 0.5, 13: 0.8, 14: 0.9, 15: 0.8, 16: 0.7, 17: 0.6,
+                        18: 0.4, 19: 0.3, 20: 0.4, 21: 0.5, 22: 0.6, 23: 0.4}
+        
+        hour_score = optimal_hours.get(hour, 0.5)
+        
+        # Minute-based micro patterns (higher activity at round numbers)
+        minute_score = 1.0 if minute % 15 == 0 else 0.8 if minute % 5 == 0 else 0.6
+        
+        pattern_score = hour_score * 0.8 + minute_score * 0.2
+        
+        return pattern_score
+    
+    def _calculate_session_overlap_advantage(self, current_time):
+        """Calculate advantage during session overlaps"""
+        hour = current_time.hour
+        
+        # Session overlap periods (UTC)
+        overlaps = {
+            'london_tokyo': {'start': 8, 'end': 9, 'strength': 0.8},
+            'london_ny': {'start': 13, 'end': 17, 'strength': 1.0},  # Best overlap
+            'tokyo_sydney': {'start': 23, 'end': 24, 'strength': 0.6}
+        }
+        
+        max_overlap = 0.3  # Default minimum
+        
+        for overlap_name, overlap_info in overlaps.items():
+            if overlap_info['start'] <= hour <= overlap_info['end']:
+                max_overlap = max(max_overlap, overlap_info['strength'])
+        
+        return max_overlap
+    
+    def _assess_economic_event_timing(self, current_time):
+        """Assess proximity to major economic events"""
+        hour = current_time.hour
+        minute = current_time.minute
+        
+        # Major economic release times (UTC)
+        major_events = [
+            {'hour': 8, 'minute': 30, 'impact': 0.9},   # London open
+            {'hour': 13, 'minute': 30, 'impact': 1.0},  # NY open
+            {'hour': 14, 'minute': 30, 'impact': 0.8},  # US data releases
+            {'hour': 18, 'minute': 0, 'impact': 0.7},   # Options expiry
+        ]
+        
+        event_impact = 0.5  # Default
+        
+        for event in major_events:
+            time_diff = abs((hour * 60 + minute) - (event['hour'] * 60 + event['minute']))
+            if time_diff <= 30:  # Within 30 minutes
+                proximity_factor = 1 - (time_diff / 30)
+                event_impact = max(event_impact, event['impact'] * proximity_factor)
+        
+        return event_impact
             
-            self.values = values
+            self.values = session_values
             
             return IndicatorResult(
                 success=True,
-                values=values,
+                values=session_values,
                 metadata={
-                    "indicator": "UltraFastModel",
+                    "indicator": "Session_Expert_Intelligence",
                     "period": self.config.period,
                     "data_points": len(data),
-                    "calculation_timestamp": "2025-05-31T19:00:00Z"
+                    "mission": "temporal_optimization_humanitarian",
+                    "algorithm": "comprehensive_session_analysis",
+                    "calculation_timestamp": datetime.now().isoformat()
                 }
             )
             
@@ -467,7 +519,6 @@ class UltraFastModel(BaseIndicator, BaseService):
         """Reset indicator state"""
         self.values.clear()
         self.logger.info(f"UltraFastModel indicator reset")
-
 
 # === PLATFORM3 PHASE 2 ENHANCEMENT APPLIED ===
 # Enhanced on: 2025-05-31T22:33:55.685283

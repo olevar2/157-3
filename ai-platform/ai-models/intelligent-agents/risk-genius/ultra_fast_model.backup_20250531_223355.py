@@ -178,7 +178,6 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
 # Add shared modules to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 from shared.logging.platform3_logger import Platform3Logger, log_performance, LogMetadata
 from shared.error_handling.platform3_error_system import BaseService, ServiceError, ValidationError
 

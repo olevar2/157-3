@@ -1,0 +1,197 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "platform3"
+version = "1.0.0"
+description = "Platform3 AI Trading System - Humanitarian Trading for Global Good"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Platform3 Team", email = "info@platform3.ai"}
+]
+maintainers = [
+    {name = "Platform3 Team", email = "info@platform3.ai"}
+]
+keywords = ["trading", "ai", "machine-learning", "humanitarian", "forex", "algorithmic-trading"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+requires-python = ">=3.9"
+dependencies = [
+    # Core dependencies
+    "numpy>=1.21.0",    "pandas>=1.5.0",
+    "scipy>=1.9.0",
+    "matplotlib>=3.5.0",
+    "scikit-learn>=1.1.0",
+    "aiohttp>=3.8.0",
+    "asyncio-mqtt>=0.13.0",
+    "websockets>=10.4",
+    "redis>=4.5.0",
+    "psycopg2-binary>=2.9.0",
+    "sqlalchemy>=1.4.0",
+    "pydantic>=1.10.0",
+    "fastapi>=0.95.0",
+    "uvicorn>=0.20.0",
+    "python-multipart>=0.0.6",
+    "httpx>=0.24.0",
+    "click>=8.1.0",
+    "rich>=13.0.0",
+    "typer>=0.7.0",
+    "python-dotenv>=1.0.0",
+    "pytest>=7.2.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+    # AI/ML specific (simplified)
+    "torch>=2.0.0",
+    # "tensorflow>=2.12.0",  # Comment out TensorFlow for now - compatibility issues with Python 3.13
+    # "transformers>=4.25.0", # May have dependency conflicts
+    "xgboost>=1.7.0",
+    "lightgbm>=3.3.0",
+    # "optuna>=3.1.0", # May cause dependency conflicts
+    # "shap>=0.41.0", # May cause dependency conflicts  
+    # "lime>=0.2.0", # May cause dependency conflicts
+    # "mlflow>=2.2.0", # May cause dependency conflicts
+    # "wandb>=0.14.0", # May cause dependency conflicts
+    # Trading specific
+    "ccxt>=3.0.0",
+    "ta>=0.10.0",
+    "yfinance>=0.2.0",
+    "alpha-vantage>=2.3.0",
+    "polygon-api-client>=1.12.0",
+    # Performance
+    "numba>=0.56.0",
+    "cython>=0.29.0",
+    "joblib>=1.2.0",
+    # Monitoring & Observability
+    "prometheus-client>=0.16.0",
+    "opentelemetry-api>=1.15.0",
+    "opentelemetry-sdk>=1.15.0",
+    "jaeger-client>=4.8.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "jupyter>=1.0.0",
+    "ipykernel>=6.20.0",
+    "notebook>=6.5.0",
+    "jupyterlab>=3.6.0",
+    "ipywidgets>=8.0.0"
+]
+testing = [
+    "pytest-xdist>=3.2.0",
+    "pytest-mock>=3.10.0",
+    "pytest-benchmark>=4.0.0",
+    "coverage>=7.2.0"
+]
+production = [
+    "gunicorn>=20.1.0",
+    "nginx>=1.23.0",
+    "docker>=6.0.0",
+    "kubernetes>=26.1.0"
+]
+
+[project.urls]
+Homepage = "https://github.com/platform3/platform3"
+Documentation = "https://docs.platform3.ai"
+Repository = "https://github.com/platform3/platform3.git"
+"Bug Tracker" = "https://github.com/platform3/platform3/issues"
+
+[project.scripts]
+platform3 = "platform3.cli:main"
+platform3-engine = "platform3.run_platform3:main"
+platform3-validate = "platform3.scripts.validation:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ai_platform*", "shared*", "services*", "engines*", "config*"]
+exclude = ["tests*", "docs*", "scripts*", "migration_backups*", "__pycache__*", "*.backup*"]
+
+[tool.setuptools.package-data]
+"platform3" = ["config/**/*.yaml", "config/**/*.json", "certs/**/*"]
+
+[tool.black]
+line-length = 120
+target-version = ['py39', 'py310', 'py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+    | \.mypy_cache
+    | \.pytest_cache
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+    | node_modules
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+show_error_codes = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests", "ai-platform/tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "performance: marks tests as performance tests"
+]
+
+[tool.coverage.run]
+source = ["platform3", "ai_platform", "shared", "services"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/node_modules/*",
+    "setup.py"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:"
+]

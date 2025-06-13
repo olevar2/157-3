@@ -19,8 +19,7 @@ from pathlib import Path
 import logging
 
 # Add shared modules to path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'shared'))
-from shared.platform3_logging.platform3_logger import Platform3Logger, LogMetadata, get_logger
+from shared.logging.platform3_logger import Platform3Logger, LogMetadata, get_logger
 from shared.error_handling.platform3_error_system import BaseService, ServiceError, DatabaseError
 
 try:

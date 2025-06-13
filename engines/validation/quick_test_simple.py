@@ -8,7 +8,6 @@ Tests if the restored base classes fixed the indicator import issues
 import sys
 from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
 
 def test_indicator_imports():
     """Test importing various indicators to verify Unicode and import fixes work"""

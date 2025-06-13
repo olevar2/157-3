@@ -36,7 +36,6 @@ import pandas as pd
 from scipy import stats
 
 # Import the base indicator interface
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from base_indicator import (
     IndicatorValidationError,
     StandardIndicatorInterface,

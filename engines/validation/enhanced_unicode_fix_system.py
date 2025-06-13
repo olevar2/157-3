@@ -11,7 +11,6 @@ import logging
 from pathlib import Path
 
 # Add current directory to path for imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 class EnhancedUnicodeFixSystem:
     def __init__(self, base_path=None):

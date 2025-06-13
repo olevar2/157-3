@@ -43,8 +43,7 @@ REDIS_AVAILABLE = False
 try:
     import sys
     import os
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'shared', 'communication'))
-    from platform3_communication_framework import Platform3CommunicationFramework
+        from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
 except ImportError:
     # Fallback for testing
     class Platform3CommunicationFramework:

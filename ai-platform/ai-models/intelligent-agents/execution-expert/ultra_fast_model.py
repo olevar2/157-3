@@ -15,170 +15,10 @@ import numpy as np
 import pandas as pd
 
 # Platform3 Phase 2 Framework Integration
-sys.path.append(str(Path(__file__).parent.parent.parent.parent / "shared"))
-from logging.platform3_logger import Platform3Logger
-from error_handling.platform3_error_system import Platform3ErrorSystem, MLError, ModelError
-from database.platform3_database_manager import Platform3DatabaseManager
+from shared.logging.platform3_logger import Platform3Logger
+from shared.error_handling.platform3_error_system import Platform3ErrorSystem, MLError, ModelError
+from shared.database.platform3_database_manager import Platform3DatabaseManager
 from communication.platform3_communication_framework import Platform3CommunicationFramework
-
-
-class AIModelPerformanceMonitor:
-    """Enhanced performance monitoring for AI models"""
-    
-    def __init__(self, model_name: str):
-        self.logger = Platform3Logger(f"ai_model_{model_name}")
-        self.error_handler = Platform3ErrorSystem()
-        self.start_time = None
-        self.metrics = {}
-    
-    def start_monitoring(self):
-        """Start performance monitoring"""
-        self.start_time = datetime.now()
-        self.logger.info("Starting AI model performance monitoring")
-    
-    def log_metric(self, metric_name: str, value: float):
-        """Log performance metric"""
-        self.metrics[metric_name] = value
-        self.logger.info(f"Performance metric: {metric_name} = {value}")
-    
-    def end_monitoring(self):
-        """End monitoring and log results"""
-        if self.start_time:
-            duration = (datetime.now() - self.start_time).total_seconds()
-            self.log_metric("execution_time_seconds", duration)
-            self.logger.info(f"Performance monitoring complete: {duration:.2f}s")
-
-
-class EnhancedAIModelBase:
-    """Enhanced base class for all AI models with Phase 2 integration"""
-    
-    def __init__(self, config: Optional[Dict] = None):
-        self.config = config or {}
-        self.model_name = self.__class__.__name__
-        
-        # Phase 2 Framework Integration
-        self.logger = Platform3Logger(f"ai_model_{self.model_name}")
-        self.error_handler = Platform3ErrorSystem()
-        self.db_manager = Platform3DatabaseManager()
-        self.communication = Platform3CommunicationFramework()
-        self.performance_monitor = AIModelPerformanceMonitor(self.model_name)
-        
-        # Model state
-        self.is_trained = False
-        self.model = None
-        self.metrics = {}
-        
-        self.logger.info(f"Initialized enhanced AI model: {self.model_name}")
-    
-    async def validate_input(self, data: Any) -> bool:
-        """Validate input data with comprehensive checks"""
-        try:
-            if data is None:
-                raise ValueError("Input data cannot be None")
-            
-            if hasattr(data, 'shape') and len(data.shape) == 0:
-                raise ValueError("Input data cannot be empty")
-            
-            self.logger.debug(f"Input validation passed for {type(data)}")
-            return True
-            
-        except Exception as e:
-            self.error_handler.handle_error(
-                MLError(f"Input validation failed: {str(e)}", {"data_type": type(data)})
-            )
-            return False
-    
-    async def train_async(self, data: Any, **kwargs) -> Dict[str, Any]:
-        """Enhanced async training with monitoring and error handling"""
-        self.performance_monitor.start_monitoring()
-        
-        try:
-            # Validate input
-            if not await self.validate_input(data):
-                raise MLError("Training data validation failed")
-            
-            self.logger.info(f"Starting training for {self.model_name}")
-            
-            # Call implementation-specific training
-            result = await self._train_implementation(data, **kwargs)
-            
-            self.is_trained = True
-            self.performance_monitor.log_metric("training_success", 1.0)
-            self.logger.info(f"Training completed successfully for {self.model_name}")
-            
-            return result
-            
-        except Exception as e:
-            self.performance_monitor.log_metric("training_success", 0.0)
-            self.error_handler.handle_error(
-                MLError(f"Training failed for {self.model_name}: {str(e)}", kwargs)
-            )
-            raise
-        finally:
-            self.performance_monitor.end_monitoring()
-    
-    async def predict_async(self, data: Any, **kwargs) -> Any:
-        """Enhanced async prediction with monitoring and error handling"""
-        self.performance_monitor.start_monitoring()
-        
-        try:
-            if not self.is_trained:
-                raise ModelError(f"Model {self.model_name} is not trained")
-            
-            # Validate input
-            if not await self.validate_input(data):
-                raise MLError("Prediction data validation failed")
-            
-            self.logger.debug(f"Starting prediction for {self.model_name}")
-            
-            # Call implementation-specific prediction
-            result = await self._predict_implementation(data, **kwargs)
-            
-            self.performance_monitor.log_metric("prediction_success", 1.0)
-            return result
-            
-        except Exception as e:
-            self.performance_monitor.log_metric("prediction_success", 0.0)
-            self.error_handler.handle_error(
-                MLError(f"Prediction failed for {self.model_name}: {str(e)}", kwargs)
-            )
-            raise
-        finally:
-            self.performance_monitor.end_monitoring()
-    
-    async def _train_implementation(self, data: Any, **kwargs) -> Dict[str, Any]:
-        """Override in subclasses for specific training logic"""
-        raise NotImplementedError("Subclasses must implement _train_implementation")
-    
-    async def _predict_implementation(self, data: Any, **kwargs) -> Any:
-        """Override in subclasses for specific prediction logic"""
-        raise NotImplementedError("Subclasses must implement _predict_implementation")
-    
-    def save_model(self, path: Optional[str] = None) -> str:
-        """Save model with proper error handling and logging"""
-        try:
-            save_path = path or f"models/{self.model_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
-            
-            # Implementation depends on model type
-            self.logger.info(f"Model saved to {save_path}")
-            return save_path
-            
-        except Exception as e:
-            self.error_handler.handle_error(
-                MLError(f"Model save failed: {str(e)}", {"path": path})
-            )
-            raise
-    
-    def get_metrics(self) -> Dict[str, Any]:
-        """Get comprehensive model metrics"""
-        return {
-            **self.metrics,
-            **self.performance_monitor.metrics,
-            "model_name": self.model_name,
-            "is_trained": self.is_trained,
-            "timestamp": datetime.now().isoformat()
-        }
-
 
 # === ENHANCED ORIGINAL IMPLEMENTATION ===
 #!/usr/bin/env python3
@@ -361,19 +201,17 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
 # Add shared modules to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../shared'))
 from shared.logging.platform3_logger import Platform3Logger, log_performance, LogMetadata
 from shared.error_handling.platform3_error_system import BaseService, ServiceError, ValidationError
 
 from engines.base_types import MarketData, IndicatorResult, IndicatorType, BaseIndicator
-
+from shared.ai_model_base import AIModelPerformanceMonitor, EnhancedAIModelBase
 
 @dataclass
 class UltraFastModelConfig:
     """Configuration for UltraFastModel"""
     period: int = 14
     threshold: float = 0.001
-
 
 class UltraFastModel(BaseIndicator, BaseService):
     """
@@ -419,27 +257,259 @@ class UltraFastModel(BaseIndicator, BaseService):
                 ).to_dict()
             )
             
-            # Placeholder calculation - replace with actual implementation
-            values = []
+            # REAL EXECUTION EXPERT ALGORITHM - Optimal Trade Execution
+            # Advanced execution optimization for maximum humanitarian profits
+            execution_values = []
+            
             for i in range(len(data)):
                 if i >= self.config.period - 1:
-                    # Simple moving average as placeholder
-                    period_data = data[i - self.config.period + 1:i + 1]
-                    avg_value = sum(d.close for d in period_data) / len(period_data)
-                    values.append(avg_value)
+                    # Get recent data for execution analysis
+                    recent_data = data[i - self.config.period + 1:i + 1]
+                    
+                    # 1. MARKET MICROSTRUCTURE ANALYSIS
+                    microstructure_score = self._analyze_market_microstructure(recent_data)
+                    
+                    # 2. SLIPPAGE OPTIMIZATION
+                    slippage_score = self._calculate_slippage_optimization(recent_data)
+                    
+                    # 3. LIQUIDITY ASSESSMENT
+                    liquidity_score = self._assess_execution_liquidity(recent_data)
+                    
+                    # 4. ORDER FLOW ANALYSIS
+                    order_flow_score = self._analyze_order_flow(recent_data)
+                    
+                    # 5. TIMING OPTIMIZATION
+                    timing_score = self._optimize_execution_timing(recent_data)
+                    
+                    # 6. IMPACT COST MINIMIZATION
+                    impact_score = self._minimize_market_impact(recent_data)
+                    
+                    # 7. EXECUTION VENUE OPTIMIZATION
+                    venue_score = self._optimize_execution_venue(recent_data)
+                    
+                    # 8. COMPOSITE EXECUTION SCORE
+                    execution_weights = {
+                        'microstructure': 0.20,
+                        'slippage': 0.20,
+                        'liquidity': 0.15,
+                        'order_flow': 0.15,
+                        'timing': 0.15,
+                        'impact': 0.10,
+                        'venue': 0.05
+                    }
+                    
+                    composite_score = (
+                        microstructure_score * execution_weights['microstructure'] +
+                        slippage_score * execution_weights['slippage'] +
+                        liquidity_score * execution_weights['liquidity'] +
+                        order_flow_score * execution_weights['order_flow'] +
+                        timing_score * execution_weights['timing'] +
+                        impact_score * execution_weights['impact'] +
+                        venue_score * execution_weights['venue']
+                    )
+                    
+                    execution_values.append(composite_score)
+                    
+                    # Log execution analysis for humanitarian mission
+                    self.logger.info(
+                        f"Execution Analysis - Minimizing Costs for Maximum Humanitarian Aid",
+                        extra={
+                            "execution_score": composite_score,
+                            "slippage_optimization": slippage_score,
+                            "liquidity": liquidity_score,
+                            "market_impact": impact_score,
+                            "mission": "execution_optimization_humanitarian"
+                        }
+                    )
+                    
                 else:
-                    values.append(0.0)
+                    execution_values.append(0.5)  # Neutral for insufficient data
+    
+    def _analyze_market_microstructure(self, data):
+        """Analyze market microstructure for optimal execution"""
+        if len(data) < 3:
+            return 0.5
+        
+        # Bid-ask spread analysis (simulated)
+        prices = [d.close for d in data]
+        highs = [d.high for d in data]
+        lows = [d.low for d in data]
+        
+        # Calculate average spread
+        spreads = [(highs[i] - lows[i]) / prices[i] for i in range(len(data))]
+        avg_spread = np.mean(spreads)
+        current_spread = spreads[-1]
+        
+        # Market depth analysis (volume-based proxy)
+        volumes = [d.volume for d in data]
+        avg_volume = np.mean(volumes)
+        current_volume = volumes[-1]
+        
+        depth_ratio = current_volume / avg_volume if avg_volume > 0 else 1
+        
+        # Microstructure quality score (lower spread + higher depth = better)
+        spread_score = 1 - min(current_spread / (avg_spread + 0.0001), 1)
+        depth_score = min(depth_ratio, 2) / 2  # Cap at 2x average
+        
+        microstructure_score = spread_score * 0.6 + depth_score * 0.4
+        
+        return max(0, min(1, microstructure_score))
+    
+    def _calculate_slippage_optimization(self, data):
+        """Calculate optimal slippage minimization strategy"""
+        if len(data) < 4:
+            return 0.5
+        
+        prices = [d.close for d in data]
+        volumes = [d.volume for d in data]
+        
+        # Price volatility analysis
+        returns = [(prices[i] - prices[i-1]) / prices[i-1] for i in range(1, len(prices))]
+        volatility = np.std(returns)
+        
+        # Volume consistency analysis
+        volume_cv = np.std(volumes) / np.mean(volumes) if np.mean(volumes) > 0 else 1
+        
+        # Slippage prediction based on volatility and volume
+        slippage_risk = volatility + volume_cv * 0.5
+        
+        # Score: lower slippage risk = higher score
+        slippage_score = 1 / (1 + slippage_risk * 10)
+        
+        return max(0, min(1, slippage_score))
+    
+    def _assess_execution_liquidity(self, data):
+        """Assess liquidity for execution optimization"""
+        if len(data) < 2:
+            return 0.5
+        
+        volumes = [d.volume for d in data]
+        prices = [d.close for d in data]
+        
+        # Volume-weighted average price stability
+        total_volume = sum(volumes)
+        if total_volume == 0:
+            return 0.5
+        
+        vwap = sum(prices[i] * volumes[i] for i in range(len(prices))) / total_volume
+        current_price = prices[-1]
+        
+        # Price deviation from VWAP (lower = better liquidity)
+        vwap_deviation = abs(current_price - vwap) / vwap if vwap > 0 else 0
+        
+        # Volume trend analysis
+        volume_trend = (volumes[-1] - volumes[0]) / volumes[0] if volumes[0] > 0 else 0
+        
+        # Liquidity score
+        liquidity_score = (1 - min(vwap_deviation, 0.5)) * 0.7 + max(0, volume_trend) * 0.3
+        
+        return max(0, min(1, liquidity_score))
+    
+    def _analyze_order_flow(self, data):
+        """Analyze order flow for execution timing"""
+        if len(data) < 3:
+            return 0.5
+        
+        prices = [d.close for d in data]
+        volumes = [d.volume for d in data]
+        highs = [d.high for d in data]
+        lows = [d.low for d in data]
+        
+        # Order flow imbalance approximation
+        buy_pressure = []
+        sell_pressure = []
+        
+        for i in range(len(data)):
+            # Approximate buy/sell pressure based on price position within range
+            range_pos = (prices[i] - lows[i]) / (highs[i] - lows[i]) if highs[i] != lows[i] else 0.5
             
-            self.values = values
+            buy_vol = volumes[i] * range_pos
+            sell_vol = volumes[i] * (1 - range_pos)
+            
+            buy_pressure.append(buy_vol)
+            sell_pressure.append(sell_vol)
+        
+        # Recent order flow balance
+        recent_buy = sum(buy_pressure[-3:])
+        recent_sell = sum(sell_pressure[-3:])
+        
+        order_flow_balance = recent_buy / (recent_buy + recent_sell) if (recent_buy + recent_sell) > 0 else 0.5
+        
+        # Score based on balanced order flow (closer to 0.5 = more balanced = better execution)
+        balance_score = 1 - abs(order_flow_balance - 0.5) * 2
+        
+        return max(0, min(1, balance_score))
+    
+    def _optimize_execution_timing(self, data):
+        """Optimize execution timing based on market patterns"""
+        if len(data) < 2:
+            return 0.5
+        
+        prices = [d.close for d in data]
+        volumes = [d.volume for d in data]
+        
+        # Price momentum analysis
+        price_momentum = (prices[-1] - prices[0]) / prices[0] if prices[0] > 0 else 0
+        
+        # Volume momentum analysis
+        volume_momentum = (volumes[-1] - volumes[0]) / volumes[0] if volumes[0] > 0 else 0
+        
+        # Momentum alignment (when price and volume move together)
+        momentum_alignment = 1 - abs(price_momentum - volume_momentum)
+        
+        # Timing score based on momentum alignment
+        timing_score = max(0, momentum_alignment)
+        
+        return min(1, timing_score)
+    
+    def _minimize_market_impact(self, data):
+        """Calculate market impact minimization score"""
+        if len(data) < 3:
+            return 0.5
+        
+        volumes = [d.volume for d in data]
+        prices = [d.close for d in data]
+        
+        # Market impact proxy based on volume and price stability
+        avg_volume = np.mean(volumes)
+        price_stability = 1 - np.std(prices) / np.mean(prices) if np.mean(prices) > 0 else 0
+        
+        # Impact score: higher volume + stable prices = lower impact
+        volume_score = min(volumes[-1] / avg_volume, 2) / 2 if avg_volume > 0 else 0.5
+        
+        impact_score = volume_score * 0.6 + price_stability * 0.4
+        
+        return max(0, min(1, impact_score))
+    
+    def _optimize_execution_venue(self, data):
+        """Optimize execution venue selection"""
+        if len(data) < 2:
+            return 0.8  # Default good venue score
+        
+        volumes = [d.volume for d in data]
+        
+        # Venue quality proxy based on volume consistency
+        volume_consistency = 1 - (np.std(volumes) / np.mean(volumes)) if np.mean(volumes) > 0 else 0
+        
+        # Recent volume strength
+        recent_volume_strength = volumes[-1] / np.mean(volumes) if np.mean(volumes) > 0 else 1
+        
+        venue_score = volume_consistency * 0.7 + min(recent_volume_strength, 2) * 0.15
+        
+        return max(0.5, min(1, venue_score))  # Minimum 0.5 for venue quality
+            
+            self.values = execution_values
             
             return IndicatorResult(
                 success=True,
-                values=values,
+                values=execution_values,
                 metadata={
-                    "indicator": "UltraFastModel",
+                    "indicator": "Execution_Expert_Intelligence",
                     "period": self.config.period,
                     "data_points": len(data),
-                    "calculation_timestamp": "2025-05-31T19:00:00Z"
+                    "mission": "execution_optimization_humanitarian",
+                    "algorithm": "comprehensive_execution_analysis",
+                    "calculation_timestamp": datetime.now().isoformat()
                 }
             )
             
@@ -467,7 +537,6 @@ class UltraFastModel(BaseIndicator, BaseService):
         """Reset indicator state"""
         self.values.clear()
         self.logger.info(f"UltraFastModel indicator reset")
-
 
 # === PLATFORM3 PHASE 2 ENHANCEMENT APPLIED ===
 # Enhanced on: 2025-05-31T22:33:55.366682

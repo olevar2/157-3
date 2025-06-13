@@ -32,8 +32,7 @@ from abc import ABC, abstractmethod
 # Platform3 Communication Framework Integration
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'shared', 'communication'))
-from platform3_communication_framework import Platform3CommunicationFramework
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
 
 # Analytics Framework Interface
 @dataclass

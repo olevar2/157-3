@@ -24,7 +24,6 @@ from datetime import datetime
 import sys
 from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
 
 from engines.indicator_base import IndicatorBase
 

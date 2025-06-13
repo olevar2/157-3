@@ -35,7 +35,6 @@ logger = logging.getLogger(__name__)
 # Import platform components for testing
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 
 # Mock classes for when imports fail
 class MockMarketTick:

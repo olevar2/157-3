@@ -18,14 +18,12 @@ import os
 
 # Add the base path for imports when running as script
 if __name__ == "__main__":
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))))
-
+    
 try:
     from engines.ai_enhancement.indicators.base_indicator import StandardIndicatorInterface
 except ImportError:
     # For direct script execution
-    sys.path.append(os.path.dirname(__file__))
-    from base_indicator import StandardIndicatorInterface
+        from base_indicator import StandardIndicatorInterface
 
 
 class VortexIndicator(StandardIndicatorInterface):

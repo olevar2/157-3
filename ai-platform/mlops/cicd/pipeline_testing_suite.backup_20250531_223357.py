@@ -29,7 +29,6 @@ import structlog
 
 # Import the components we're testing
 import sys
-sys.path.append(str(Path(__file__).parent))
 from automated_deployment_pipeline import AutomatedDeploymentPipeline, DeploymentStrategy, HumanitarianPriority
 from webhook_integration_service import WebhookIntegrationService, WebhookEvent, WebhookEventType
 

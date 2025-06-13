@@ -110,10 +110,6 @@ sys.modules['dynamic_risk_agent.model'] = type('MockModule', (), {
 sys.modules['ai-platform.intelligent-agents.dynamic-risk-agent.model'] = sys.modules['dynamic_risk_agent.model']
 
 # Add Platform3 paths
-sys.path.append(str(Path(__file__).parent.parent))
-sys.path.append(str(Path(__file__).parent.parent / "ai-platform"))
-sys.path.append(str(Path(__file__).parent.parent / "ai-platform" / "coordination"))
-sys.path.append(str(Path(__file__).parent.parent / "ai-platform" / "intelligent-agents"))
 
 @dataclass
 class TestResult:
@@ -273,8 +269,7 @@ class ComprehensiveAIIntegrationTestSuite:
         
         try:
             # Import DecisionMaster
-            sys.path.append(str(Path(__file__).parent.parent / "ai-platform" / "ai-models" / "intelligent-agents" / "decision-master"))
-            
+                        
             # Test with mock environment
             from model import DecisionMaster
             
@@ -462,8 +457,7 @@ class ComprehensiveAIIntegrationTestSuite:
             )
             
             # Step 2: Risk Assessment (DecisionMaster with DynamicRiskAgent)
-            sys.path.append(str(Path(__file__).parent.parent / "ai-platform" / "ai-models" / "intelligent-agents" / "decision-master"))
-            from model import DecisionMaster
+                        from model import DecisionMaster
             
             decision_master = DecisionMaster()
             trade_proposal = self.test_trade_proposals[0]
@@ -531,8 +525,7 @@ class ComprehensiveAIIntegrationTestSuite:
             for i in range(iterations):
                 iteration_start = time.perf_counter()
                 
-                sys.path.append(str(Path(__file__).parent.parent / "ai-platform" / "ai-models" / "intelligent-agents" / "decision-master"))
-                from model import DecisionMaster
+                                from model import DecisionMaster
                 
                 decision_master = DecisionMaster()
                 trade_proposal = self.test_trade_proposals[i % len(self.test_trade_proposals)]
@@ -684,8 +677,7 @@ class ComprehensiveAIIntegrationTestSuite:
     async def _stress_test_decision_master(self, trade_proposal: Dict, market_data: Dict) -> bool:
         """Individual stress test for DecisionMaster"""
         try:
-            sys.path.append(str(Path(__file__).parent.parent / "ai-platform" / "ai-models" / "intelligent-agents" / "decision-master"))
-            from model import DecisionMaster
+                        from model import DecisionMaster
             
             decision_master = DecisionMaster()
             decision = await decision_master.make_trading_decision(

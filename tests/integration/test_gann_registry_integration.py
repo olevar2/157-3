@@ -20,7 +20,6 @@ import pytest
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
 
 from engines.ai_enhancement.adaptive_indicator_bridge import AdaptiveIndicatorBridge
 from engines.ai_enhancement.indicators.gann import (

@@ -20,8 +20,7 @@ import json
 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'shared', 'communication'))
-from platform3_communication_framework import Platform3CommunicationFramework
+from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass, asdict
@@ -31,7 +30,6 @@ from pathlib import Path
 # Import platform services
 import sys
 import os
-sys.path.append(os.path.dirname(__file__))
 
 # Import core components
 from inference_engine.real_time_inference import RealTimeInferenceEngine, TradingSignal, MarketData

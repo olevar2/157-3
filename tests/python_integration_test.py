@@ -87,7 +87,7 @@ class PythonIntegrationValidator:
         """Test AI Platform Manager can import all required components"""
         try:
             # Test AI Platform Manager import
-            from ai_platform_manager import AIPlatformManager
+            from ai_platform.ai_platform_manager import AIPlatformManager
             platform_manager = AIPlatformManager()
             
             # Test if it can access its services
@@ -120,8 +120,7 @@ class PythonIntegrationValidator:
         """Test Platform3 engine coordination system"""
         try:
             # Test Platform3 engine import
-            sys.path.append(str(platform_root / "ai-platform" / "coordination" / "engine"))
-            from platform3_engine import Platform3TradingEngine
+                        from platform3_engine import Platform3TradingEngine
             
             # Initialize engine
             engine = Platform3TradingEngine()
@@ -286,7 +285,7 @@ class PythonIntegrationValidator:
             
             # Test AI Platform humanitarian mode
             try:
-                from ai_platform_manager import AIPlatformManager
+                from ai_platform.ai_platform_manager import AIPlatformManager
                 platform_manager = AIPlatformManager()
                 humanitarian_features.append('AI Platform Manager')
             except:
@@ -294,8 +293,7 @@ class PythonIntegrationValidator:
                 
             # Test engine humanitarian mode
             try:
-                sys.path.append(str(platform_root / "ai-platform" / "coordination" / "engine"))
-                from platform3_engine import Platform3TradingEngine
+                                from platform3_engine import Platform3TradingEngine
                 humanitarian_features.append('Platform3 Engine')
             except:
                 pass

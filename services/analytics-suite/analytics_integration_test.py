@@ -13,7 +13,6 @@ import sys
 import os
 
 # Add project paths
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from AdvancedAnalyticsFramework import AdvancedAnalyticsFramework
 from AnalyticsWebSocketServer import AnalyticsWebSocketServer

@@ -5,7 +5,6 @@ Test importing missing indicators to see why they're not loaded
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 def test_import_missing_indicators():
     """Test importing the missing indicators to see import errors"""

@@ -32,7 +32,6 @@ from typing import Any, Dict, List, Union
 import numpy as np
 import pandas as pd
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from base_indicator import (
     IndicatorValidationError,
     StandardIndicatorInterface,

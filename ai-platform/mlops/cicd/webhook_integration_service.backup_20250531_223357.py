@@ -32,7 +32,6 @@ import structlog
 
 # Import humanitarian impact calculator
 import sys
-sys.path.append(str(Path(__file__).parent.parent.parent))
 
 class WebhookEventType(Enum):
     """Types of webhook events that trigger different pipeline actions"""

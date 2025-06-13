@@ -10,7 +10,6 @@ import os
 from collections import defaultdict
 
 # Add the parent directory to sys.path to import from engines
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from engines.ai_enhancement.adaptive_indicator_bridge import AdaptiveIndicatorBridge, GeniusAgentType
 

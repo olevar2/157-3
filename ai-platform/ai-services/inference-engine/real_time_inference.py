@@ -30,7 +30,6 @@ import json
 # Import AI models for real-time inference
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../ai-models"))
 
 @dataclass
 class TradingSignal:

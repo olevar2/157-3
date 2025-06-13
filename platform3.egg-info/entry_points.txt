@@ -1,0 +1,4 @@
+[console_scripts]
+platform3 = platform3.cli:main
+platform3-engine = platform3.run_platform3:main
+platform3-validate = platform3.scripts.validation:main

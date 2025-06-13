@@ -19,8 +19,6 @@ import sys
 from pathlib import Path
 
 # Add shared path for Platform3 components
-sys.path.append(str(Path(__file__).parent.parent.parent / "shared"))
-sys.path.append(str(Path(__file__).parent.parent / "intelligent-agents" / "adaptive-strategy-generator"))
 
 # Import AdaptiveStrategyGenerator and Platform3 components
 try:

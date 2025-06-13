@@ -19,7 +19,6 @@ import pandas as pd
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
 
 # Platform3 imports
 from engines.ai_enhancement.indicators.base_indicator import IndicatorValidationError

@@ -25,7 +25,6 @@ import logging
 import re
 from datetime import datetime, timedelta
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from engines.ai_enhancement.indicators.base_indicator import (
     IndicatorValidationError,
     StandardIndicatorInterface,

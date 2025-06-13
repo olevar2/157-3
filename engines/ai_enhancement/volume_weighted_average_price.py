@@ -27,7 +27,6 @@ import numpy as np
 import pandas as pd
 
 # Import the base indicator interface
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from indicators.base_indicator import (
     IndicatorValidationError,
     StandardIndicatorInterface,

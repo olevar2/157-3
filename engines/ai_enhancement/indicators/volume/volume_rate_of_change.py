@@ -25,8 +25,7 @@ try:
 except ImportError:
     import sys
     import os
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    try:
+        try:
         from base_indicator import BaseIndicator
     except ImportError:
         # Fallback to creating a minimal base class

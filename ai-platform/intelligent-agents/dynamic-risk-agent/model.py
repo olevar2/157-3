@@ -1,9 +1,8 @@
 # MANDATORY imports as per shrimp-rules.md
 import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent.parent.parent / "shared"))
 
-from shared.platform3_logging.platform3_logger import Platform3Logger
+from shared.logging.platform3_logger import Platform3Logger
 from shared.error_handling.platform3_error_system import Platform3ErrorSystem, MLError
 from shared.communication.platform3_communication_framework import Platform3CommunicationFramework
 from shared.ai_model_base import EnhancedAIModelBase

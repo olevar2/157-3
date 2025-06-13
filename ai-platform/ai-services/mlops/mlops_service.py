@@ -18,8 +18,7 @@ import threading
 import subprocess
 
 import sys
-sys.path.append(str(Path(__file__).parent.parent / "model-registry"))
-from model_registry import get_registry, ModelStatus
+from ai_platform.ai_services.model_registry import get_registry, ModelStatus
 
 class DeploymentStage(Enum):
     DEVELOPMENT = "development"

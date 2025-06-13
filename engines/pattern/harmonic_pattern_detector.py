@@ -14,9 +14,6 @@ are based on Fibonacci ratios and provide high-probability reversal points.
 import sys
 from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
-sys.path.append(str(project_root / "shared"))
-sys.path.append(str(project_root / "engines"))
 
 from shared.logging.platform3_logger import Platform3Logger
 from shared.error_handling.platform3_error_system import Platform3ErrorSystem, ServiceError

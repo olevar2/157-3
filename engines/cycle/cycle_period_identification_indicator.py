@@ -34,7 +34,6 @@ from scipy.fft import fft, fftfreq
 from scipy.stats import pearsonr
 
 # Import the base indicator interface
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from ai_enhancement.indicators.base_indicator import (
     IndicatorValidationError,
     StandardIndicatorInterface,

@@ -11,7 +11,6 @@ import sys
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
-sys.path.append(str(project_root))
 
 class TestDominantcycleanalysisIntegration(unittest.TestCase):
     """Integration test suite for dominant_cycle_analysis"""

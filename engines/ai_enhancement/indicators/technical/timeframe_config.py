@@ -19,7 +19,6 @@ from datetime import datetime, timedelta
 from enum import Enum
 
 # Add parent directories to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
 
 try:
     from engines.ai_enhancement.indicators.base_indicator import BaseIndicator

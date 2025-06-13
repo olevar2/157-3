@@ -14,7 +14,6 @@ from datetime import datetime
 from pathlib import Path
 
 # Add project root to path  
-sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from engines.indicator_base import IndicatorBase
 from shared.logging.platform3_logger import Platform3Logger

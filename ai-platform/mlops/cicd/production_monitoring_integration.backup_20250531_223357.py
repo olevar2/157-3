@@ -28,7 +28,6 @@ import numpy as np
 
 # Import monitoring components
 import sys
-sys.path.append(str(Path(__file__).parent.parent))
 from monitoring.advanced_monitoring_dashboard import AdvancedMonitoringDashboard
 from monitoring.model_drift_detection import ModelDriftDetector
 

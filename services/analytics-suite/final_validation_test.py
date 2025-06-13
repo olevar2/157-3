@@ -16,8 +16,7 @@ async def validate_analytics_interface():
     """Validate that ProfitOptimizer properly implements AnalyticsInterface"""
     try:
         # Import ProfitOptimizer
-        sys.path.append(os.path.dirname(__file__))
-        
+                
         from ProfitOptimizer import (
             ProfitOptimizer, 
             AnalyticsInterface, 

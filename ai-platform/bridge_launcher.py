@@ -13,8 +13,6 @@ import os
 from datetime import datetime
 
 # Add platform paths
-sys.path.append(os.path.dirname(__file__))
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 # Configure logging
 logging.basicConfig(

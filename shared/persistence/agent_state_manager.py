@@ -20,8 +20,7 @@ import logging
 import uuid
 
 # Add shared modules to path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'shared'))
-from shared.platform3_logging.platform3_logger import Platform3Logger, get_logger
+from shared.logging.platform3_logger import Platform3Logger, get_logger
 from shared.error_handling.platform3_error_system import BaseService, ServiceError, DatabaseError
 from shared.database.platform3_database_manager import Platform3DatabaseManager, DatabaseConfig, with_database
 
