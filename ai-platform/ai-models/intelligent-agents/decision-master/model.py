@@ -688,6 +688,83 @@ class DecisionMaster(BaseAgentInterface):
             return "split"
         else:
             return "weak_majority"
+    
+    async def _synthesize_decision_intelligence(
+        self,
+        symbol: str,
+        market_data: Dict[str, Any],
+        indicators: Dict[str, Any],
+        agent_inputs: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Synthesize indicator results with agent inputs into final decision"""
+        
+        # Extract ML and confluence indicators
+        ml_indicators = {k: v for k, v in indicators.items() 
+                        if any(term in k.lower() for term in ['ml', 'neural', 'genetic'])}
+        
+        # Extract confluence indicators  
+        confluence_indicators = {k: v for k, v in indicators.items()
+                               if any(term in k.lower() for term in ['confluence', 'composite', 'attractor'])}
+        
+        # Calculate indicator-based scores
+        ml_score = np.mean(list(ml_indicators.values())) if ml_indicators else 0.5
+        confluence_score = np.mean(list(confluence_indicators.values())) if confluence_indicators else 0.5
+        
+        # Analyze agent consensus
+        agent_signals = [inp.get('recommendation', 'HOLD') for inp in agent_inputs]
+        buy_votes = agent_signals.count('BUY') + agent_signals.count('STRONG_BUY')
+        sell_votes = agent_signals.count('SELL') + agent_signals.count('STRONG_SELL')
+        
+        # Determine final decision using both indicators and agents
+        indicator_weight = 0.4
+        agent_weight = 0.6
+        
+        if buy_votes > sell_votes and ml_score > 0.6:
+            final_decision = "BUY"
+            confidence = min(0.95, (ml_score * indicator_weight + (buy_votes/len(agent_inputs)) * agent_weight))
+        elif sell_votes > buy_votes and ml_score < 0.4:
+            final_decision = "SELL"
+            confidence = min(0.95, ((1-ml_score) * indicator_weight + (sell_votes/len(agent_inputs)) * agent_weight))
+        else:
+            final_decision = "HOLD"
+            confidence = 0.5
+        
+        return {
+            "symbol": symbol,
+            "timestamp": datetime.now().isoformat(),
+            "final_decision": final_decision,
+            "confidence": round(confidence, 3),
+            "ml_score": round(ml_score, 3),
+            "confluence_score": round(confluence_score, 3),
+            "agent_consensus": f"{buy_votes}B/{sell_votes}S/{len(agent_inputs)-buy_votes-sell_votes}H",
+            "indicators_used": len(indicators),
+            "humanitarian_focus": "Optimized decision for maximum profits to help sick babies and poor families"
+        }
+    
+    async def _fallback_decision_process(
+        self, 
+        symbol: str, 
+        market_data: Dict[str, Any], 
+        agent_inputs: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Fallback decision process when indicators are not available"""
+        agent_signals = [inp.get('recommendation', 'HOLD') for inp in agent_inputs]
+        buy_votes = agent_signals.count('BUY') + agent_signals.count('STRONG_BUY')
+        sell_votes = agent_signals.count('SELL') + agent_signals.count('STRONG_SELL')
+        
+        if buy_votes > sell_votes:
+            decision = "BUY"
+        elif sell_votes > buy_votes:
+            decision = "SELL"
+        else:
+            decision = "HOLD"
+        
+        return {
+            "symbol": symbol,
+            "final_decision": decision,
+            "confidence": 0.6,
+            "note": "Fallback decision - limited indicator access"
+        }
 
 # Support classes for Decision Master
 class RiskValidator:

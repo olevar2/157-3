@@ -95,12 +95,23 @@ class TimeFrame(Enum):
     MN1 = "1M"
 
 class IndicatorStatus(Enum):
-    """Status tracking for indicator health monitoring."""
-    ACTIVE = "active"
-    ERROR = "error"
-    DISABLED = "disabled"
+    """Status of indicator calculations"""
+    READY = "ready"
     CALCULATING = "calculating"
-    NO_DATA = "no_data"
+    ERROR = "error"
+    INSUFFICIENT_DATA = "insufficient_data"
+
+class GeniusAgentType(Enum):
+    """Enum for all 9 Genius Agent types - matches the indicator mapping keys"""
+    RISK_GENIUS = "risk_genius"
+    SESSION_EXPERT = "session_expert"
+    PATTERN_MASTER = "pattern_master"
+    EXECUTION_EXPERT = "execution_expert"
+    PAIR_SPECIALIST = "pair_specialist"
+    DECISION_MASTER = "decision_master"
+    INDICATOR_EXPERT = "ai_model_coordinator"  # Maps to ai_model_coordinator in mappings
+    SIMULATION_EXPERT = "market_microstructure_genius"  # Maps to market_microstructure_genius in mappings
+    CURRENCY_PAIR_INTELLIGENCE = "sentiment_integration_genius"  # Maps to sentiment_integration_genius in mappings
 
 class SignalStrength(Enum):
     """Signal strength classification for trading decisions."""
@@ -286,7 +297,7 @@ class IndicatorBase(Generic[ConfigType]):
         
         return True
     
-    def calculate(self, data: Union[List[Dict[str, Any]], pd.DataFrame]) -> Dict[str, Any]:
+    def calculate(self, data: Union[List[Dict[str, Any]], pd.DataFrame], **kwargs) -> Dict[str, Any]:
         """Calculate trading engine values with enhanced accuracy"""
         start_time = datetime.now()
         
@@ -301,8 +312,9 @@ class IndicatorBase(Generic[ConfigType]):
             # Call internal validate method that subclasses inherit
             if not self._validate_data(data):
                 raise ServiceError("Input data validation failed")
-                  # Perform calculation (to be implemented by subclasses)
-            result = self._perform_calculation(data)
+                
+            # Perform calculation (to be implemented by subclasses)
+            result = self._perform_calculation(data, **kwargs)
             
             # Track performance
             calculation_time = (datetime.now() - start_time).total_seconds()
@@ -344,7 +356,7 @@ class IndicatorBase(Generic[ConfigType]):
             self.error_system.handle_error(error)
             raise error
     
-    def _perform_calculation(self, data: List[Dict[str, Any]]) -> Any:
+    def _perform_calculation(self, data: List[Dict[str, Any]], **kwargs) -> Any:
         """Perform the actual indicator calculation - override in subclasses"""
         raise NotImplementedError("Subclasses must implement _perform_calculation")
     
@@ -425,5 +437,5 @@ class IndicatorBase(Generic[ConfigType]):
 __all__ = [
     'IndicatorBase', 'TechnicalIndicator', 'IndicatorConfig', 'IndicatorResult',
     'IndicatorSignal', 'MarketData', 'SignalType', 'IndicatorType', 
-    'TimeFrame', 'IndicatorStatus'
+    'TimeFrame', 'IndicatorStatus', 'GeniusAgentType'
 ]

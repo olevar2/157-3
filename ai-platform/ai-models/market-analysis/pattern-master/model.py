@@ -864,6 +864,77 @@ class PatternMaster:
             'cache_size': len(self._pattern_cache)
         }
 
+    async def synthesize_indicators(self, indicator_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Synthesize pattern indicators into coherent analysis
+        
+        Args:
+            indicator_data: Dictionary of calculated indicators
+            
+        Returns:
+            Dictionary containing pattern synthesis results
+        """
+        try:
+            # Extract pattern-related indicators
+            patterns = []
+            
+            # Synthesize fractal patterns
+            for key, value in indicator_data.items():
+                if 'fractal' in key.lower() or 'pattern' in key.lower():
+                    if value is not None:
+                        patterns.append({
+                            'type': key,
+                            'value': value,
+                            'confidence': 0.8,
+                            'weight': 1.0
+                        })
+            
+            # Calculate pattern confluence
+            confluence_score = len(patterns) / max(len(indicator_data), 1)
+            
+            # Pattern strength assessment
+            pattern_strength = sum(p.get('confidence', 0) for p in patterns) / max(len(patterns), 1)
+            
+            return {
+                'pattern_synthesis': {
+                    'detected_patterns': patterns,
+                    'confluence_score': confluence_score,
+                    'pattern_strength': pattern_strength,
+                    'synthesis_quality': 'high' if pattern_strength > 0.7 else 'medium',
+                    'recommendation': 'ANALYZE' if confluence_score > 0.3 else 'WAIT',
+                    'confidence': pattern_strength
+                },
+                'metadata': {
+                    'synthesis_timestamp': datetime.now().isoformat(),
+                    'indicator_count': len(indicator_data),
+                    'pattern_count': len(patterns),
+                    'agent': 'pattern_master'
+                }
+            }
+            
+        except Exception as e:
+            return self._fallback_synthesis()
+
+    def _fallback_synthesis(self) -> Dict[str, Any]:
+        """Fallback synthesis when indicators are unavailable"""
+        return {
+            'pattern_synthesis': {
+                'detected_patterns': [],
+                'confluence_score': 0.0,
+                'pattern_strength': 0.0,
+                'synthesis_quality': 'fallback',
+                'recommendation': 'WAIT',
+                'confidence': 0.1
+            },
+            'metadata': {
+                'synthesis_timestamp': datetime.now().isoformat(),
+                'indicator_count': 0,
+                'pattern_count': 0,
+                'agent': 'pattern_master',
+                'mode': 'fallback'
+            }
+        }
+
 # Export main classes
 __all__ = [
     'PatternMaster',

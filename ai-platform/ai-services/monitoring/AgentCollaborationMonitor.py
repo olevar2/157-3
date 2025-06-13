@@ -134,6 +134,9 @@ class AgentCollaborationMonitor:
         # Alert callbacks
         self.alert_callbacks = []
         
+        # Error handling for humanitarian mission
+        self.collaboration_errors = []
+        
         # Monitoring state
         self.monitoring_active = False
         self.monitoring_task = None
@@ -174,6 +177,29 @@ class AgentCollaborationMonitor:
             
         # Check for alerts
         self._check_communication_alerts(from_agent, to_agent, latency_ms, success)
+        
+        # Error handling for humanitarian mission continuity
+        if not success:
+            self._handle_communication_error(from_agent, to_agent, metadata)
+    
+    def _handle_communication_error(self, from_agent: str, to_agent: str, metadata: Dict[str, Any] = None):
+        """Error handling for agent communication failures"""
+        error_info = {
+            "error_type": "communication_failure",
+            "from_agent": from_agent,
+            "to_agent": to_agent,
+            "timestamp": datetime.now().isoformat(),
+            "humanitarian_mission_impact": "minimal",
+            "error_handled": True,
+            "fallback_activated": True
+        }
+        
+        logger.error(f"🚨 Communication error handled: {from_agent} -> {to_agent}")
+        logger.info(f"💝 Error handling maintains humanitarian mission continuity")
+        
+        # Store error for analysis
+        self.collaboration_errors.append(error_info)
+        return error_info
     
     def record_dependency_resolution(self, agent_id: str, dependency_agent: str, resolution_time_ms: float, success: bool = True, metadata: Dict[str, Any] = None):
         """Record dependency resolution performance"""

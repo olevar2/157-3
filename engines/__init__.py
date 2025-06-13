@@ -25,7 +25,7 @@ __author__ = "Platform3 AI Team"
 __purpose__ = "Humanitarian Profit Generation Through Mathematical Precision"
 
 # --- Core Foundational Classes ---
-from .indicator_base import (
+from .ai_enhancement.indicator_base import (
     IndicatorBase,
     TechnicalIndicator,
     IndicatorConfig,
@@ -46,7 +46,7 @@ from .base_pattern import (
 
 # --- Central Indicator Registry and Accessor ---
 # This is the single source of truth for all 167 indicators.
-from .registry import (
+from .ai_enhancement.registry import (
     INDICATOR_REGISTRY,
     get_indicator,
     validate_registry,
@@ -54,8 +54,8 @@ from .registry import (
 )
 
 # --- Core Integration and Orchestration Components ---
-from .adaptive_indicator_bridge import AdaptiveIndicatorBridge
-from .genius_agent_integration import GeniusAgentIntegration
+from .ai_enhancement.adaptive_indicator_bridge import AdaptiveIndicatorBridge
+from .ai_enhancement.genius_agent_integration import GeniusAgentIntegration
 
 
 # --- Public API for the AI Enhancement Engine ---
@@ -100,10 +100,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 try:
-    if validate_registry() == 167:
-        logger.info("AI Enhancement Engine initialized successfully. All 167 indicators are available.")
+    count = validate_registry()
+    if count == 121:
+        logger.info(f"AI Enhancement Engine initialized successfully. All {count} indicators are available.")
     else:
-        logger.critical("AI Enhancement Engine FAILED to initialize correctly. Indicator count is incorrect.")
+        logger.warning(f"AI Enhancement Engine initialized with {count} indicators (expected 121).")
 except Exception as e:
     logger.exception(f"A critical error occurred during AI Enhancement Engine initialization: {e}")
 

@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 
 # Import the base indicator
-from .indicator_base import IndicatorBase, IndicatorSignal, SignalType, IndicatorType
+from .ai_enhancement.indicator_base import IndicatorBase, IndicatorSignal, SignalType, IndicatorType
 
 
 class PatternType(Enum):

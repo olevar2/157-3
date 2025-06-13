@@ -510,6 +510,56 @@ class BetaCoefficient:
         # Real beta calculation
         return {'beta': 1.15, 'alpha': 0.02, 'r_squared': 0.65}
 
+    async def _synthesize_risk_intelligence(
+        self,
+        symbol: str,
+        market_data: Dict[str, Any],
+        indicators: Dict[str, Any],
+        timeframe: str
+    ) -> Dict[str, Any]:
+        """Synthesize indicator results into comprehensive risk assessment"""
+        
+        # Extract risk-specific indicators
+        volatility_indicators = {k: v for k, v in indicators.items() 
+                               if any(term in k.lower() for term in ['volatility', 'atr'])}
+        
+        # Extract statistical indicators  
+        statistical_indicators = {k: v for k, v in indicators.items()
+                                if any(term in k.lower() for term in ['correlation', 'beta', 'variance', 'zscore'])}
+        
+        # Calculate risk scores
+        volatility_risk = np.mean(list(volatility_indicators.values())) if volatility_indicators else 0.5
+        statistical_risk = np.mean(list(statistical_indicators.values())) if statistical_indicators else 0.5
+        
+        # Determine overall risk level
+        overall_risk = (volatility_risk * 0.6 + statistical_risk * 0.4)
+        
+        if overall_risk > 0.8:
+            risk_recommendation = "HIGH_RISK"
+            position_size = "MINIMAL"
+        elif overall_risk > 0.6:
+            risk_recommendation = "MODERATE_RISK"
+            position_size = "REDUCED"
+        elif overall_risk > 0.4:
+            risk_recommendation = "NORMAL_RISK"
+            position_size = "STANDARD"
+        else:
+            risk_recommendation = "LOW_RISK"
+            position_size = "INCREASED"
+        
+        return {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "timestamp": datetime.now().isoformat(),
+            "risk_recommendation": risk_recommendation,
+            "position_size": position_size,
+            "overall_risk": round(overall_risk, 3),
+            "volatility_risk": round(volatility_risk, 3),
+            "statistical_risk": round(statistical_risk, 3),
+            "indicators_used": len(indicators),
+            "humanitarian_focus": "Risk-adjusted sizing for maximum profits to help sick babies and poor families"
+        }
+
 # Support classes
 class PortfolioRiskEngine:
     pass

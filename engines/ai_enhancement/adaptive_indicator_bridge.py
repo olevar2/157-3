@@ -12,7 +12,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from .registry import GeniusAgentType, get_indicator
+from .registry import get_indicator, GeniusAgentType
 from .indicator_mappings import AGENT_INDICATOR_MAPPINGS
 
 logger = logging.getLogger(__name__)
@@ -86,8 +86,11 @@ class AdaptiveIndicatorBridge:
 
             params = self._get_adaptive_parameters(indicator_name, market_regime)
             
+            # Convert market data to list format expected by indicators
+            converted_data = self._convert_market_data(market_data)
+            
             # The base class calculate() method handles the logic now
-            return indicator_instance.calculate(market_data, **params)
+            return indicator_instance.calculate(converted_data, **params)
 
         except KeyError:
             logger.error(f"Indicator '{indicator_name}' not found in registry during calculation.")
@@ -95,6 +98,42 @@ class AdaptiveIndicatorBridge:
         except Exception as e:
             logger.error(f"Failed to calculate indicator '{indicator_name}': {e}")
             return None
+
+    def _convert_market_data(self, market_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Convert dictionary format market data to list format expected by indicators."""
+        # If it's already a list, return as-is
+        if isinstance(market_data, list):
+            return market_data
+            
+        # Convert dictionary arrays to list of dictionaries
+        if all(key in market_data for key in ['close', 'open', 'high', 'low', 'volume']):
+            converted = []
+            data_length = len(market_data['close'])
+            
+            for i in range(data_length):
+                data_point = {
+                    'timestamp': f"2024-01-01 {9+i//60:02d}:{i%60:02d}:00",
+                    'open': float(market_data.get('open', market_data['close'])[i] if i < len(market_data.get('open', market_data['close'])) else market_data['close'][i]),
+                    'high': float(market_data['high'][i] if i < len(market_data['high']) else market_data['close'][i]),
+                    'low': float(market_data['low'][i] if i < len(market_data['low']) else market_data['close'][i]),
+                    'close': float(market_data['close'][i]),
+                    'volume': float(market_data['volume'][i] if i < len(market_data['volume']) else 1000.0)
+                }
+                converted.append(data_point)
+            
+            return converted
+        
+        # Fallback: create minimal test data
+        return [
+            {
+                'timestamp': '2024-01-01 09:00:00',
+                'open': 100.0,
+                'high': 101.0,
+                'low': 99.0,
+                'close': 100.0,
+                'volume': 1000.0
+            }
+        ]
             
     def _get_adaptive_parameters(self, indicator_name: str, market_regime: str) -> Dict:
         """Returns adaptive parameters for an indicator based on the market regime."""

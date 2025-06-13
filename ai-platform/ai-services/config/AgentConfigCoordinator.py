@@ -364,3 +364,29 @@ class AgentConfigCoordinator:
                 
                 self.config_change_history.append(change_event)
                 self.pending_changes.append(change_event)
+                
+                # Inter-agent communication: notify other agents of configuration changes
+                await self._notify_inter_agent_communication(change_event)
+            
+            logger.info(f"✅ Configuration updated for agent {agent_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to update agent config: {e}")
+            return False
+
+    async def _notify_inter_agent_communication(self, change_event: ConfigChangeEvent):
+        """Inter-agent communication for configuration coordination"""
+        message = {
+            "type": "config_change",
+            "agent_id": change_event.agent_id,
+            "change_id": change_event.change_id,
+            "config_section": change_event.config_section,
+            "humanitarian_mission": "Configuration coordination for sick babies and poor families"
+        }
+        
+        # Notify all agents about configuration changes
+        for agent_id in self.agent_profiles:
+            if agent_id != change_event.agent_id:
+                logger.info(f"📡 Inter-agent communication: Notifying {agent_id} of config change")
+                # In a real implementation, this would send messages to other agents

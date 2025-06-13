@@ -1,0 +1,1388 @@
+{
+  "validation_metadata": {
+    "start_time": "2025-06-13T04:17:52.303283",
+    "project_root": "E:\\MD\\Platform3",
+    "targets": {
+      "indicator_calculation_ms": 100,
+      "communication_latency_ms": 1.0,
+      "ai_response_ms": 500,
+      "bridge_latency_ms": 1.0,
+      "system_availability_percent": 99.9
+    }
+  },
+  "pre_validation_checks": {
+    "python_environment": {
+      "status": "pass",
+      "python_version": "3.13.1 (tags/v3.13.1:0671451, Dec  3 2024, 19:06:28) [MSC v.1942 64 bit (AMD64)]",
+      "executable": "C:\\Users\\ASD\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+      "path": [
+        "E:\\MD\\Platform3",
+        "E:\\MD\\Platform3\\engines\\validation",
+        "C:\\Users\\ASD\\AppData\\Local\\Programs\\Python\\Python313\\python313.zip"
+      ]
+    },
+    "project_structure": {
+      "status": "pass",
+      "missing_directories": [],
+      "project_root_exists": true,
+      "validation_dir_exists": true
+    },
+    "dependencies": {
+      "status": "warn",
+      "dependency_status": {
+        "asyncio": "available",
+        "json": "available",
+        "logging": "available",
+        "pathlib": "available",
+        "numpy": "available",
+        "pandas": "available",
+        "psutil": "missing"
+      },
+      "missing_packages": [
+        "psutil"
+      ]
+    },
+    "file_permissions": {
+      "status": "pass",
+      "validation_dir_writable": true,
+      "validation_dir_readable": true
+    },
+    "disk_space": {
+      "status": "pass",
+      "free_space_mb": 49316,
+      "sufficient_space": true
+    },
+    "overall_status": "fail"
+  },
+  "indicator_validation": {
+    "status": "completed",
+    "results": {
+      "timestamp": "2025-06-13T04:17:53.340987",
+      "summary": {
+        "total_indicators": 165,
+        "passed_indicators": 165,
+        "failed_indicators": 0,
+        "pass_rate": 1.0,
+        "avg_performance_ms": 0.5
+      },
+      "indicator_tests": {
+        "status": "completed",
+        "total_indicators": 165,
+        "passed": 165,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "test_results": [
+          {
+            "name": "awesome_oscillator",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\awesome_oscillator.py"
+          },
+          {
+            "name": "cci",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\cci.py"
+          },
+          {
+            "name": "chande_momentum_oscillator",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\chande_momentum_oscillator.py"
+          },
+          {
+            "name": "commodity_channel_index",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\commodity_channel_index.py"
+          },
+          {
+            "name": "correlation_momentum",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\correlation_momentum.py"
+          },
+          {
+            "name": "detrended_price_oscillator",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\detrended_price_oscillator.py"
+          },
+          {
+            "name": "know_sure_thing",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\know_sure_thing.py"
+          },
+          {
+            "name": "macd",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\macd.py"
+          },
+          {
+            "name": "mfi",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\mfi.py"
+          },
+          {
+            "name": "momentum",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\momentum.py"
+          },
+          {
+            "name": "percentage_price_oscillator",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\percentage_price_oscillator.py"
+          },
+          {
+            "name": "roc",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\roc.py"
+          },
+          {
+            "name": "rsi",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\rsi.py"
+          },
+          {
+            "name": "stochastic",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\stochastic.py"
+          },
+          {
+            "name": "trix",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\trix.py"
+          },
+          {
+            "name": "trix_new",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\trix_new.py"
+          },
+          {
+            "name": "true_strength_index",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\true_strength_index.py"
+          },
+          {
+            "name": "ultimate_oscillator",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\ultimate_oscillator.py"
+          },
+          {
+            "name": "williams_r",
+            "category": "momentum",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\momentum\\williams_r.py"
+          },
+          {
+            "name": "aroon_indicator",
+            "category": "trend",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\trend\\aroon_indicator.py"
+          },
+          {
+            "name": "average_true_range",
+            "category": "trend",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\trend\\average_true_range.py"
+          },
+          {
+            "name": "bollinger_bands",
+            "category": "trend",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\trend\\bollinger_bands.py"
+          },
+          {
+            "name": "directional_movement_system",
+            "category": "trend",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\trend\\directional_movement_system.py"
+          },
+          {
+            "name": "donchian_channels",
+            "category": "trend",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\trend\\donchian_channels.py"
+          },
+          {
+            "name": "keltner_channels",
+            "category": "trend",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\trend\\keltner_channels.py"
+          },
+          {
+            "name": "parabolic_sar",
+            "category": "trend",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\trend\\parabolic_sar.py"
+          },
+          {
+            "name": "vortex_indicator",
+            "category": "trend",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\trend\\vortex_indicator.py"
+          },
+          {
+            "name": "accumulation_distribution",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\accumulation_distribution.py"
+          },
+          {
+            "name": "chaikin_money_flow",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\chaikin_money_flow.py"
+          },
+          {
+            "name": "ease_of_movement",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\ease_of_movement.py"
+          },
+          {
+            "name": "force_index",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\force_index.py"
+          },
+          {
+            "name": "institutional_flow_detector",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\institutional_flow_detector.py"
+          },
+          {
+            "name": "klinger_oscillator",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\klinger_oscillator.py"
+          },
+          {
+            "name": "liquidity_flow_indicator",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\liquidity_flow_indicator.py"
+          },
+          {
+            "name": "market_microstructure_indicator",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\market_microstructure_indicator.py"
+          },
+          {
+            "name": "negative_volume_index",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\negative_volume_index.py"
+          },
+          {
+            "name": "obv",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\obv.py"
+          },
+          {
+            "name": "OrderFlowImbalance",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\OrderFlowImbalance.py"
+          },
+          {
+            "name": "order_flow_block_trade_detector",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\order_flow_block_trade_detector.py"
+          },
+          {
+            "name": "order_flow_sequence_analyzer",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\order_flow_sequence_analyzer.py"
+          },
+          {
+            "name": "positive_volume_index",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\positive_volume_index.py"
+          },
+          {
+            "name": "price_volume_rank",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\price_volume_rank.py"
+          },
+          {
+            "name": "SmartMoneyIndicators",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\SmartMoneyIndicators.py"
+          },
+          {
+            "name": "TickVolumeIndicators",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\TickVolumeIndicators.py"
+          },
+          {
+            "name": "tick_volume_analyzer",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\tick_volume_analyzer.py"
+          },
+          {
+            "name": "VolumeProfiles",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\VolumeProfiles.py"
+          },
+          {
+            "name": "VolumeSpreadAnalysis",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\VolumeSpreadAnalysis.py"
+          },
+          {
+            "name": "volume_breakout_detector",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\volume_breakout_detector.py"
+          },
+          {
+            "name": "volume_delta_indicator",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\volume_delta_indicator.py"
+          },
+          {
+            "name": "volume_oscillator",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\volume_oscillator.py"
+          },
+          {
+            "name": "volume_price_trend",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\volume_price_trend.py"
+          },
+          {
+            "name": "volume_rate_of_change",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\volume_rate_of_change.py"
+          },
+          {
+            "name": "volume_weighted_market_depth",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\volume_weighted_market_depth.py"
+          },
+          {
+            "name": "vwap",
+            "category": "volume",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volume\\vwap.py"
+          },
+          {
+            "name": "chaikin_volatility",
+            "category": "volatility",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volatility\\chaikin_volatility.py"
+          },
+          {
+            "name": "historical_volatility",
+            "category": "volatility",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volatility\\historical_volatility.py"
+          },
+          {
+            "name": "keltner_channels",
+            "category": "volatility",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volatility\\keltner_channels.py"
+          },
+          {
+            "name": "mass_index",
+            "category": "volatility",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volatility\\mass_index.py"
+          },
+          {
+            "name": "rvi",
+            "category": "volatility",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volatility\\rvi.py"
+          },
+          {
+            "name": "standard_deviation_channels",
+            "category": "volatility",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volatility\\standard_deviation_channels.py"
+          },
+          {
+            "name": "volatility_index",
+            "category": "volatility",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\volatility\\volatility_index.py"
+          },
+          {
+            "name": "abandonedbabysignal_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\abandonedbabysignal_indicator.py"
+          },
+          {
+            "name": "abandoned_baby_pattern",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\abandoned_baby_pattern.py"
+          },
+          {
+            "name": "abandoned_baby_signal_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\abandoned_baby_signal_indicator.py"
+          },
+          {
+            "name": "beltholdtype_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\beltholdtype_indicator.py"
+          },
+          {
+            "name": "belt_hold_pattern",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\belt_hold_pattern.py"
+          },
+          {
+            "name": "belt_hold_type_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\belt_hold_type_indicator.py"
+          },
+          {
+            "name": "darkcloudtype_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\darkcloudtype_indicator.py"
+          },
+          {
+            "name": "dark_cloud_cover_pattern",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\dark_cloud_cover_pattern.py"
+          },
+          {
+            "name": "dojitype_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\dojitype_indicator.py"
+          },
+          {
+            "name": "doji_recognition",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\doji_recognition.py"
+          },
+          {
+            "name": "doji_recognition_fixed",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\doji_recognition_fixed.py"
+          },
+          {
+            "name": "doji_type_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\doji_type_indicator.py"
+          },
+          {
+            "name": "elliott_wave_analysis",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\elliott_wave_analysis.py"
+          },
+          {
+            "name": "engulfingtype_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\engulfingtype_indicator.py"
+          },
+          {
+            "name": "engulfing_pattern",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\engulfing_pattern.py"
+          },
+          {
+            "name": "engulfing_pattern_fixed",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\engulfing_pattern_fixed.py"
+          },
+          {
+            "name": "engulfing_type_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\engulfing_type_indicator.py"
+          },
+          {
+            "name": "fibonaccitype_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\fibonaccitype_indicator.py"
+          },
+          {
+            "name": "fibonacci_retracement_extension",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\fibonacci_retracement_extension.py"
+          },
+          {
+            "name": "gannanglestimecycles_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\gannanglestimecycles_indicator.py"
+          },
+          {
+            "name": "gann_angles_time_cycles",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\gann_angles_time_cycles.py"
+          },
+          {
+            "name": "hammertype_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\hammertype_indicator.py"
+          },
+          {
+            "name": "hammer_hanging_man",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\hammer_hanging_man.py"
+          },
+          {
+            "name": "hammer_hanging_man_fixed",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\hammer_hanging_man_fixed.py"
+          },
+          {
+            "name": "haramitype_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\haramitype_indicator.py"
+          },
+          {
+            "name": "harami_pattern",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\harami_pattern.py"
+          },
+          {
+            "name": "harami_pattern_fixed",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\harami_pattern_fixed.py"
+          },
+          {
+            "name": "harmonicpoint_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\harmonicpoint_indicator.py"
+          },
+          {
+            "name": "harmonic_pattern_detector",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\harmonic_pattern_detector.py"
+          },
+          {
+            "name": "highwavecandlepattern_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\highwavecandlepattern_indicator.py"
+          },
+          {
+            "name": "high_wave_candle",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\high_wave_candle.py"
+          },
+          {
+            "name": "invertedhammershootingstarpattern_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\invertedhammershootingstarpattern_indicator.py"
+          },
+          {
+            "name": "inverted_hammer_shooting_star",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\inverted_hammer_shooting_star.py"
+          },
+          {
+            "name": "japanese_candlestick_patterns",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\japanese_candlestick_patterns.py"
+          },
+          {
+            "name": "kickingsignal_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\kickingsignal_indicator.py"
+          },
+          {
+            "name": "kicking_pattern",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\kicking_pattern.py"
+          },
+          {
+            "name": "longleggeddojipattern_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\longleggeddojipattern_indicator.py"
+          },
+          {
+            "name": "long_legged_doji",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\long_legged_doji.py"
+          },
+          {
+            "name": "marubozu",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\marubozu.py"
+          },
+          {
+            "name": "marubozupattern_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\marubozupattern_indicator.py"
+          },
+          {
+            "name": "matchingsignal_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\matchingsignal_indicator.py"
+          },
+          {
+            "name": "matching_pattern",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\matching_pattern.py"
+          },
+          {
+            "name": "patterntype_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\patterntype_indicator.py"
+          },
+          {
+            "name": "piercinglinetype_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\piercinglinetype_indicator.py"
+          },
+          {
+            "name": "piercing_line_pattern",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\piercing_line_pattern.py"
+          },
+          {
+            "name": "soldierssignal_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\soldierssignal_indicator.py"
+          },
+          {
+            "name": "soldiers_pattern",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\soldiers_pattern.py"
+          },
+          {
+            "name": "spinningtoppattern_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\spinningtoppattern_indicator.py"
+          },
+          {
+            "name": "spinning_top",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\spinning_top.py"
+          },
+          {
+            "name": "starsignal_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\starsignal_indicator.py"
+          },
+          {
+            "name": "star_pattern",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\star_pattern.py"
+          },
+          {
+            "name": "threeinsidesignal_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\threeinsidesignal_indicator.py"
+          },
+          {
+            "name": "threelinestrikesignal_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\threelinestrikesignal_indicator.py"
+          },
+          {
+            "name": "threeoutsidesignal_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\threeoutsidesignal_indicator.py"
+          },
+          {
+            "name": "three_inside_pattern",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\three_inside_pattern.py"
+          },
+          {
+            "name": "three_line_strike_pattern",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\three_line_strike_pattern.py"
+          },
+          {
+            "name": "three_outside_pattern",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\three_outside_pattern.py"
+          },
+          {
+            "name": "tweezertype_indicator",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\tweezertype_indicator.py"
+          },
+          {
+            "name": "tweezer_patterns",
+            "category": "pattern",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\pattern\\tweezer_patterns.py"
+          },
+          {
+            "name": "autocorrelation",
+            "category": "statistical",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\statistical\\autocorrelation.py"
+          },
+          {
+            "name": "beta_coefficient",
+            "category": "statistical",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\statistical\\beta_coefficient.py"
+          },
+          {
+            "name": "cointegration",
+            "category": "statistical",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\statistical\\cointegration.py"
+          },
+          {
+            "name": "correlation_analysis",
+            "category": "statistical",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\statistical\\correlation_analysis.py"
+          },
+          {
+            "name": "correlation_coefficient",
+            "category": "statistical",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\statistical\\correlation_coefficient.py"
+          },
+          {
+            "name": "linear_regression",
+            "category": "statistical",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\statistical\\linear_regression.py"
+          },
+          {
+            "name": "linear_regression_channels",
+            "category": "statistical",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\statistical\\linear_regression_channels.py"
+          },
+          {
+            "name": "r_squared",
+            "category": "statistical",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\statistical\\r_squared.py"
+          },
+          {
+            "name": "skewness_kurtosis",
+            "category": "statistical",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\statistical\\skewness_kurtosis.py"
+          },
+          {
+            "name": "standard_deviation",
+            "category": "statistical",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\statistical\\standard_deviation.py"
+          },
+          {
+            "name": "standard_deviation_channels",
+            "category": "statistical",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\statistical\\standard_deviation_channels.py"
+          },
+          {
+            "name": "variance_ratio",
+            "category": "statistical",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\statistical\\variance_ratio.py"
+          },
+          {
+            "name": "z_score",
+            "category": "statistical",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\statistical\\z_score.py"
+          },
+          {
+            "name": "chaos_theory_indicators",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\chaos_theory_indicators.py"
+          },
+          {
+            "name": "fractal_breakout",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\fractal_breakout.py"
+          },
+          {
+            "name": "fractal_channel",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\fractal_channel.py"
+          },
+          {
+            "name": "fractal_chaos_oscillator",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\fractal_chaos_oscillator.py"
+          },
+          {
+            "name": "fractal_correlation_dimension",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\fractal_correlation_dimension.py"
+          },
+          {
+            "name": "fractal_dimension_calculator",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\fractal_dimension_calculator.py"
+          },
+          {
+            "name": "fractal_efficiency_ratio",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\fractal_efficiency_ratio.py"
+          },
+          {
+            "name": "fractal_energy_indicator",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\fractal_energy_indicator.py"
+          },
+          {
+            "name": "fractal_market_hypothesis",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\fractal_market_hypothesis.py"
+          },
+          {
+            "name": "fractal_market_profile",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\fractal_market_profile.py"
+          },
+          {
+            "name": "fractal_momentum_oscillator",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\fractal_momentum_oscillator.py"
+          },
+          {
+            "name": "fractal_volume_analysis",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\fractal_volume_analysis.py"
+          },
+          {
+            "name": "fractal_wave_counter",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\fractal_wave_counter.py"
+          },
+          {
+            "name": "frama",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\frama.py"
+          },
+          {
+            "name": "hurst_exponent",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\hurst_exponent.py"
+          },
+          {
+            "name": "mandelbrot_fractal",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\mandelbrot_fractal.py"
+          },
+          {
+            "name": "mfdfa",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\mfdfa.py"
+          },
+          {
+            "name": "self_similarity_detector",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\fractal\\self_similarity_detector.py"
+          },
+          {
+            "name": "fibonacci_wave_projections",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\elliott_wave\\fibonacci_wave_projections.py"
+          },
+          {
+            "name": "impulse_corrective_classifier",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\elliott_wave\\impulse_corrective_classifier.py"
+          },
+          {
+            "name": "wave_count_calculator",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\elliott_wave\\wave_count_calculator.py"
+          },
+          {
+            "name": "wave_point_indicator",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\elliott_wave\\wave_point_indicator.py"
+          },
+          {
+            "name": "wave_structure_indicator",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\elliott_wave\\wave_structure_indicator.py"
+          },
+          {
+            "name": "wave_type_indicator",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\elliott_wave\\wave_type_indicator.py"
+          },
+          {
+            "name": "GannAnglesCalculator",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\gann\\GannAnglesCalculator.py"
+          },
+          {
+            "name": "GannGrid",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\gann\\GannGrid.py"
+          },
+          {
+            "name": "GannPatternDetector",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\gann\\GannPatternDetector.py"
+          },
+          {
+            "name": "gann_fan_lines",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\gann\\gann_fan_lines.py"
+          },
+          {
+            "name": "gann_square_of_nine",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\gann\\gann_square_of_nine.py"
+          },
+          {
+            "name": "gann_time_cycles",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\gann\\gann_time_cycles.py"
+          },
+          {
+            "name": "price_time_relationships",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\gann\\price_time_relationships.py"
+          },
+          {
+            "name": "base_pattern",
+            "category": "standalone",
+            "status": "healthy",
+            "path": "E:\\MD\\Platform3\\engines\\base_pattern.py"
+          }
+        ],
+        "performance": []
+      },
+      "recommendations": [
+        "All indicators are functioning properly"
+      ]
+    },
+    "indicators_tested": 165,
+    "success_rate": 0
+  },
+  "ai_integration_validation": {
+    "status": "pass",
+    "results": {
+      "adaptive_strategy_generator": {
+        "status": "pass",
+        "has_communication_framework": true,
+        "has_indicator_requests": true,
+        "has_regime_detection": true,
+        "file_size": 50103
+      },
+      "decision_master": {
+        "status": "pass",
+        "has_decision_logic": true,
+        "has_model_integration": true,
+        "has_indicator_support": true
+      },
+      "communication_framework": {
+        "status": "pass",
+        "communication_patterns": {
+          "request_response": true,
+          "async_support": true,
+          "error_handling": true,
+          "indicator_integration": true
+        },
+        "framework_ready": true
+      }
+    },
+    "integration_success": true
+  },
+  "bridge_validation": {
+    "status": "completed",
+    "results": {
+      "timestamp": 1749781073.4843307,
+      "bridge_availability": {
+        "PythonEngineClient": {
+          "path": "E:\\MD\\Platform3\\shared\\PythonEngineClient.ts",
+          "exists": true,
+          "readable": true,
+          "lines_of_code": 471
+        },
+        "PythonWebSocketClient": {
+          "path": "E:\\MD\\Platform3\\shared\\PythonWebSocketClient.ts",
+          "exists": true,
+          "readable": true,
+          "lines_of_code": 384
+        }
+      },
+      "communication_protocols": {
+        "http_communication": {
+          "available": true,
+          "latency_ms": 7.3554999980842695,
+          "meets_target": false,
+          "status": "pass"
+        },
+        "websocket_communication": {
+          "available": true,
+          "latency_ms": 16.637799999443814,
+          "meets_target": false,
+          "status": "pass"
+        }
+      },
+      "performance": {
+        "single_call_latency": {
+          "average_latency_ms": 10.207572000508662,
+          "min_latency_ms": 0.5946000019321218,
+          "max_latency_ms": 17.02099999965867,
+          "meets_target": false
+        }
+      },
+      "integration_tests": {
+        "typescript_engine_integration": {
+          "available": true,
+          "has_python_imports": true,
+          "has_bridge_references": true,
+          "lines_of_code": 987
+        }
+      },
+      "bridge_health": {
+        "score": 70,
+        "max_score": 100,
+        "percentage": 70.0,
+        "grade": "C",
+        "status": "needs_attention"
+      },
+      "recommendations": [
+        "Optimize single call latency (current: 17.02ms, target: <1.0ms)"
+      ]
+    },
+    "health_score": 0,
+    "production_ready": false
+  },
+  "performance_validation": {
+    "status": "fail",
+    "results": {
+      "latency_tests": {
+        "indicator_calculation": {
+          "average_ms": 8.497148000169545,
+          "max_ms": 29.86860000237357,
+          "min_ms": 1.7579999985173345,
+          "p95_ms": 18.200099999376107
+        },
+        "ai_agent_request": {
+          "average_ms": 15.19492999985232,
+          "max_ms": 19.44270000240067,
+          "min_ms": 5.450399999972433,
+          "p95_ms": 17.346799999359064
+        },
+        "bridge_communication": {
+          "average_ms": 15.698326000128873,
+          "max_ms": 59.69669999467442,
+          "min_ms": 0.9365000005345792,
+          "p95_ms": 30.44640000007348
+        },
+        "database_query": {
+          "average_ms": 13.858089999557706,
+          "max_ms": 24.026699997193646,
+          "min_ms": 2.508799996576272,
+          "p95_ms": 17.72740000160411
+        }
+      },
+      "throughput_tests": {
+        "concurrency_10": {
+          "operations_per_second": 599.2688918439723,
+          "total_duration_seconds": 0.01668700000300305
+        },
+        "concurrency_50": {
+          "operations_per_second": 2928.9095090499864,
+          "total_duration_seconds": 0.017071199996280484
+        },
+        "concurrency_100": {
+          "operations_per_second": 23265.55301484438,
+          "total_duration_seconds": 0.004298200001358055
+        }
+      },
+      "memory_usage": {
+        "error": "psutil not available for memory monitoring"
+      },
+      "cpu_usage": {
+        "error": "psutil not available for CPU monitoring"
+      },
+      "meets_targets": false
+    }
+  },
+  "integration_validation": {
+    "status": "pass",
+    "results": {
+      "python_ai_integration": {
+        "status": "pass",
+        "data_flow_working": true,
+        "communication_established": true
+      },
+      "ai_typescript_integration": {
+        "status": "pass",
+        "decision_flow_working": true,
+        "execution_ready": true
+      },
+      "end_to_end_flow": {
+        "status": "pass",
+        "total_flow_time_ms": 45.37279999931343,
+        "meets_realtime_requirements": true
+      }
+    }
+  },
+  "operational_validation": {
+    "status": "partial",
+    "results": {
+      "monitoring_readiness": {
+        "ready": false,
+        "features": {
+          "logging_configured": true,
+          "metrics_collection": true,
+          "health_checks": true,
+          "alerting": false
+        }
+      },
+      "error_handling": {
+        "ready": true,
+        "scenarios": {
+          "graceful_degradation": true,
+          "circuit_breakers": true,
+          "timeout_handling": true,
+          "retry_logic": true
+        }
+      },
+      "recovery_mechanisms": {
+        "ready": true,
+        "features": {
+          "auto_restart": true,
+          "state_recovery": true,
+          "data_consistency": true,
+          "failover_support": false
+        }
+      },
+      "scalability": {
+        "ready": true,
+        "aspects": {
+          "horizontal_scaling": false,
+          "vertical_scaling": true,
+          "load_balancing": false,
+          "resource_optimization": true
+        }
+      }
+    },
+    "operational_ready": false
+  },
+  "security_validation": {
+    "status": "pass",
+    "results": {
+      "input_validation": {
+        "secure": true,
+        "checks": {
+          "data_sanitization": true,
+          "type_checking": true,
+          "range_validation": true,
+          "injection_prevention": true
+        }
+      },
+      "data_protection": {
+        "secure": true,
+        "measures": {
+          "data_encryption": false,
+          "secure_transmission": true,
+          "data_integrity": true,
+          "backup_protection": false
+        }
+      },
+      "access_control": {
+        "secure": true,
+        "controls": {
+          "authentication": false,
+          "authorization": false,
+          "session_management": false,
+          "principle_of_least_privilege": true
+        }
+      },
+      "audit_logging": {
+        "secure": true,
+        "features": {
+          "security_event_logging": true,
+          "access_logging": true,
+          "change_tracking": true,
+          "log_integrity": false
+        }
+      }
+    },
+    "security_ready": true
+  },
+  "consolidated_analysis": {
+    "overall_status": "critical_issues",
+    "critical_issues": [
+      "performance_validation: Validation failed"
+    ],
+    "warnings": [
+      "operational_validation: Partial validation"
+    ],
+    "successes": [
+      "indicator_validation: Validation passed",
+      "ai_integration_validation: Validation passed",
+      "bridge_validation: Validation passed",
+      "integration_validation: Validation passed",
+      "security_validation: Validation passed"
+    ],
+    "performance_summary": {
+      "targets_met": false,
+      "performance_grade": "C"
+    },
+    "integration_summary": {
+      "all_integrations_working": true,
+      "integration_success_rate": 1.0
+    },
+    "readiness_assessment": {
+      "development_ready": false,
+      "staging_ready": false,
+      "production_ready": false
+    }
+  },
+  "recommendations": [
+    "CRITICAL: Address performance bottlenecks",
+    "RECOMMENDED: Enhance operational monitoring and alerting",
+    "PERFORMANCE: Optimize to meet <100ms indicator calculation and <1ms latency targets",
+    "DEPLOYMENT: System not ready for staging - address critical issues first",
+    "MISSION: Ensure all validation aligns with humanitarian forex trading goals",
+    "MISSION: Verify ethical trading constraints are properly implemented",
+    "MISSION: Confirm system supports transparent and accountable trading operations"
+  ],
+  "deployment_readiness": {
+    "development": {
+      "ready": false,
+      "blockers": [],
+      "recommendations": []
+    },
+    "staging": {
+      "ready": false,
+      "blockers": [
+        "performance_validation: Validation failed"
+      ],
+      "recommendations": []
+    },
+    "production": {
+      "ready": false,
+      "blockers": [
+        "performance_validation: Validation failed",
+        "operational_validation: Partial validation"
+      ],
+      "recommendations": [
+        "Complete all integration testing",
+        "Resolve all critical issues",
+        "Implement comprehensive monitoring",
+        "Conduct security audit",
+        "Perform load testing"
+      ]
+    }
+  }
+}
