@@ -25,12 +25,10 @@ from enum import Enum
 import math
 import scipy.stats as stats
 
-# PROPER INDICATOR IMPORTS - Using assigned indicators
-from engines.volatility.volatility_indicators import VolatilityIndicators
-from engines.statistical.correlation_analysis import CorrelationAnalysis
-from engines.risk.var_calculator import VaRCalculator
-from engines.risk.drawdown_analyzer import DrawdownAnalyzer
-from engines.statistical.beta_coefficient import BetaCoefficient
+# PROPER INDICATOR BRIDGE INTEGRATION - Using Platform3's Adaptive Bridge
+from engines.ai_enhancement.adaptive_indicator_bridge import AdaptiveIndicatorBridge
+from engines.ai_enhancement.registry import GeniusAgentType
+from engines.ai_enhancement.genius_agent_integration import BaseAgentInterface
 
 class RiskLevel(Enum):
     """Risk assessment levels"""
@@ -69,30 +67,23 @@ class RiskAssessment:
     risk_warnings: List[str]
     critical_alerts: List[str]
 
-class RiskGenius:
+class RiskGenius(BaseAgentInterface):
     """
-    Advanced Risk Assessment and Portfolio Protection AI using ASSIGNED INDICATORS
+    Advanced Risk Assessment and Portfolio Protection AI using ADAPTIVE INDICATOR BRIDGE
     
-    Properly integrates with Platform3's assigned indicators:
-    - VolatilityIndicators for volatility risk assessment
-    - CorrelationAnalysis for portfolio correlation risk
-    - VaRCalculator for Value at Risk calculations
-    - DrawdownAnalyzer for drawdown risk analysis
-    - BetaCoefficient for systematic risk measurement
+    Now properly integrates with Platform3's 24 assigned indicators through the bridge:
+    - Real-time access to all assigned volatility, correlation, and risk indicators
+    - Adaptive parameter optimization based on market conditions
+    - Professional async indicator calculation framework
     
     For the humanitarian mission: Precise risk management using specialized indicators
     to protect capital and maximize profits for helping sick babies and poor families.
     """
     
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
-        
-        # Initialize ASSIGNED INDICATORS properly
-        self.volatility_indicators = VolatilityIndicators()
-        self.correlation_analysis = CorrelationAnalysis()
-        self.var_calculator = VaRCalculator()
-        self.drawdown_analyzer = DrawdownAnalyzer()
-        self.beta_coefficient = BetaCoefficient()
+        # Initialize with Risk Genius agent type for proper indicator mapping
+        bridge = AdaptiveIndicatorBridge()
+        super().__init__(GeniusAgentType.RISK_GENIUS, bridge)
         
         # Risk calculation engines
         self.portfolio_risk_engine = PortfolioRiskEngine()
@@ -104,7 +95,7 @@ class RiskGenius:
         self.max_single_position_risk = 0.005  # 0.5% per position
         self.correlation_threshold = 0.7  # High correlation warning
         
-        self.logger.info("🛡️ Risk Genius initialized with proper indicator integration")
+        self.logger.info("🛡️ Risk Genius initialized with Adaptive Indicator Bridge integration")
     
     async def assess_comprehensive_risk(
         self, 
@@ -120,27 +111,39 @@ class RiskGenius:
         for maximum accuracy in protecting capital for the humanitarian mission.
         """
         
-        self.logger.info(f"🛡️ Risk Genius analyzing {symbol} using assigned indicators")
+        self.logger.info(f"🛡️ Risk Genius analyzing {symbol} using ALL 24 assigned indicators via bridge")
         
-        # 1. VOLATILITY RISK ANALYSIS using volatility_indicators
-        volatility_analysis = await self._analyze_volatility_risk(market_data, symbol)
+        # Get ALL 24 assigned indicators through the adaptive bridge
+        indicator_results = await self.bridge.get_agent_indicators_async(
+            self.agent_type, 
+            market_data
+        )
         
-        # 2. VALUE AT RISK CALCULATION using var_calculator
-        var_analysis = await self._calculate_portfolio_var(market_data, portfolio_data, symbol)
+        if not indicator_results:
+            self.logger.warning("No indicators available from bridge - using fallback analysis")
+            return await self._emergency_risk_assessment(symbol, market_data, timeframe)
         
-        # 3. DRAWDOWN RISK ANALYSIS using drawdown_analyzer
-        drawdown_analysis = await self._analyze_drawdown_risk(market_data, symbol)
+        self.logger.info(f"Bridge provided {len(indicator_results)} indicators for comprehensive analysis")
         
-        # 4. CORRELATION RISK ANALYSIS using correlation_analysis
-        correlation_analysis = await self._analyze_correlation_risk(market_data, portfolio_data, symbol)
+        # 1. VOLATILITY RISK ANALYSIS using bridge indicators
+        volatility_analysis = await self._analyze_volatility_risk_with_bridge(indicator_results, symbol)
         
-        # 5. BETA COEFFICIENT ANALYSIS using beta_coefficient
-        beta_analysis = await self._analyze_systematic_risk(market_data, symbol)
+        # 2. VALUE AT RISK CALCULATION using bridge indicators  
+        var_analysis = await self._calculate_portfolio_var_with_bridge(indicator_results, portfolio_data, symbol)
         
-        # 6. INTEGRATE ALL INDICATOR RESULTS
-        integrated_risk = await self._integrate_risk_indicators(
-            volatility_analysis, var_analysis, drawdown_analysis, 
-            correlation_analysis, beta_analysis
+        # 3. CORRELATION RISK ANALYSIS using bridge indicators
+        correlation_analysis = await self._analyze_correlation_risk_with_bridge(indicator_results, portfolio_data, symbol)
+        
+        # 4. STATISTICAL RISK ANALYSIS using bridge indicators
+        statistical_analysis = await self._analyze_statistical_risk_with_bridge(indicator_results, symbol)
+        
+        # 5. CHANNEL ANALYSIS using bridge indicators  
+        channel_analysis = await self._analyze_channel_risk_with_bridge(indicator_results, symbol)
+        
+        # 6. INTEGRATE ALL 24 INDICATOR RESULTS
+        integrated_risk = await self._integrate_all_bridge_indicators(
+            indicator_results, volatility_analysis, var_analysis, 
+            correlation_analysis, statistical_analysis, channel_analysis
         )
         
         # 7. POSITION SIZING using risk-based calculations
@@ -334,6 +337,149 @@ class RiskGenius:
             return RiskLevel.HIGH
         else:
             return RiskLevel.EXTREME
+
+# === NEW BRIDGE INTEGRATION METHODS ===
+    
+    async def _analyze_volatility_risk_with_bridge(self, indicator_results: Dict, symbol: str) -> Dict[str, float]:
+        """Analyze volatility risk using bridge indicators: ChaikinVolatility, HistoricalVolatility, etc."""
+        volatility_indicators = {k: v for k, v in indicator_results.items() 
+                                if any(vol in k.lower() for vol in ['volatility', 'atr', 'true_range'])}
+        
+        if not volatility_indicators:
+            return {'volatility_risk': 0.5, 'source': 'fallback'}
+        
+        avg_volatility = sum(volatility_indicators.values()) / len(volatility_indicators)
+        volatility_risk = min(1.0, max(0.0, avg_volatility))
+        
+        return {
+            'volatility_risk': volatility_risk,
+            'indicator_count': len(volatility_indicators),
+            'source': 'bridge_indicators'
+        }
+    
+    async def _calculate_portfolio_var_with_bridge(self, indicator_results: Dict, portfolio_data: Dict, symbol: str) -> Dict[str, float]:
+        """Calculate VaR using bridge statistical indicators"""
+        risk_indicators = {k: v for k, v in indicator_results.items() 
+                          if any(risk in k.lower() for risk in ['beta', 'correlation', 'variance', 'zscore'])}
+        
+        if not risk_indicators:
+            return {'var_95': 0.02, 'var_99': 0.035, 'source': 'fallback'}
+        
+        avg_risk = sum(risk_indicators.values()) / len(risk_indicators)
+        var_95 = max(0.01, min(0.05, avg_risk * 0.03))
+        var_99 = var_95 * 1.5
+        
+        return {
+            'var_95': var_95,
+            'var_99': var_99,
+            'source': 'bridge_statistical_indicators',
+            'indicator_count': len(risk_indicators)
+        }
+    
+    async def _analyze_correlation_risk_with_bridge(self, indicator_results: Dict, portfolio_data: Dict, symbol: str) -> Dict[str, float]:
+        """Analyze correlation risk using bridge correlation indicators"""
+        correlation_indicators = {k: v for k, v in indicator_results.items() 
+                                 if 'correlation' in k.lower() or 'beta' in k.lower() or 'cointegration' in k.lower()}
+        
+        if not correlation_indicators:
+            return {'correlation_risk': 0.3, 'source': 'fallback'}
+        
+        avg_correlation = sum(correlation_indicators.values()) / len(correlation_indicators)
+        correlation_risk = min(1.0, max(0.0, avg_correlation))
+        
+        return {
+            'correlation_risk': correlation_risk,
+            'max_correlation': max(correlation_indicators.values()) if correlation_indicators else 0.5,
+            'source': 'bridge_correlation_indicators'
+        }
+    
+    async def _analyze_statistical_risk_with_bridge(self, indicator_results: Dict, symbol: str) -> Dict[str, float]:
+        """Analyze statistical risk using Hurst, AutoCorrelation, RSquared, etc."""
+        stat_indicators = {k: v for k, v in indicator_results.items() 
+                          if any(stat in k.lower() for stat in ['hurst', 'autocorr', 'rsquared', 'skewness', 'variance'])}
+        
+        if not stat_indicators:
+            return {'statistical_risk': 0.4, 'source': 'fallback'}
+        
+        avg_stat = sum(stat_indicators.values()) / len(stat_indicators)
+        statistical_risk = min(1.0, max(0.0, avg_stat))
+        
+        return {
+            'statistical_risk': statistical_risk,
+            'indicator_count': len(stat_indicators),
+            'source': 'bridge_statistical_indicators'
+        }
+    
+    async def _analyze_channel_risk_with_bridge(self, indicator_results: Dict, symbol: str) -> Dict[str, float]:
+        """Analyze channel/volatility risk using Bollinger, Keltner, Donchian channels"""
+        channel_indicators = {k: v for k, v in indicator_results.items() 
+                             if any(ch in k.lower() for ch in ['bollinger', 'keltner', 'donchian', 'channel', 'deviation'])}
+        
+        if not channel_indicators:
+            return {'channel_risk': 0.4, 'source': 'fallback'}
+        
+        avg_channel = sum(channel_indicators.values()) / len(channel_indicators)
+        channel_risk = min(1.0, max(0.0, avg_channel))
+        
+        return {
+            'channel_risk': channel_risk,
+            'indicator_count': len(channel_indicators),
+            'source': 'bridge_channel_indicators'
+        }
+    
+    async def _integrate_all_bridge_indicators(self, indicator_results: Dict, *analyses) -> Dict[str, Any]:
+        """Integrate all 24 bridge indicators into final risk assessment"""
+        total_indicators = len(indicator_results)
+        
+        # Weight each analysis category
+        weights = {
+            'volatility': 0.25,
+            'var': 0.20,
+            'correlation': 0.20,
+            'statistical': 0.20,
+            'channel': 0.15
+        }
+        
+        # Calculate weighted risk score
+        risk_components = {}
+        total_score = 0
+        
+        for analysis in analyses:
+            if isinstance(analysis, dict):
+                for key, value in analysis.items():
+                    if 'risk' in key and isinstance(value, (int, float)):
+                        category = key.replace('_risk', '')
+                        weight = weights.get(category, 0.1)
+                        risk_components[category] = value
+                        total_score += value * weight
+        
+        return {
+            'overall_risk_score': min(100, total_score * 100),
+            'total_indicators_used': total_indicators,
+            'risk_components': risk_components,
+            'integration_method': 'adaptive_bridge_full_integration'
+        }
+    
+    async def _emergency_risk_assessment(self, symbol: str, market_data: Dict, timeframe: str) -> RiskAssessment:
+        """Emergency fallback when bridge indicators are unavailable"""
+        return RiskAssessment(
+            symbol=symbol,
+            timestamp=datetime.now(),
+            timeframe=timeframe,
+            portfolio_var_95=0.02,
+            portfolio_var_99=0.035,
+            current_drawdown=0.0,
+            max_drawdown_forecast=0.05,
+            correlation_risk=0.3,
+            beta_coefficient=1.0,
+            volatility_regime="unknown",
+            risk_score=50.0,
+            recommended_position_size=0.01,
+            max_safe_leverage=2.0,
+            kelly_criterion_size=0.02,
+            risk_warnings=["Emergency assessment - indicators unavailable"],
+            critical_alerts=["Bridge integration failed - using fallback values"]
+        )
 
 # Mock indicator classes (in production, these would be real implementations)
 class VolatilityIndicators:

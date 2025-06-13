@@ -22,6 +22,11 @@ import re
 from collections import defaultdict
 import math
 
+# PROPER INDICATOR BRIDGE INTEGRATION - Using Platform3's Adaptive Bridge
+from engines.ai_enhancement.adaptive_indicator_bridge import AdaptiveIndicatorBridge
+from engines.ai_enhancement.registry import GeniusAgentType
+from engines.ai_enhancement.genius_agent_integration import BaseAgentInterface
+
 class SentimentLevel(Enum):
     """Market sentiment intensity levels"""
     EXTREME_FEAR = "extreme_fear"      # <20
@@ -485,6 +490,127 @@ class DivergenceDetector:
 class ContrarianAnalyzer:
     """Identifies contrarian opportunities"""
     pass
+
+class CurrencyPairIntelligence(BaseAgentInterface):
+    """
+    Currency Pair Intelligence - Sentiment Integration Genius with ADAPTIVE INDICATOR BRIDGE
+    
+    Now properly integrates with Platform3's 17 assigned indicators through the bridge:
+    - Real-time access to all sentiment and market psychology indicators
+    - Advanced sentiment analysis algorithms using indicator insights
+    - Professional async indicator calculation framework
+    
+    For the humanitarian mission: Precise sentiment analysis using specialized indicators
+    to maximize profits for helping sick babies and poor families.
+    """
+    
+    def __init__(self):
+        # Initialize with Currency Pair Intelligence agent type for proper indicator mapping
+        bridge = AdaptiveIndicatorBridge()
+        super().__init__(GeniusAgentType.CURRENCY_PAIR_INTELLIGENCE, bridge)
+        
+        # Sentiment analysis engines
+        self.sentiment_analyzer = SentimentIntegrationGenius()
+        self.news_processor = NewsImpactProcessor()
+        self.psychology_tracker = MarketPsychologyTracker()
+        
+        self.logger.info("📊 Currency Pair Intelligence initialized with Adaptive Indicator Bridge integration")
+    
+    async def analyze_sentiment_conditions(
+        self, 
+        symbol: str, 
+        market_data: Dict[str, Any], 
+        timeframe: str = "H4"
+    ) -> Dict[str, Any]:
+        """
+        Comprehensive sentiment analysis using assigned indicators from the bridge.
+        
+        Returns optimized sentiment insights and market psychology analysis for maximum edge.
+        """
+        
+        self.logger.info(f"📊 Currency Pair Intelligence analyzing {symbol} sentiment using assigned indicators")
+        
+        # Get assigned indicators from the bridge (17 total)
+        assigned_indicators = await self.bridge.get_agent_indicators_async(
+            self.agent_type, market_data
+        )
+        
+        if not assigned_indicators:
+            self.logger.warning("No indicators received from bridge - using fallback analysis")
+            return await self._fallback_sentiment_analysis(symbol, market_data, timeframe)
+        
+        # Integrate indicator results into sentiment analysis
+        return await self._synthesize_sentiment_intelligence(
+            symbol, market_data, assigned_indicators, timeframe
+        )
+    
+    async def _synthesize_sentiment_intelligence(
+        self,
+        symbol: str,
+        market_data: Dict[str, Any],
+        indicators: Dict[str, Any],
+        timeframe: str
+    ) -> Dict[str, Any]:
+        """Synthesize indicator results into sentiment recommendations"""
+        
+        # Extract sentiment indicators
+        sentiment_indicators = {k: v for k, v in indicators.items() 
+                              if any(term in k.lower() for term in ['sentiment', 'fear', 'greed', 'psychology'])}
+        
+        # Extract market structure indicators  
+        structure_indicators = {k: v for k, v in indicators.items()
+                              if any(term in k.lower() for term in ['structure', 'trend', 'momentum', 'flow'])}
+        
+        # Calculate sentiment scores
+        sentiment_score = np.mean(list(sentiment_indicators.values())) if sentiment_indicators else 0.5
+        structure_score = np.mean(list(structure_indicators.values())) if structure_indicators else 0.5
+        
+        # Determine sentiment bias
+        if sentiment_score > 0.7:
+            sentiment_bias = "BULLISH_SENTIMENT"
+            confidence = min(0.9, sentiment_score)
+        elif sentiment_score < 0.3:
+            sentiment_bias = "BEARISH_SENTIMENT"
+            confidence = min(0.9, 1 - sentiment_score)
+        else:
+            sentiment_bias = "NEUTRAL_SENTIMENT"
+            confidence = 0.6
+        
+        return {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "timestamp": datetime.now().isoformat(),
+            "sentiment_bias": sentiment_bias,
+            "confidence": round(confidence, 3),
+            "sentiment_score": round(sentiment_score, 3),
+            "structure_score": round(structure_score, 3),
+            "indicators_used": len(indicators),
+            "humanitarian_focus": "Sentiment-driven strategy for maximum profits to help sick babies and poor families"
+        }
+    
+    async def _fallback_sentiment_analysis(
+        self, 
+        symbol: str, 
+        market_data: Dict[str, Any], 
+        timeframe: str
+    ) -> Dict[str, Any]:
+        """Fallback analysis when indicators are not available"""
+        return {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "sentiment_bias": "NEUTRAL",
+            "confidence": 0.4,
+            "note": "Limited analysis - indicators not available"
+        }
+
+# Support classes for Currency Pair Intelligence
+class NewsImpactProcessor:
+    def __init__(self):
+        self.news_cache = {}
+
+class MarketPsychologyTracker:
+    def __init__(self):
+        self.psychology_patterns = {}
 
 # Example usage for testing
 if __name__ == "__main__":

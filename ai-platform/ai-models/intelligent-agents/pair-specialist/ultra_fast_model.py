@@ -4,6 +4,10 @@ Production-ready currency pair analysis and optimization for Platform3 Trading S
 
 For the humanitarian mission: Every pair analysis must be precise and profitable
 to maximize aid for sick babies and poor families.
+
+ASSIGNED INDICATORS (14 total):
+- CorrelationAnalysis, CommodityChannelIndex, DirectionalMovementSystem, ADXIndicator
+- Plus 10 additional pair-specific indicators for comprehensive analysis
 """
 
 import os
@@ -22,6 +26,11 @@ import math
 import scipy.stats as stats
 from scipy.signal import find_peaks
 from sklearn.preprocessing import StandardScaler
+
+# PROPER INDICATOR BRIDGE INTEGRATION - Using Platform3's Adaptive Bridge
+from engines.ai_enhancement.adaptive_indicator_bridge import AdaptiveIndicatorBridge
+from engines.ai_enhancement.registry import GeniusAgentType
+from engines.ai_enhancement.genius_agent_integration import BaseAgentInterface
 
 class PairCharacteristic(Enum):
     """Currency pair personality types"""
@@ -119,9 +128,14 @@ class PairAnalysis:
     optimal_entry_window: timedelta
     expected_move_size: float
 
-class PairSpecialist:
+class PairSpecialist(BaseAgentInterface):
     """
-    Advanced Currency Pair Intelligence AI for Platform3 Trading System
+    Advanced Currency Pair Intelligence AI with ADAPTIVE INDICATOR BRIDGE
+    
+    Now properly integrates with Platform3's 14 assigned indicators through the bridge:
+    - Real-time access to all correlation and pair-specific indicators
+    - Advanced pair personality analysis algorithms
+    - Professional async indicator calculation framework
     
     Master of currency pair characteristics:
     - Deep understanding of each pair's personality and behavior
@@ -135,7 +149,9 @@ class PairSpecialist:
     """
     
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
+        # Initialize with Pair Specialist agent type for proper indicator mapping
+        bridge = AdaptiveIndicatorBridge()
+        super().__init__(GeniusAgentType.PAIR_SPECIALIST, bridge)
         
         # Pair knowledge database
         self.pair_profiles = self._initialize_pair_profiles()
@@ -167,21 +183,25 @@ class PairSpecialist:
         
         self.logger.info(f"💰 Pair Specialist analyzing {symbol} on {timeframe}")
         
+        # Get assigned indicators from the bridge (14 total)
+        market_data = {"symbol": symbol, "timeframe": timeframe, "data": data}
+        assigned_indicators = await self.bridge.get_agent_indicators_async(
+            self.agent_type, market_data
+        )
+        
+        if not assigned_indicators:
+            self.logger.warning("No indicators received from bridge - using fallback analysis")
+            return await self._fallback_pair_analysis(symbol, data, timeframe)
+        
         # Get pair profile
         profile = self.pair_profiles.get(symbol)
         if not profile:
             profile = await self._create_dynamic_profile(symbol, data)
         
-        # Current market state analysis
-        trend_analysis = await self._analyze_trend_state(data, profile)
-        volatility_analysis = await self._analyze_volatility_state(data, profile)
-        liquidity_analysis = await self._analyze_liquidity_state(data, profile, symbol)
-        
-        # Session-specific analysis
-        session_analysis = await self._analyze_current_session(symbol, profile)
-        
-        # Technical level identification
-        technical_levels = await self._identify_technical_levels(data, profile)
+        # Integrate indicator results into pair analysis
+        return await self._synthesize_pair_intelligence(
+            symbol, data, assigned_indicators, profile, timeframe
+        )
         
         # Correlation and divergence analysis
         correlation_analysis = await self._analyze_correlations(symbol, data)

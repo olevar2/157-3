@@ -22,6 +22,11 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
+# PROPER INDICATOR BRIDGE INTEGRATION - Using Platform3's Adaptive Bridge
+from engines.ai_enhancement.adaptive_indicator_bridge import AdaptiveIndicatorBridge
+from engines.ai_enhancement.registry import GeniusAgentType
+from engines.ai_enhancement.genius_agent_integration import BaseAgentInterface
+
 class SystemHealth(Enum):
     """System health status levels"""
     EXCELLENT = "excellent"      # 95-100% performance
@@ -702,6 +707,127 @@ class PerformanceOptimizer:
 class AlertSystem:
     """Manages alerts and notifications"""
     pass
+
+class IndicatorExpert(BaseAgentInterface):
+    """
+    Indicator Expert - AI Model Coordinator with ADAPTIVE INDICATOR BRIDGE
+    
+    Now properly integrates with Platform3's 16 assigned indicators through the bridge:
+    - Real-time access to all model coordination and system indicators
+    - Advanced orchestration algorithms using indicator insights
+    - Professional async indicator calculation framework
+    
+    For the humanitarian mission: Precise AI coordination using specialized indicators
+    to maximize profits for helping sick babies and poor families.
+    """
+    
+    def __init__(self):
+        # Initialize with Indicator Expert agent type for proper indicator mapping
+        bridge = AdaptiveIndicatorBridge()
+        super().__init__(GeniusAgentType.INDICATOR_EXPERT, bridge)
+        
+        # Model coordination engines
+        self.model_coordinator = AIModelCoordinator()
+        self.system_orchestrator = SystemOrchestrator()
+        self.performance_monitor = PerformanceMonitor()
+        
+        self.logger.info("🎯 Indicator Expert initialized with Adaptive Indicator Bridge integration")
+    
+    async def coordinate_model_execution(
+        self, 
+        symbol: str, 
+        market_data: Dict[str, Any], 
+        timeframe: str = "M5"
+    ) -> Dict[str, Any]:
+        """
+        Comprehensive model coordination using assigned indicators from the bridge.
+        
+        Returns optimized execution plan and performance insights for maximum system efficiency.
+        """
+        
+        self.logger.info(f"🎯 Indicator Expert coordinating models for {symbol} using assigned indicators")
+        
+        # Get assigned indicators from the bridge (16 total)
+        assigned_indicators = await self.bridge.get_agent_indicators_async(
+            self.agent_type, market_data
+        )
+        
+        if not assigned_indicators:
+            self.logger.warning("No indicators received from bridge - using fallback coordination")
+            return await self._fallback_coordination(symbol, market_data, timeframe)
+        
+        # Integrate indicator results into coordination strategy
+        return await self._synthesize_coordination_intelligence(
+            symbol, market_data, assigned_indicators, timeframe
+        )
+    
+    async def _synthesize_coordination_intelligence(
+        self,
+        symbol: str,
+        market_data: Dict[str, Any],
+        indicators: Dict[str, Any],
+        timeframe: str
+    ) -> Dict[str, Any]:
+        """Synthesize indicator results into coordination recommendations"""
+        
+        # Extract system performance indicators
+        performance_indicators = {k: v for k, v in indicators.items() 
+                                if any(term in k.lower() for term in ['performance', 'efficiency', 'system'])}
+        
+        # Extract coordination-specific indicators  
+        coordination_indicators = {k: v for k, v in indicators.items()
+                                 if any(term in k.lower() for term in ['coordination', 'orchestration', 'harmony'])}
+        
+        # Calculate coordination scores
+        performance_score = np.mean(list(performance_indicators.values())) if performance_indicators else 0.5
+        coordination_score = np.mean(list(coordination_indicators.values())) if coordination_indicators else 0.5
+        
+        # Determine optimal execution strategy
+        if performance_score > 0.8 and coordination_score > 0.7:
+            execution_strategy = "OPTIMAL_PARALLEL"
+            confidence = min(0.95, (performance_score + coordination_score) / 2)
+        elif performance_score > 0.6:
+            execution_strategy = "SEQUENTIAL_OPTIMIZED"
+            confidence = performance_score * 0.8
+        else:
+            execution_strategy = "CONSERVATIVE_SINGLE"
+            confidence = 0.6
+        
+        return {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "timestamp": datetime.now().isoformat(),
+            "execution_strategy": execution_strategy,
+            "confidence": round(confidence, 3),
+            "performance_score": round(performance_score, 3),
+            "coordination_score": round(coordination_score, 3),
+            "indicators_used": len(indicators),
+            "humanitarian_focus": "Coordinated AI for maximum profits to help sick babies and poor families"
+        }
+    
+    async def _fallback_coordination(
+        self, 
+        symbol: str, 
+        market_data: Dict[str, Any], 
+        timeframe: str
+    ) -> Dict[str, Any]:
+        """Fallback coordination when indicators are not available"""
+        return {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "execution_strategy": "CONSERVATIVE",
+            "confidence": 0.4,
+            "note": "Limited coordination - indicators not available"
+        }
+
+# Support classes for Indicator Expert
+class SystemOrchestrator:
+    def __init__(self):
+        self.orchestration_plans = {}
+
+class PerformanceMonitor:
+    def __init__(self):
+        self.performance_cache = {}
 
 # Example usage for testing
 if __name__ == "__main__":

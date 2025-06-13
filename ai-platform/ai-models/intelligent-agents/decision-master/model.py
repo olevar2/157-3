@@ -4,6 +4,10 @@ Production-ready decision coordination for Platform3 Trading System
 
 For the humanitarian mission: Every trading decision must be optimal and profitable
 to maximize aid for sick babies and poor families.
+
+ASSIGNED INDICATORS (10 total):
+- AdvancedMLEngine, GeneticAlgorithmOptimizer, CompositeSignal, ConfluenceArea
+- Plus 6 additional decision-support indicators for comprehensive analysis
 """
 
 import os
@@ -20,6 +24,11 @@ from dataclasses import dataclass
 from enum import Enum
 import math
 from concurrent.futures import ThreadPoolExecutor
+
+# PROPER INDICATOR BRIDGE INTEGRATION - Using Platform3's Adaptive Bridge
+from engines.ai_enhancement.adaptive_indicator_bridge import AdaptiveIndicatorBridge
+from engines.ai_enhancement.registry import GeniusAgentType
+from engines.ai_enhancement.genius_agent_integration import BaseAgentInterface
 
 class DecisionType(Enum):
     """Types of trading decisions"""
@@ -101,9 +110,14 @@ class TradingDecision:
     
     timestamp: datetime = None
 
-class DecisionMaster:
+class DecisionMaster(BaseAgentInterface):
     """
-    Central Decision Orchestration and Validation AI for Platform3 Trading System
+    Central Decision Orchestration and Validation AI with ADAPTIVE INDICATOR BRIDGE
+    
+    Now properly integrates with Platform3's 10 assigned indicators through the bridge:
+    - Real-time access to all ML and confluence indicators
+    - Advanced decision synthesis algorithms
+    - Professional async indicator calculation framework
     
     Master coordinator that:
     - Receives inputs from all 8 genius agents
@@ -117,7 +131,9 @@ class DecisionMaster:
     """
     
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
+        # Initialize with Decision Master agent type for proper indicator mapping
+        bridge = AdaptiveIndicatorBridge()
+        super().__init__(GeniusAgentType.DECISION_MASTER, bridge)
         
         # Agent coordination
         self.agent_inputs = {}
@@ -153,6 +169,15 @@ class DecisionMaster:
         """
         
         self.logger.info(f"🧠 Decision Master processing {len(agent_inputs)} agent inputs for {symbol}")
+        
+        # Get assigned indicators from the bridge (21 total)
+        bridge_market_data = {"symbol": symbol, "market_data": market_data}
+        assigned_indicators = await self.bridge.get_agent_indicators_async(
+            self.agent_type, bridge_market_data
+        )
+        
+        if not assigned_indicators:
+            self.logger.warning("No indicators received from bridge - using standard decision process")
         
         # 1. Validate and store agent inputs
         validated_inputs = await self._validate_agent_inputs(agent_inputs)

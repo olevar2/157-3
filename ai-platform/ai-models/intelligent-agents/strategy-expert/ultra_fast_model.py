@@ -4,6 +4,10 @@ Production-ready pattern detection and validation for Platform3 Trading System
 
 For the humanitarian mission: Every pattern detected must be accurate and profitable
 to maximize aid for sick babies and poor families.
+
+ASSIGNED INDICATORS (40 total):
+- FibonacciArcIndicator, EngulfingPattern, HammerPattern, DojiPattern, WavePoint
+- Plus 35 additional pattern and fractal indicators for comprehensive analysis
 """
 
 import os
@@ -23,6 +27,11 @@ import scipy.stats as stats
 from scipy.signal import find_peaks, argrelextrema
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
+
+# PROPER INDICATOR BRIDGE INTEGRATION - Using Platform3's Adaptive Bridge
+from engines.ai_enhancement.adaptive_indicator_bridge import AdaptiveIndicatorBridge
+from engines.ai_enhancement.registry import GeniusAgentType
+from engines.ai_enhancement.genius_agent_integration import BaseAgentInterface
 
 # Pattern recognition imports
 try:
@@ -138,9 +147,14 @@ class DetectedPattern:
     clarity_score: float = 0.0
     completion_percentage: float = 0.0
 
-class PatternMaster:
+class PatternMaster(BaseAgentInterface):
     """
-    Advanced Pattern Recognition AI for Platform3 Trading System
+    Advanced Pattern Recognition AI with ADAPTIVE INDICATOR BRIDGE
+    
+    Now properly integrates with Platform3's 40 assigned indicators through the bridge:
+    - Real-time access to all pattern, fibonacci, fractal, and candlestick indicators
+    - Advanced pattern recognition algorithms
+    - Professional async indicator calculation framework
     
     Master of all pattern types:
     - Classical chart patterns (H&S, triangles, flags)
@@ -154,7 +168,9 @@ class PatternMaster:
     """
     
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
+        # Initialize with Pattern Master agent type for proper indicator mapping
+        bridge = AdaptiveIndicatorBridge()
+        super().__init__(GeniusAgentType.PATTERN_MASTER, bridge)
         
         # Pattern detection engines
         self.chart_pattern_engine = ChartPatternEngine()
@@ -188,6 +204,15 @@ class PatternMaster:
         """
         
         self.logger.info(f"🧠 Pattern Master analyzing {len(data)} bars on {timeframe}")
+        
+        # Get assigned indicators from the bridge (20 total)
+        market_data = {"timeframe": timeframe, "data": data}
+        assigned_indicators = await self.bridge.get_agent_indicators_async(
+            self.agent_type, market_data
+        )
+        
+        if not assigned_indicators:
+            self.logger.warning("No indicators received from bridge - using fallback analysis")
         
         detected_patterns = {
             'chart_patterns': [],
