@@ -326,8 +326,9 @@ __all__ = [
 
 def restore_indicator_base():
     """Restore complete indicator_base.py with all missing classes"""
-    target_path = Path("D:/MD/Platform3/engines/indicator_base.py")
-    backup_path = Path("D:/MD/Platform3/engines/indicator_base.py.pre_restore_backup")
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    target_path = Path(f"{project_root}/engines/indicator_base.py")
+    backup_path = Path(f"{project_root}/engines/indicator_base.py.pre_restore_backup")
     
     # Create backup
     if target_path.exists():

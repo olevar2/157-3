@@ -14,7 +14,9 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 class EnhancedUnicodeFixSystem:
-    def __init__(self, base_path="D:/MD/Platform3"):
+    def __init__(self, base_path=None):
+        if base_path is None:
+            base_path = str(Path(__file__).parent.parent.parent)
         self.base_path = base_path
         self.engines_path = os.path.join(base_path, "engines")
         self.fixed_files = 0

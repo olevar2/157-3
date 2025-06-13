@@ -1,6 +1,9 @@
 # Platform3 Communication Bridge Startup Script
 # Starts both Python AI Engine API Server and TypeScript Analytics Service
 
+# Get the project root directory (parent of scripts folder)
+$PROJECT_ROOT = Split-Path -Parent $PSScriptRoot
+
 param(
     [switch]$Development,
     [switch]$Production,
@@ -50,7 +53,7 @@ Write-Host "📡 Starting Python AI Engine API Server on port $PythonPort..." -F
 # Start Python API Server in background
 $pythonJob = Start-Job -ScriptBlock {
     param($PythonPort)
-    Set-Location "D:\MD\Platform3\ai-platform\api-server"
+    Set-Location "$PROJECT_ROOT\ai-platform\api-server"
     $env:PYTHON_ENGINE_PORT = $PythonPort
     python start.py
 } -ArgumentList $PythonPort
@@ -63,7 +66,7 @@ Write-Host "🔧 Starting TypeScript Analytics Service on port $AnalyticsPort...
 # Start TypeScript Analytics Service in background  
 $analyticsJob = Start-Job -ScriptBlock {
     param($AnalyticsPort)
-    Set-Location "D:\MD\Platform3\services\analytics-service"
+    Set-Location "$PROJECT_ROOT\services\analytics-service"
     $env:PORT = $AnalyticsPort
     npm start
 } -ArgumentList $AnalyticsPort
@@ -72,7 +75,7 @@ $analyticsJob = Start-Job -ScriptBlock {
 Write-Host "💰 Starting TypeScript Trading Service on port 3006..." -ForegroundColor Cyan
 
 $tradingJob = Start-Job -ScriptBlock {
-    Set-Location "D:\MD\Platform3\services\trading-service"
+    Set-Location "$PROJECT_ROOT\services\trading-service"
     $env:PORT = "3006"
     npm start
 }

@@ -12,7 +12,7 @@ Your GitHub Copilot is now configured to automatically and systematically use al
 
 ### 2. Context Persistence (Solves 3-minute memory loss)
 - **C: Drive Context**: `C:\Users\ASD\AppData\Roaming\Code - Insiders\User\copilot-project-context.md`
-- **D: Drive Context**: `D:\MD\Platform3\.vscode\mcp-context.json`
+- **E: Drive Context**: `E:\MD\Platform3\.vscode\mcp-context.json`
 - **Auto Recovery**: `mcp_context_recovery.py` runs automatically
 
 ### 3. MCP Server Coordination
@@ -44,7 +44,7 @@ C:\Users\ASD\AppData\Roaming\Code - Insiders\User\
 ├── copilot-project-context.md       # Context recovery guide
 └── last-copilot-context.json       # Latest context backup
 
-D:\MD\Platform3\
+E:\MD\Platform3\
 ├── .vscode\
 │   ├── mcp-context.json            # Project context
 │   └── tasks.json                  # Auto-recovery tasks

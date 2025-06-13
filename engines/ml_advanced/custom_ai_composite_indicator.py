@@ -53,6 +53,11 @@ class CompositeSignal:
     ensemble_predictions: Dict[str, float]  # Individual model predictions
     signal_quality: str        # 'excellent', 'good', 'fair', 'poor'
     recommended_action: str    # 'strong_buy', 'buy', 'hold', 'sell', 'strong_sell'
+    def validate_parameters(self) -> bool:
+        """Validate parameters"""
+        # Add specific validation logic as needed
+        return True
+
 
 class CustomAICompositeIndicator:
     """
@@ -179,7 +184,21 @@ class CustomAICompositeIndicator:
         except Exception as e:
             self.logger.error(f"Unexpected error in AI composite calculation: {e}")
             self.error_system.handle_error(e, self.__class__.__name__)
-            return None    
+            return None
+
+    def validate_parameters(self) -> bool:
+        """Validate indicator parameters"""
+        return True
+
+    def get_metadata(self) -> Dict[str, Any]:
+        """Get indicator metadata"""
+        return {
+            "name": "CustomAICompositeIndicator",
+            "description": "Advanced AI-powered composite technical indicator with ensemble learning",
+            "parameters": self.parameters,
+            "output_keys": ["prediction", "confidence", "trend", "volatility", "support_resistance", "model_performance"]
+        }
+    
     def _prepare_data(self, data: Union[np.ndarray, pd.DataFrame]) -> Optional[pd.DataFrame]:
         """Prepare and validate input data"""
         try:

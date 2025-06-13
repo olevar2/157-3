@@ -16,7 +16,7 @@ class SimpleCorrelationSystem:
     """Simple correlation and circuit breaker system creator"""
     
     def __init__(self):
-        self.platform_root = Path("d:/MD/Platform3")
+        self.platform_root = Path(__file__).parent.parent.parent
         self.communication_dir = self.platform_root / "shared" / "communication"
         self.middleware_dir = self.platform_root / "shared" / "middleware"
         self.monitoring_dir = self.platform_root / "shared" / "monitoring"

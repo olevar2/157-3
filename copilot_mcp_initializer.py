@@ -11,7 +11,9 @@ from datetime import datetime
 from pathlib import Path
 
 class CopilotMCPInitializer:
-    def __init__(self, project_root="d:/MD/Platform3"):
+    def __init__(self, project_root=None):
+        if project_root is None:
+            project_root = os.path.dirname(os.path.abspath(__file__))
         self.project_root = Path(project_root)
         self.context_data = {
             "timestamp": datetime.now().isoformat(),

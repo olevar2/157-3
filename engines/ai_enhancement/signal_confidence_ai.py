@@ -432,11 +432,11 @@ class SignalConfidenceAI:
         overall_confidence = confidence_assessment['overall_confidence']
         
         if confidence_level == 'HIGH':
-            recommendations.append("✅ High confidence signal - consider full position sizing")
-            recommendations.append("📈 Strong signal quality - monitor for execution")
+            recommendations.append("[OK] High confidence signal - consider full position sizing")
+            recommendations.append("[UP] Strong signal quality - monitor for execution")
         elif confidence_level == 'MEDIUM':
-            recommendations.append("⚠️ Moderate confidence - use standard position sizing")
-            recommendations.append("📊 Monitor signal development for confirmation")
+            recommendations.append("[WARN] Moderate confidence - use standard position sizing")
+            recommendations.append("[CHART] Monitor signal development for confirmation")
         else:
             recommendations.append("🚨 Low confidence signal - consider reduced position or wait")
             recommendations.append("🔍 Look for additional confirmation before acting")
@@ -446,7 +446,7 @@ class SignalConfidenceAI:
         
         indicator_consensus = components.get('indicator_consensus', {})
         if indicator_consensus.get('score', 0.5) < 0.4:
-            recommendations.append("📉 Low indicator consensus - wait for clearer signals")
+            recommendations.append("[DOWN] Low indicator consensus - wait for clearer signals")
         
         market_context = components.get('market_context', {})
         if market_context.get('volatility_regime') == 'HIGH':
@@ -463,17 +463,17 @@ class SignalConfidenceAI:
         conflicting_signals = multi_confidence['conflicting_signals']
         
         if signal_agreement >= 0.8:
-            recommendations.append("🎯 Strong signal consensus - high probability setup")
+            recommendations.append("[TARGET] Strong signal consensus - high probability setup")
         elif signal_agreement >= 0.6:
-            recommendations.append("📊 Good signal agreement - proceed with caution")
+            recommendations.append("[CHART] Good signal agreement - proceed with caution")
         else:
-            recommendations.append("⚠️ Mixed signals - wait for clearer consensus")
+            recommendations.append("[WARN] Mixed signals - wait for clearer consensus")
         
         if conflicting_signals > 2:
             recommendations.append("🔄 Multiple conflicting signals - avoid trading until clarity emerges")
         
         if consensus_confidence >= 0.75:
-            recommendations.append("🚀 High consensus confidence - consider scaling up")
+            recommendations.append("[ROCKET] High consensus confidence - consider scaling up")
         elif consensus_confidence < 0.4:
             recommendations.append("🛑 Low consensus confidence - avoid trading")
         
@@ -486,7 +486,7 @@ class SignalConfidenceAI:
             'confidence_level': 'MEDIUM',
             'confidence_components': {},
             'signal_validation': {'is_valid': True, 'quality_level': 'FAIR'},
-            'recommendations': ['⚠️ Default confidence assessment - limited analysis available'],
+            'recommendations': ['[WARN] Default confidence assessment - limited analysis available'],
             'risk_adjusted_confidence': 0.4,
             'timestamp': datetime.now().isoformat()
         }

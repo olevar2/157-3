@@ -1,0 +1,53 @@
+{
+  "name": "Platform3",
+  "description": "Sophisticated trading and analysis platform with MCP coordination and 157+ indicators",
+  "type": "trading-platform",
+  "language": "python",
+  "frameworks": [
+    "asyncio",
+    "pandas",
+    "numpy"
+  ],
+  "architecture": "agent-bridge",
+  "context": {
+    "domain": "financial-trading",
+    "real_time": true,
+    "agent_coordination": "mcp",
+    "indicator_count": 157,
+    "critical_components": [
+      "indicator_calculations",
+      "mcp_coordination",
+      "agent_bridges",
+      "error_handling",
+      "validation_system"
+    ]
+  },
+  "patterns": {
+    "error_handling": "try-except with logging",
+    "async_operations": "asyncio for MCP",
+    "validation": "comprehensive pre-flight checks",
+    "logging": "structured logging with levels",
+    "testing": "integration-focused validation"
+  },
+  "key_files": {
+    "main_validation": "comprehensive_validation_test.py",
+    "mcp_init": "copilot_mcp_initializer.py",
+    "indicator_analysis": "analyze_indicators.py",
+    "error_analysis": "analyze_constructor_errors.py"
+  },
+  "agent_instructions": {
+    "priorities": [
+      "data_integrity",
+      "agent_coordination",
+      "error_resilience",
+      "performance",
+      "maintainability"
+    ],
+    "constraints": [
+      "preserve_existing_patterns",
+      "maintain_mcp_compatibility",
+      "ensure_indicator_accuracy",
+      "follow_logging_conventions"
+    ]
+  }
+}

@@ -396,8 +396,9 @@ __all__ = [
 
 def backup_original_file():
     """Backup the original indicator_base.py"""
-    original_path = Path("D:/MD/Platform3/engines/indicator_base.py")
-    backup_path = Path("D:/MD/Platform3/engines/indicator_base.py.pre_restore_backup")
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    original_path = Path(f"{project_root}/engines/indicator_base.py")
+    backup_path = Path(f"{project_root}/engines/indicator_base.py.pre_restore_backup")
     
     if original_path.exists():
         shutil.copy2(original_path, backup_path)
@@ -407,7 +408,7 @@ def backup_original_file():
 
 def restore_indicator_base():
     """Restore complete indicator_base.py with all missing classes"""
-    target_path = Path("D:/MD/Platform3/engines/indicator_base.py")
+    target_path = Path(f"{project_root}/engines/indicator_base.py")
     
     # Create backup
     if not backup_original_file():

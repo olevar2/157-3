@@ -52,7 +52,9 @@ class AIModelRegistry:
     Provides discovery, management, and coordination capabilities
     """
     
-    def __init__(self, ai_platform_path: str = "D:/MD/Platform3/ai-platform"):
+    def __init__(self, ai_platform_path: str = None):
+        if ai_platform_path is None:
+            ai_platform_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "ai-platform")
         self.ai_platform_path = Path(ai_platform_path)
         self.models_path = self.ai_platform_path / "ai-models"
         self.registry_file = self.ai_platform_path / "model_registry.json"

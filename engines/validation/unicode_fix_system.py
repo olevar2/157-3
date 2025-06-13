@@ -14,7 +14,6 @@ import re
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 
 # Configure UTF-8 environment
@@ -27,7 +26,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('D:\\MD\\Platform3\\logs\\unicode_fixes.log', 
+        logging.FileHandler(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'logs', 'unicode_fixes.log'), 
                           encoding='utf-8', mode='w'),
         logging.StreamHandler(sys.stdout)
     ]
@@ -40,7 +39,9 @@ class UnicodeFixSystem:
     Fixes 'charmap' codec issues and ensures UTF-8 compliance
     """
     
-    def __init__(self, platform_root: str = "D:\\MD\\Platform3"):
+    def __init__(self, platform_root: str = None):
+        if platform_root is None:
+            platform_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         self.platform_root = Path(platform_root)
         self.engines_path = self.platform_root / "engines"
         self.fixed_count = 0

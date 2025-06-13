@@ -7,9 +7,8 @@ import json
 import os
 from datetime import datetime
 
-class MCPCoordinator:
-    def __init__(self):
-        self.project_path = "D:\\MD\\Platform3"
+class MCPCoordinator:    def __init__(self):
+        self.project_path = os.path.dirname(os.path.abspath(__file__))
         self.vscode_path = "C:\\Users\\ASD\\AppData\\Roaming\\Code - Insiders\\User\\"
         self.coordination_file = os.path.join(self.vscode_path, "mcp-coordination-system.json")
         self.context_file = os.path.join(self.vscode_path, "copilot-project-context.md")
@@ -44,10 +43,10 @@ class MCPCoordinator:
 === COPILOT CONTEXT RECOVERY ACTIVATED ===
 Timestamp: {context['timestamp']}
 
-PROJECT: Platform3 (D:\\MD\\Platform3)
+PROJECT: Platform3 (E:\\MD\\Platform3)
 - Large complex platform with 157 indicators
 - Multiple agents requiring coordination
-- Cross-drive operation (C: VS Code ↔ D: Project)
+- Cross-drive operation (C: VS Code ↔ E: Project)
 
 MCP SERVERS ACTIVE:
 1. Shrimp Task Manager - Task planning/execution

@@ -2,6 +2,9 @@
 # PostgreSQL Database Setup Script for Windows
 # Run this script to initialize the forex trading platform database
 
+# Get the project root directory (parent of database folder)
+$PROJECT_ROOT = Split-Path -Parent $PSScriptRoot
+
 Write-Host "🗃️  Setting up PostgreSQL Database for Forex Trading Platform..." -ForegroundColor Green
 
 # Configuration
@@ -57,7 +60,7 @@ if ($LASTEXITCODE -eq 0) {
 # Initialize database schema
 Write-Host "🏗️  Initializing database schema..." -ForegroundColor Yellow
 
-$schemaPath = "d:\MD\Platform3\Platform3\database\init\001_create_database_structure.sql"
+$schemaPath = "$PROJECT_ROOT\Platform3\database\init\001_create_database_structure.sql"
 if (Test-Path $schemaPath) {
     $schemaResult = psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f $schemaPath 2>&1
     

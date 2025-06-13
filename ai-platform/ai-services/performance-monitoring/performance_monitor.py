@@ -125,8 +125,11 @@ class PerformanceMonitor:
     """
     
     def __init__(self, 
-                 db_path: str = "d:/MD/Platform3/data/performance_monitor.db",
+                 db_path: str = None,
                  alert_thresholds: Optional[Dict[MetricType, float]] = None):
+        if db_path is None:
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+            db_path = os.path.join(project_root, "data", "performance_monitor.db")
         self.db_path = db_path
         self.logger = logging.getLogger(__name__)
         self._lock = threading.RLock()

@@ -240,14 +240,14 @@ class RiskAssessmentAI:
         
         if risk_level == 'HIGH':
             recommendations.append("🚨 High risk detected - consider reducing position size")
-            recommendations.append("📉 Implement tight stop losses")
+            recommendations.append("[DOWN] Implement tight stop losses")
             recommendations.append("⏰ Monitor position closely")
         elif risk_level == 'MEDIUM':
-            recommendations.append("⚠️ Moderate risk - standard risk management applies")
-            recommendations.append("📊 Monitor key risk metrics")
+            recommendations.append("[WARN] Moderate risk - standard risk management applies")
+            recommendations.append("[CHART] Monitor key risk metrics")
         else:
-            recommendations.append("✅ Low risk environment - normal position sizing acceptable")
-            recommendations.append("📈 Consider scaling up if opportunity warrants")
+            recommendations.append("[OK] Low risk environment - normal position sizing acceptable")
+            recommendations.append("[UP] Consider scaling up if opportunity warrants")
         
         # Component-specific recommendations
         components = risk_assessment.get('risk_components', {})
@@ -291,7 +291,7 @@ class RiskAssessmentAI:
             'overall_risk_score': 50.0,
             'risk_level': 'MEDIUM',
             'risk_components': {},
-            'recommendations': ['⚠️ Default risk assessment - limited data available'],
+            'recommendations': ['[WARN] Default risk assessment - limited data available'],
             'max_position_size': 1.0,
             'stop_loss_suggestion': 0.02,
             'take_profit_suggestion': 0.03,
@@ -373,16 +373,16 @@ class RiskAssessmentAI:
         diversification_score = portfolio_risk.get('diversification_score', 0)
         
         if concentration_risk > 70:
-            recommendations.append("🎯 High concentration risk - diversify positions")
+            recommendations.append("[TARGET] High concentration risk - diversify positions")
         
         if correlation_risk > 60:
             recommendations.append("🔗 High correlation risk - reduce correlated positions")
         
         if diversification_score < 40:
-            recommendations.append("📊 Low diversification - add uncorrelated positions")
+            recommendations.append("[CHART] Low diversification - add uncorrelated positions")
         
         if not recommendations:
-            recommendations.append("✅ Portfolio risk levels appear balanced")
+            recommendations.append("[OK] Portfolio risk levels appear balanced")
         
         return recommendations
 

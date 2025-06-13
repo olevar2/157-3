@@ -444,7 +444,8 @@ class HarmonicPatternDetector:
             reward = abs(target - entry)
             return reward / risk if risk > 0 else 0.0
         except:
-            return 0.0    
+            return 0.0
+    
     async def _analyze_current_position(self, price_data: np.ndarray, high_data: np.ndarray,
                                        low_data: np.ndarray, patterns: List[HarmonicPattern]) -> Dict[str, Any]:
         """Analyze current market position relative to detected patterns"""

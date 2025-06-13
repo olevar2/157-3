@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 class MicroservicesIntegrator:
     """Integrates Platform3 communication framework with existing services"""
     
-    def __init__(self, base_path: str = r"d:\MD\Platform3"):
+    def __init__(self, base_path: str = None):
+        if base_path is None:
+            base_path = str(Path(__file__).parent.parent.parent)
         self.base_path = Path(base_path)
         self.communication_framework_path = self.base_path / "shared" / "communication" / "platform3_communication_framework.py"
         self.services_path = self.base_path / "services"

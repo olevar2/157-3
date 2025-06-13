@@ -327,7 +327,8 @@ class AIPlatformManager:
             
             if latest_version:
                 # Export model
-                backup_path = f"D:/MD/Platform3/ai-platform/backups/{model_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                project_root = os.path.dirname(os.path.dirname(__file__))
+                backup_path = f"{project_root}/ai-platform/backups/{model_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
                 success = self.mlops.export_model(model_id, latest_version.version, backup_path)
                 
                 if success:

@@ -9,12 +9,18 @@ from dataclasses import dataclass, field
 import sys
 import logging
 from pathlib import Path
+
 project_root = Path(__file__).parent.parent.parent
 sys.path.append(str(project_root))
 
 from models.market_data import OHLCV
 from engines.base_pattern import BasePatternEngine
-from engines.indicator_base import IndicatorBase, IndicatorResult, IndicatorType, TimeFrame
+from engines.indicator_base import (
+    IndicatorBase,
+    IndicatorResult,
+    IndicatorType,
+    TimeFrame,
+)
 from engines.indicator_base import SignalType
 
 """
@@ -37,6 +43,7 @@ Bearish Three Line Strike (bearish continuation):
 @dataclass
 class ThreeLineStrikeSignal:
     """Signal data for Three Line Strike patterns"""
+
     pattern_type: str  # 'bullish_three_line_strike' or 'bearish_three_line_strike'
     confidence: float
     entry_price: float
@@ -53,23 +60,36 @@ class ThreeLineStrikeSignal:
 class ThreeLineStrikePatternEngine(BasePatternEngine):
     """
     Three Line Strike Pattern Detection and Signal Generation Engine
-    
+
     Detects both bullish and bearish four-candle continuation patterns
     """
-    
-    def __init__(self, min_body_ratio: float = 0.5, min_engulfing_ratio: float = 1.5, min_progression: float = 0.2):
+
+    def __init__(
+        self,
+        min_body_ratio: float = 0.5,
+        min_engulfing_ratio: float = 1.5,
+        min_progression: float = 0.2,
+    ):
         super().__init__()
-        self.min_body_ratio = min_body_ratio  # Minimum body ratio for first three candles
-        self.min_engulfing_ratio = min_engulfing_ratio  # Minimum engulfing ratio for fourth candle
-        self.min_progression = min_progression  # Minimum progression between first three candles
-        
-    def calculate(self, data: Union[pd.DataFrame, List[Dict[str, Any]]]) -> IndicatorResult:
+        self.min_body_ratio = (
+            min_body_ratio  # Minimum body ratio for first three candles
+        )
+        self.min_engulfing_ratio = (
+            min_engulfing_ratio  # Minimum engulfing ratio for fourth candle
+        )
+        self.min_progression = (
+            min_progression  # Minimum progression between first three candles
+        )
+
+    def calculate(
+        self, data: Union[pd.DataFrame, List[Dict[str, Any]]]
+    ) -> IndicatorResult:
         """
         Calculate Three Line Strike pattern detection.
-        
+
         Args:
             data: OHLCV price data
-            
+
         Returns:
             IndicatorResult with detected patterns
         """
@@ -82,25 +102,31 @@ class ThreeLineStrikePatternEngine(BasePatternEngine):
                     timeframe=TimeFrame.D1,
                     value=[],
                     signal=[],
-                    raw_data={"error": "Insufficient data for pattern detection"}
+                    raw_data={"error": "Insufficient data for pattern detection"},
                 )
-                
+
             # Reset previous results
             self.detected_patterns = []
-            
+
             # Process the data through base pattern engine
             processed_data = self._perform_calculation(data)
-            
+
             # Generate signals from detected patterns
             signals = []
             for pattern in self.detected_patterns:
-                signal_type = SignalType.BUY if pattern.get('pattern_type') == 'bullish_three_line_strike' else SignalType.SELL
-                signals.append({
-                    "type": signal_type,
-                    "confidence": pattern.get('confidence', 0.5),
-                    "strength": pattern.get('strength', 'moderate')
-                })
-            
+                signal_type = (
+                    SignalType.BUY
+                    if pattern.get("pattern_type") == "bullish_three_line_strike"
+                    else SignalType.SELL
+                )
+                signals.append(
+                    {
+                        "type": signal_type,
+                        "confidence": pattern.get("confidence", 0.5),
+                        "strength": pattern.get("strength", "moderate"),
+                    }
+                )
+
             return IndicatorResult(
                 timestamp=datetime.now(),
                 indicator_name="Three Line Strike Pattern",
@@ -110,9 +136,19 @@ class ThreeLineStrikePatternEngine(BasePatternEngine):
                 signal=signals,
                 raw_data={
                     "total_patterns": len(self.detected_patterns),
-                    "pattern_types": {"bullish": sum(1 for p in self.detected_patterns if p.get('pattern_type') == 'bullish_three_line_strike'),
-                                     "bearish": sum(1 for p in self.detected_patterns if p.get('pattern_type') == 'bearish_three_line_strike')},
-                }
+                    "pattern_types": {
+                        "bullish": sum(
+                            1
+                            for p in self.detected_patterns
+                            if p.get("pattern_type") == "bullish_three_line_strike"
+                        ),
+                        "bearish": sum(
+                            1
+                            for p in self.detected_patterns
+                            if p.get("pattern_type") == "bearish_three_line_strike"
+                        ),
+                    },
+                },
             )
         except Exception as e:
             self.logger.error(f"Error in Three Line Strike Pattern calculation: {e}")
@@ -123,233 +159,286 @@ class ThreeLineStrikePatternEngine(BasePatternEngine):
                 timeframe=TimeFrame.DAILY,
                 value=[],
                 signal=[],
-                raw_data={"error": str(e)}
+                raw_data={"error": str(e)},
             )
 
-        
-    def detect_three_line_strike_pattern(self, candles: List[OHLCV]) -> Optional[Dict[str, Any]]:
+    def detect_three_line_strike_pattern(
+        self, candles: List[OHLCV]
+    ) -> Optional[Dict[str, Any]]:
         """
         Detect Three Line Strike pattern in the given candles
-        
+
         Args:
             candles: List of OHLCV data (minimum 4 candles needed)
-            
+
         Returns:
             Pattern detection result or None if no pattern found
         """
         if len(candles) < 4:
             return None
-            
+
         # Get the last four candles
         first_candle = candles[-4]
         second_candle = candles[-3]
         third_candle = candles[-2]
         fourth_candle = candles[-1]
-        
+
         # Check for bullish three line strike pattern
-        bullish_result = self._detect_bullish_three_line_strike(first_candle, second_candle, third_candle, fourth_candle)
+        bullish_result = self._detect_bullish_three_line_strike(
+            first_candle, second_candle, third_candle, fourth_candle
+        )
         if bullish_result:
             return bullish_result
-            
+
         # Check for bearish three line strike pattern
-        bearish_result = self._detect_bearish_three_line_strike(first_candle, second_candle, third_candle, fourth_candle)
+        bearish_result = self._detect_bearish_three_line_strike(
+            first_candle, second_candle, third_candle, fourth_candle
+        )
         if bearish_result:
             return bearish_result
-            
+
         return None
-        
-    def _detect_bullish_three_line_strike(self, first: OHLCV, second: OHLCV, third: OHLCV, fourth: OHLCV) -> Optional[Dict[str, Any]]:
+
+    def _detect_bullish_three_line_strike(
+        self, first: OHLCV, second: OHLCV, third: OHLCV, fourth: OHLCV
+    ) -> Optional[Dict[str, Any]]:
         """Detect bullish three line strike pattern"""
         # First three candles should form three black crows pattern
         three_candles = [first, second, third]
-        
+
         # All first three candles must be bearish
         for candle in three_candles:
             if not self._is_bearish_with_body(candle):
                 return None
-                
+
         # Check progression: each candle closes lower than the previous
         if not (second.close < first.close and third.close < second.close):
             return None
-            
+
         # Check opening within previous body (typical of three black crows)
-        if not (first.close < second.open < first.open and second.close < third.open < second.open):
+        if not (
+            first.close < second.open < first.open
+            and second.close < third.open < second.open
+        ):
             return None
-            
+
         # Fourth candle should be bullish and engulf all three previous candles
         if fourth.close <= fourth.open:  # Must be bullish
             return None
-            
+
         # Fourth candle must engulf the entire range of first three candles
         min_low = min(candle.low for candle in three_candles)
         max_high = max(candle.high for candle in three_candles)
-        
+
         if fourth.open >= min_low or fourth.close <= max_high:
             return None
-            
+
         # Calculate engulfing ratio
         three_candles_range = max_high - min_low
         fourth_body_size = fourth.close - fourth.open
-        engulfing_ratio = fourth_body_size / three_candles_range if three_candles_range > 0 else 0
-        
+        engulfing_ratio = (
+            fourth_body_size / three_candles_range if three_candles_range > 0 else 0
+        )
+
         if engulfing_ratio < self.min_engulfing_ratio:
             return None
-            
+
         # Calculate progression quality of first three candles
-        progression_quality = self._calculate_progression_quality(three_candles, 'bearish')
-        
+        progression_quality = self._calculate_progression_quality(
+            three_candles, "bearish"
+        )
+
         # Calculate strike strength
         strike_strength = self._calculate_strike_strength(fourth, three_candles_range)
-        
+
         # Calculate pattern strength
-        strength = self._calculate_pattern_strength(engulfing_ratio, progression_quality, strike_strength)
-        
+        strength = self._calculate_pattern_strength(
+            engulfing_ratio, progression_quality, strike_strength
+        )
+
         return {
-            'pattern_type': 'bullish_three_line_strike',
-            'confidence': self._calculate_confidence(three_candles, fourth, engulfing_ratio, progression_quality, strike_strength),
-            'engulfing_ratio': engulfing_ratio,
-            'progression_quality': progression_quality,
-            'strike_strength': strike_strength,
-            'strength': strength,
-            'candles': [first, second, third, fourth]
+            "pattern_type": "bullish_three_line_strike",
+            "confidence": self._calculate_confidence(
+                three_candles,
+                fourth,
+                engulfing_ratio,
+                progression_quality,
+                strike_strength,
+            ),
+            "engulfing_ratio": engulfing_ratio,
+            "progression_quality": progression_quality,
+            "strike_strength": strike_strength,
+            "strength": strength,
+            "candles": [first, second, third, fourth],
         }
-        
-    def _detect_bearish_three_line_strike(self, first: OHLCV, second: OHLCV, third: OHLCV, fourth: OHLCV) -> Optional[Dict[str, Any]]:
+
+    def _detect_bearish_three_line_strike(
+        self, first: OHLCV, second: OHLCV, third: OHLCV, fourth: OHLCV
+    ) -> Optional[Dict[str, Any]]:
         """Detect bearish three line strike pattern"""
         # First three candles should form three white soldiers pattern
         three_candles = [first, second, third]
-        
+
         # All first three candles must be bullish
         for candle in three_candles:
             if not self._is_bullish_with_body(candle):
                 return None
-                
+
         # Check progression: each candle closes higher than the previous
         if not (second.close > first.close and third.close > second.close):
             return None
-            
+
         # Check opening within previous body (typical of three white soldiers)
-        if not (first.open < second.open < first.close and second.open < third.open < second.close):
+        if not (
+            first.open < second.open < first.close
+            and second.open < third.open < second.close
+        ):
             return None
-            
+
         # Fourth candle should be bearish and engulf all three previous candles
         if fourth.close >= fourth.open:  # Must be bearish
             return None
-            
+
         # Fourth candle must engulf the entire range of first three candles
         min_low = min(candle.low for candle in three_candles)
         max_high = max(candle.high for candle in three_candles)
-        
+
         if fourth.open <= max_high or fourth.close >= min_low:
             return None
-            
+
         # Calculate engulfing ratio
         three_candles_range = max_high - min_low
         fourth_body_size = fourth.open - fourth.close
-        engulfing_ratio = fourth_body_size / three_candles_range if three_candles_range > 0 else 0
-        
+        engulfing_ratio = (
+            fourth_body_size / three_candles_range if three_candles_range > 0 else 0
+        )
+
         if engulfing_ratio < self.min_engulfing_ratio:
             return None
-            
+
         # Calculate progression quality of first three candles
-        progression_quality = self._calculate_progression_quality(three_candles, 'bullish')
-        
+        progression_quality = self._calculate_progression_quality(
+            three_candles, "bullish"
+        )
+
         # Calculate strike strength
         strike_strength = self._calculate_strike_strength(fourth, three_candles_range)
-        
+
         # Calculate pattern strength
-        strength = self._calculate_pattern_strength(engulfing_ratio, progression_quality, strike_strength)
-        
+        strength = self._calculate_pattern_strength(
+            engulfing_ratio, progression_quality, strike_strength
+        )
+
         return {
-            'pattern_type': 'bearish_three_line_strike',
-            'confidence': self._calculate_confidence(three_candles, fourth, engulfing_ratio, progression_quality, strike_strength),
-            'engulfing_ratio': engulfing_ratio,
-            'progression_quality': progression_quality,
-            'strike_strength': strike_strength,
-            'strength': strength,
-            'candles': [first, second, third, fourth]
+            "pattern_type": "bearish_three_line_strike",
+            "confidence": self._calculate_confidence(
+                three_candles,
+                fourth,
+                engulfing_ratio,
+                progression_quality,
+                strike_strength,
+            ),
+            "engulfing_ratio": engulfing_ratio,
+            "progression_quality": progression_quality,
+            "strike_strength": strike_strength,
+            "strength": strength,
+            "candles": [first, second, third, fourth],
         }
-        
+
     def _is_bullish_with_body(self, candle: OHLCV) -> bool:
         """Check if candle is bullish with substantial body"""
         if candle.close <= candle.open:
             return False
-            
+
         body_size = candle.close - candle.open
         total_range = candle.high - candle.low
-        
+
         if total_range == 0:
             return False
-            
+
         body_ratio = body_size / total_range
         return body_ratio >= self.min_body_ratio
-        
+
     def _is_bearish_with_body(self, candle: OHLCV) -> bool:
         """Check if candle is bearish with substantial body"""
         if candle.close >= candle.open:
             return False
-            
+
         body_size = candle.open - candle.close
         total_range = candle.high - candle.low
-        
+
         if total_range == 0:
             return False
-            
+
         body_ratio = body_size / total_range
         return body_ratio >= self.min_body_ratio
-        
-    def _calculate_progression_quality(self, candles: List[OHLCV], direction: str) -> float:
+
+    def _calculate_progression_quality(
+        self, candles: List[OHLCV], direction: str
+    ) -> float:
         """Calculate quality of progression in first three candles"""
-        if direction == 'bearish':
+        if direction == "bearish":
             progressions = [
                 candles[0].close - candles[1].close,
-                candles[1].close - candles[2].close
+                candles[1].close - candles[2].close,
             ]
         else:  # bullish
             progressions = [
                 candles[1].close - candles[0].close,
-                candles[2].close - candles[1].close
+                candles[2].close - candles[1].close,
             ]
-            
+
         # Check consistency of progression
         avg_progression = sum(progressions) / len(progressions)
         total_range = sum(candle.high - candle.low for candle in candles) / len(candles)
-        
+
         if total_range == 0:
             return 0
-            
+
         progression_ratio = avg_progression / total_range
         return min(1.0, max(0.0, progression_ratio / self.min_progression))
-        
-    def _calculate_strike_strength(self, strike_candle: OHLCV, three_candles_range: float) -> float:
+
+    def _calculate_strike_strength(
+        self, strike_candle: OHLCV, three_candles_range: float
+    ) -> float:
         """Calculate strength of the strike candle"""
         strike_body = abs(strike_candle.close - strike_candle.open)
         strike_range = strike_candle.high - strike_candle.low
-        
+
         if strike_range == 0:
             return 0
-            
+
         body_ratio = strike_body / strike_range
-        size_ratio = strike_range / three_candles_range if three_candles_range > 0 else 0
-        
+        size_ratio = (
+            strike_range / three_candles_range if three_candles_range > 0 else 0
+        )
+
         return (body_ratio + size_ratio) / 2
-        
-    def _calculate_pattern_strength(self, engulfing_ratio: float, progression_quality: float, strike_strength: float) -> str:
+
+    def _calculate_pattern_strength(
+        self, engulfing_ratio: float, progression_quality: float, strike_strength: float
+    ) -> str:
         """Calculate pattern strength based on all components"""
         overall_score = (engulfing_ratio + progression_quality + strike_strength) / 3
-        
+
         if overall_score >= 2.0:
-            return 'strong'
+            return "strong"
         elif overall_score >= 1.5:
-            return 'moderate'
+            return "moderate"
         else:
-            return 'weak'
-            
-    def _calculate_confidence(self, three_candles: List[OHLCV], fourth: OHLCV,
-                            engulfing_ratio: float, progression_quality: float, strike_strength: float) -> float:
+            return "weak"
+
+    def _calculate_confidence(
+        self,
+        three_candles: List[OHLCV],
+        fourth: OHLCV,
+        engulfing_ratio: float,
+        progression_quality: float,
+        strike_strength: float,
+    ) -> float:
         """Calculate pattern confidence score"""
         confidence = 0.5  # Base confidence
-        
+
         # Add confidence based on engulfing strength
         if engulfing_ratio >= 2.0:
             confidence += 0.2
@@ -357,7 +446,7 @@ class ThreeLineStrikePatternEngine(BasePatternEngine):
             confidence += 0.15
         else:
             confidence += 0.1
-            
+
         # Add confidence based on progression quality
         if progression_quality >= 0.8:
             confidence += 0.15
@@ -365,7 +454,7 @@ class ThreeLineStrikePatternEngine(BasePatternEngine):
             confidence += 0.1
         else:
             confidence += 0.05
-            
+
         # Add confidence based on strike strength
         if strike_strength >= 0.8:
             confidence += 0.15
@@ -373,48 +462,57 @@ class ThreeLineStrikePatternEngine(BasePatternEngine):
             confidence += 0.1
         else:
             confidence += 0.05
-            
+
         # Add confidence based on fourth candle body strength
         fourth_body_size = abs(fourth.close - fourth.open)
         fourth_range = fourth.high - fourth.low
         fourth_body_ratio = fourth_body_size / fourth_range if fourth_range > 0 else 0
-        
+
         if fourth_body_ratio >= 0.8:
             confidence += 0.1
         elif fourth_body_ratio >= 0.6:
             confidence += 0.05
-            
+
         return min(confidence, 0.95)  # Cap at 95%
-        
+
     def generate_signal(self, pattern_data: Dict[str, Any]) -> ThreeLineStrikeSignal:
         """Generate trading signal from pattern detection"""
-        candles = pattern_data['candles']
+        candles = pattern_data["candles"]
         fourth_candle = candles[-1]
-        
-        if pattern_data['pattern_type'] == 'bullish_three_line_strike':
+
+        if pattern_data["pattern_type"] == "bullish_three_line_strike":
             entry_price = fourth_candle.close
             stop_loss = min(candle.low for candle in candles) * 0.995  # 0.5% buffer
-            target_price = entry_price + (entry_price - stop_loss) * 2.5  # 2.5:1 R/R ratio
+            target_price = (
+                entry_price + (entry_price - stop_loss) * 2.5
+            )  # 2.5:1 R/R ratio
         else:  # bearish_three_line_strike
             entry_price = fourth_candle.close
             stop_loss = max(candle.high for candle in candles) * 1.005  # 0.5% buffer
-            target_price = entry_price - (stop_loss - entry_price) * 2.5  # 2.5:1 R/R ratio
-            
+            target_price = (
+                entry_price - (stop_loss - entry_price) * 2.5
+            )  # 2.5:1 R/R ratio
+
         return ThreeLineStrikeSignal(
-            pattern_type=pattern_data['pattern_type'],
-            confidence=pattern_data['confidence'],
+            pattern_type=pattern_data["pattern_type"],
+            confidence=pattern_data["confidence"],
             entry_price=entry_price,
             stop_loss=stop_loss,
             target_price=target_price,
             timestamp=fourth_candle.timestamp,
             candles_involved=candles,
-            engulfing_ratio=pattern_data['engulfing_ratio'],
-            progression_quality=pattern_data['progression_quality'],
-            strike_strength=pattern_data['strike_strength'],
-            strength=pattern_data['strength']
+            engulfing_ratio=pattern_data["engulfing_ratio"],
+            progression_quality=pattern_data["progression_quality"],
+            strike_strength=pattern_data["strike_strength"],
+            strength=pattern_data["strength"],
         )
-          def validate_pattern(self, pattern_data: Dict[str, Any]) -> bool:
+
+    def validate_pattern(self, pattern_data: Dict[str, Any]) -> bool:
         """Validate the detected pattern"""
-        if pattern_data is None or not pattern_data.get('candles') or len(pattern_data.get('candles', [])) < 4:
+        if (
+            pattern_data is None
+            or not pattern_data.get("candles")
+            or len(pattern_data.get("candles", [])) < 4
+        ):
             return False
         return True

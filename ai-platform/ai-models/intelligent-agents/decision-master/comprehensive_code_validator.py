@@ -5,14 +5,19 @@ Validates imports, class definitions, method signatures, and overall code health
 """
 
 import ast
+import os
 import sys
 import importlib.util
 from pathlib import Path
 
+# Get project root once at module level
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+
 def validate_code_structure():
     """Validate the overall code structure"""
     
-    model_path = Path("d:/MD/Platform3/ai-platform/ai-models/intelligent-agents/decision-master/model.py")
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+    model_path = Path(f"{project_root}/ai-platform/ai-models/intelligent-agents/decision-master/model.py")
     
     if not model_path.exists():
         print("❌ ERROR: model.py file not found")
@@ -119,7 +124,7 @@ def check_import_issues():
     print("\n🔍 CHECKING IMPORT DEPENDENCIES...")
     
     # Check if enum and dataclasses imports are at the top
-    model_path = Path("d:/MD/Platform3/ai-platform/ai-models/intelligent-agents/decision-master/model.py")
+    model_path = Path(f"{project_root}/ai-platform/ai-models/intelligent-agents/decision-master/model.py")
     
     with open(model_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
@@ -150,7 +155,7 @@ def validate_integration_points():
     
     print("\n🔍 CHECKING INTEGRATION POINTS...")
     
-    model_path = Path("d:/MD/Platform3/ai-platform/ai-models/intelligent-agents/decision-master/model.py")
+    model_path = Path(f"{project_root}/ai-platform/ai-models/intelligent-agents/decision-master/model.py")
     
     with open(model_path, 'r', encoding='utf-8') as f:
         content = f.read()
@@ -179,7 +184,7 @@ def check_code_quality():
     
     print("\n🔍 CHECKING CODE QUALITY...")
     
-    model_path = Path("d:/MD/Platform3/ai-platform/ai-models/intelligent-agents/decision-master/model.py")
+    model_path = Path(f"{project_root}/ai-platform/ai-models/intelligent-agents/decision-master/model.py")
     
     with open(model_path, 'r', encoding='utf-8') as f:
         content = f.read()

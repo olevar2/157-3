@@ -176,7 +176,9 @@ class RequestCorrelationTracker:
 class Platform3CorrelationSystem:
     """Main correlation and circuit breaker system for Platform3"""
     
-    def __init__(self, base_path: str = r"d:\MD\Platform3"):
+    def __init__(self, base_path: str = None):
+        if base_path is None:
+            base_path = str(Path(__file__).parent.parent.parent)
         self.base_path = Path(base_path)
         self.tracker = RequestCorrelationTracker()
         self.circuit_breakers = {}

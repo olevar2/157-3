@@ -1269,7 +1269,7 @@ class AdaptiveIndicatorBridge:
         Map each genius agent to their comprehensive indicator sets 
         Phase 4B CRITICAL IMPLEMENTATION - Recovery Plan Requirements
         
-        ⚠️ RECOVERY PLAN REQUIREMENTS:
+        [WARN] RECOVERY PLAN REQUIREMENTS:
         - RISK_GENIUS: 35+ indicators (currently 9) 
         - PATTERN_MASTER: 60+ indicators (currently 3)
         - EXECUTION_EXPERT: 40+ indicators (ALL VOLUME + microstructure)

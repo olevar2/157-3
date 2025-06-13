@@ -65,7 +65,10 @@ class MLOpsService:
     Handles versioning, deployment, monitoring, and automation
     """
     
-    def __init__(self, mlops_root: str = "D:/MD/Platform3/ai-platform/mlops"):
+    def __init__(self, mlops_root: str = None):
+        if mlops_root is None:
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+            mlops_root = os.path.join(project_root, "ai-platform", "mlops")
         self.mlops_root = Path(mlops_root)
         self.models_store = self.mlops_root / "model-store"
         self.configs_store = self.mlops_root / "configs"
