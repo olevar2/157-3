@@ -1,0 +1,16 @@
+environments:
+  production:
+    auto_rollback: true
+    backup_retention_days: 30
+    target_path: /opt/platform3/production
+  staging:
+    auto_rollback: true
+    backup_retention_days: 7
+    target_path: /opt/platform3/staging
+global_settings:
+  default_timeout: 3600
+  max_concurrent_deployments: 3
+  monitoring_enabled: true
+  notification_channels:
+  - email
+  - slack

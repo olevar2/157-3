@@ -1,0 +1,26 @@
+default_thresholds:
+  cpu_scale_down: 30.0
+  cpu_scale_up: 70.0
+  memory_scale_down: 40.0
+  memory_scale_up: 80.0
+  response_time_scale_down: 500.0
+  response_time_scale_up: 2000.0
+global_settings:
+  emergency_scaling_enabled: true
+  max_scaling_events_per_hour: 10
+  metric_retention_hours: 24
+  monitoring_interval: 30
+  notifications_enabled: true
+services:
+  api_server:
+    desired_instances: 2
+    max_instances: 5
+    min_instances: 1
+  web_server:
+    desired_instances: 3
+    max_instances: 10
+    min_instances: 2
+  worker_service:
+    desired_instances: 2
+    max_instances: 8
+    min_instances: 1

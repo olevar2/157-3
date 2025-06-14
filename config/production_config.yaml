@@ -1,0 +1,43 @@
+database_settings:
+  connection_timeout: 30
+  max_overflow: 30
+  pool_size: 20
+  type: postgresql
+environment_variables:
+  CACHE_ENABLED: 'true'
+  LOG_LEVEL: INFO
+  MAX_WORKERS: auto
+  MONITORING_ENABLED: 'true'
+  PLATFORM3_ENV: production
+hardware_requirements:
+  gpu_required: false
+  min_cpu_cores: 4
+  min_disk_gb: 50
+  min_ram_gb: 8
+name: Platform3_Production
+network_configuration:
+  max_connections: 1000
+  ports:
+  - 8000
+  - 8001
+  - 8002
+  timeout_seconds: 30
+python_version: 3.9+
+required_packages:
+- asyncio
+- aiohttp
+- psutil
+- pyyaml
+- numpy
+- pandas
+- scikit-learn
+- torch
+- transformers
+- docker
+- kubernetes
+security_settings:
+  api_rate_limiting: true
+  auth_required: true
+  data_encryption: true
+  ssl_enabled: true
+version: 1.0.0

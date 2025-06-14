@@ -1,0 +1,21 @@
+monitoring_settings:
+  alert_thresholds:
+    cpu_percent: 80
+    disk_percent: 90
+    memory_percent: 85
+    response_time_ms: 5000
+  enabled: true
+  interval_seconds: 60
+notification_settings:
+  channels:
+  - email
+  - slack
+  critical_only: false
+  enabled: true
+validation_settings:
+  default_timeout: 30
+  max_concurrent_checks: 10
+  parallel_checks: true
+  retry_count: 3
+  retry_delay: 5
+  retry_failed_checks: true
